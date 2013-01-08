@@ -351,6 +351,7 @@ void perfmon_stop()
 
 void perfmon_end()
 {
+	char tstring[100];
 	uint32 nrcores = m->getNumCores();        	
 	fplist0 = new ofstream[nrcores];
 	fplist1 = new ofstream[nrcores];
@@ -362,28 +363,30 @@ void perfmon_end()
 		stringstream ss0;
 		list<uint64>::iterator it;
 		ss0 << "Custom_0_" << i << ".txt";
-		fplist0[i].open(ss0.str());
+		//strcpy(ss0.str(),tstring);
+		fplist0[i].open(ss0.str().c_str());
+		//fplist0[i].open(tstring);
   	    for (it =  plists0[i].begin(); it != plists0[i].end(); ++it)
 			fplist0[i] << *it << " ";
 		fplist0[i].close();
 
 		stringstream ss1;
 		ss1 << "Custom_1_" << i << ".txt";
-		fplist1[i].open(ss1.str());
+		fplist1[i].open(ss1.str().c_str());
   	    for (it =  plists1[i].begin(); it != plists1[i].end(); ++it)
 			fplist1[i] << *it << " ";
 		fplist1[i].close();
 
 		stringstream ss2;
 		ss2 << "Custom_2_" << i << ".txt";
-		fplist2[i].open(ss2.str());
+		fplist2[i].open(ss2.str().c_str());
   	    for (it =  plists2[i].begin(); it != plists2[i].end(); ++it)
 			fplist2[i] << *it << " ";
 		fplist2[i].close();
 
 		stringstream ss3;
 		ss3 << "Custom_3_" << i << ".txt";
-		fplist3[i].open(ss3.str());
+		fplist3[i].open(ss3.str().c_str());
   	    for (it =  plists3[i].begin(); it != plists3[i].end(); ++it)
 			fplist3[i] << *it << " ";
 		fplist3[i].close();
@@ -394,12 +397,12 @@ void perfmon_end()
 
 
 	PCM::getInstance()->cleanup();	
-    delete[] cstates1;
+    /*delete[] cstates1;
     delete[] cstates2;
     delete[] sktstate1;
     delete[] sktstate2;
 	delete[] sstate1;
-	delete[] sstate2; 
+	delete[] sstate2; */
 	flog.close();
 	std::cout.rdbuf(coutbuf);
 }

@@ -11,6 +11,7 @@ package services
 
 import java.io._
 
+
 object CommandService {
 
   def runCommand(workingDirectory : String, command: String, arguments : Array[String] )
@@ -25,8 +26,9 @@ object CommandService {
 
   def rungnuplot(arguments : String) =
   {
+
     val runtime = java.lang.Runtime.getRuntime()
-    val compileProcess = runtime.exec("C:\\Program Files (x86)\\gnuplot\\bin\\gnuplot.exe " + arguments)
+    val compileProcess = runtime.exec(Config.gnuplot + " " + arguments)
     val stderr = new BufferedReader(new InputStreamReader(compileProcess.getErrorStream()));
 
     var line: String = null //need to use the stderr buffer - otherwise it will hang on windows
