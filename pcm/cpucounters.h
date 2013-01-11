@@ -272,7 +272,7 @@ private:
 public:
 
 	//GO:
-	uint64 PCM::getCorerunningPerf()
+	uint64 getCorerunningPerf()
 	{
 		return this->core_running_perf;
 	}

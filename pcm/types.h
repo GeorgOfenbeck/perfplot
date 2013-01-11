@@ -115,6 +115,10 @@ typedef signed int int32;
 #define SIMD_FP_256_PACKED_DOUBLE_EVTNR (0x11) 
 #define SIMD_FP_256_PACKED_DOUBLE_UMASK (0x02)
 
+
+#define UNC_L3_MISS_ANY_EVTNR (0x09)
+#define UNC_L3_MISS_ANY_UMASK (0x03)
+
 //--------------------------------------------------------------
 
 // architectural on-core events

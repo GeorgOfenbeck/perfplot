@@ -352,7 +352,8 @@ PCM::PCM() :
     cpu_family = (((cpuinfo.array[0]) >> 8) & 0xf) | ((cpuinfo.array[0] & 0xf00000) >> 16);
     cpu_model = (((cpuinfo.array[0]) & 0xf0) >> 4) | ((cpuinfo.array[0] & 0xf0000) >> 12);
 
-	core_running_perf = cpuinfo.array[1] >> 25;
+	//core_running_perf = cpuinfo.array[1] >> 25;
+	core_running_perf = 99;
 
     if (max_cpuid >= 0xa)
     {
@@ -393,6 +394,8 @@ PCM::PCM() :
     char * slpi = new char[sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)];
     DWORD len = sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX);
     DWORD res = GetLogicalProcessorInformationEx(RelationAll, (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)slpi, &len);
+	DWORD cur_core =  GetCurrentProcessorNumber();
+	core_running_perf = cur_core;
 
     while (res == FALSE)
     {
@@ -468,7 +471,8 @@ PCM::PCM() :
     SYSTEM_LOGICAL_PROCESSOR_INFORMATION * slpi = new SYSTEM_LOGICAL_PROCESSOR_INFORMATION[1];
     DWORD len = sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION);
     DWORD res = GetLogicalProcessorInformation(slpi, &len);
-
+	DWORD cur_core =  GetCurrentProcessorNumber();
+	core_running_perf = cur_core;
     while (res == FALSE)
     {
         delete[] slpi;

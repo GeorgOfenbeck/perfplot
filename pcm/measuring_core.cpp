@@ -137,6 +137,7 @@ SocketCounterState * sktstate2;
 SystemCounterState *sstate1;
 SystemCounterState *sstate2;
 
+long cycles_a, cycles_b;
 
  ofstream flog;
 
@@ -153,11 +154,17 @@ SystemCounterState *sstate2;
  list<uint64> *plists1;
  list<uint64> *plists2;
  list<uint64> *plists3;
+ list<uint64> *plist_cycles;
+ list<uint64> *plist_refcycles;
+ list<uint64> *plist_tsc;
 
  ofstream * fplist0;
  ofstream * fplist1;
  ofstream * fplist2;
  ofstream * fplist3;
+ ofstream * fplist_cycles;
+ ofstream * fplist_refcycles;
+ ofstream * fplist_tsc;
  
 
 
@@ -218,6 +225,7 @@ int perfmon_init(int type, bool flushData = false, bool flushICache = false, boo
 	case 1:		
 		//GO: FLOP (Double) Events
 		{
+			
 			PCM::CustomCoreEventDescription events[4];	
 			events[0].event_number = FP_COMP_OPS_EXE_SSE_SCALAR_DOUBLE_EVTNR;
 			events[0].umask_value = FP_COMP_OPS_EXE_SSE_SCALAR_DOUBLE_UMASK;	
@@ -228,7 +236,7 @@ int perfmon_init(int type, bool flushData = false, bool flushICache = false, boo
 			events[2].event_number = SIMD_FP_256_PACKED_DOUBLE_EVTNR;
 			events[2].umask_value = SIMD_FP_256_PACKED_DOUBLE_UMASK;
 
-			events[3].event_number = FP_COMP_OPS_EXE_SSE_FP_SCALAR_SINGLE_EVTNR;
+			events[3].event_number = FP_COMP_OPS_EXE_SSE_FP_SCALAR_SINGLE_EVTNR; //event 3 needs to be set to something usefull
 			events[3].umask_value = FP_COMP_OPS_EXE_SSE_FP_SCALAR_SINGLE_UMASK;
 
 			status = m->program(PCM::CUSTOM_CORE_EVENTS,events);
@@ -247,12 +255,35 @@ int perfmon_init(int type, bool flushData = false, bool flushICache = false, boo
 			events[2].event_number = SIMD_FP_256_PACKED_SINGLE_EVTNR;
 			events[2].umask_value = SIMD_FP_256_PACKED_SINGLE_UMASK;
 
-			events[3].event_number = FP_COMP_OPS_EXE_SSE_FP_SCALAR_SINGLE_EVTNR;
-			events[3].umask_value = FP_COMP_OPS_EXE_SSE_FP_SCALAR_SINGLE_UMASK;
+			events[3].event_number = FP_COMP_OPS_EXE_SSE_FP_PACKED_DOUBLE_EVTNR; //event 3 needs to be set to something usefull
+			events[3].umask_value = FP_COMP_OPS_EXE_SSE_FP_PACKED_DOUBLE_UMASK;
 
 			status = m->program(PCM::CUSTOM_CORE_EVENTS,events);
 		}
 		break;
+
+	case 3: 
+		//GO: FLOP (Single) Events
+		{
+			PCM::CustomCoreEventDescription events[4];	
+			events[0].event_number = ARCH_LLC_REFERENCE_EVTNR;
+			events[0].umask_value =  ARCH_LLC_REFERENCE_UMASK;
+
+			events[1].event_number = ARCH_LLC_MISS_EVTNR;
+			events[1].umask_value = ARCH_LLC_MISS_UMASK;
+
+			events[2].event_number = UNC_L3_MISS_ANY_EVTNR;
+			events[2].umask_value = UNC_L3_MISS_ANY_UMASK;
+
+			events[3].event_number = MEM_LOAD_RETIRED_L2_HIT_EVTNR;
+			events[3].umask_value = MEM_LOAD_RETIRED_L2_HIT_UMASK;
+
+			status = m->program(PCM::CUSTOM_CORE_EVENTS,events);
+		}
+		break;
+
+
+
 	default:
 		cout << "Unknown Measurement Type in call to perfmon_init" << endl;
         return -1;
@@ -294,10 +325,18 @@ int perfmon_init(int type, bool flushData = false, bool flushICache = false, boo
 	fArchCodename << m->getUArchCodename();
 	fCPUBrandString.close();
 
+	/*
 	ofstream fcorerunningperf;
 	fcorerunningperf.open("CorerunningPerf.txt");
 	fcorerunningperf << m->getCorerunningPerf();
 	fcorerunningperf.close();
+	*/
+
+	ofstream fnrcores;
+	fnrcores.open("NrCores.txt");
+	fnrcores << m->getNumCores();
+	fnrcores.close();
+
 
    uint32 nrcores = m->getNumCores();     
    
@@ -306,6 +345,11 @@ int perfmon_init(int type, bool flushData = false, bool flushICache = false, boo
    plists2 = new list<uint64>[nrcores];
    plists3 = new list<uint64>[nrcores];
 
+
+   plist_cycles = new list<uint64>[nrcores]; //saving rtdsc here
+   plist_refcycles = new list<uint64>[nrcores]; //saving rtdsc here
+   plist_tsc = new list<uint64>[nrcores]; //saving rtdsc here
+
 //	PCM::getInstance()->cleanup();
 
 
@@ -313,6 +357,18 @@ int perfmon_init(int type, bool flushData = false, bool flushICache = false, boo
 
 void perfmon_start ()
 {
+
+	/*long ret = SetThreadIdealProcessor(GetCurrentThread(),0);
+	if (ret == -1)
+		ret = GetLastError() * 100;
+	DWORD cur_core =  GetCurrentProcessorNumber();	//GO TODO: this only works with windows!
+	long out = cur_core; */
+	ofstream fcorerunningperf;
+	fcorerunningperf.open("CorerunningPerf.txt");
+	fcorerunningperf << "0";
+	fcorerunningperf.close();
+	
+
 	cstates1 = new  CoreCounterState[PCM::getInstance()->getNumCores()];
     cstates2 = new  CoreCounterState[PCM::getInstance()->getNumCores()];
     sktstate1 = new SocketCounterState[m->getNumSockets()];
@@ -325,6 +381,8 @@ void perfmon_start ()
         sktstate1[i] = getSocketCounterState(i);
     for (uint32 i = 0; i < m->getNumCores(); ++i)
         cstates1[i] = getCoreCounterState(i);
+
+	
 }
 
 
@@ -342,6 +400,9 @@ void perfmon_stop()
 		plists1[i].push_front(getCustom1(cstates1[i], cstates2[i]));
 		plists2[i].push_front(getCustom2(cstates1[i], cstates2[i]));
 		plists3[i].push_front(getCustom3(cstates1[i], cstates2[i]));
+		plist_cycles[i].push_front(getCycles(cstates1[i], cstates2[i]));
+		plist_refcycles[i].push_front(getRefCycles(cstates1[i], cstates2[i]));
+		plist_tsc[i].push_front(getInvariantTSC(cstates1[i], cstates2[i]));
 	}			
 }
 
@@ -357,12 +418,15 @@ void perfmon_end()
 	fplist1 = new ofstream[nrcores];
 	fplist2 = new ofstream[nrcores];
 	fplist3 = new ofstream[nrcores];
+	fplist_cycles = new ofstream[nrcores];
+	fplist_refcycles = new ofstream[nrcores];
+	fplist_tsc = new ofstream[nrcores];
 	
 	for (uint32 i = 0; i < m->getNumCores(); ++i)
 	{	
 		stringstream ss0;
 		list<uint64>::iterator it;
-		ss0 << "Custom_0_" << i << ".txt";
+		ss0 << "Custom_ev0_core" << i << ".txt";
 		//strcpy(ss0.str(),tstring);
 		fplist0[i].open(ss0.str().c_str());
 		//fplist0[i].open(tstring);
@@ -371,27 +435,46 @@ void perfmon_end()
 		fplist0[i].close();
 
 		stringstream ss1;
-		ss1 << "Custom_1_" << i << ".txt";
+		ss1 << "Custom_ev1_core" << i << ".txt";
 		fplist1[i].open(ss1.str().c_str());
   	    for (it =  plists1[i].begin(); it != plists1[i].end(); ++it)
 			fplist1[i] << *it << " ";
 		fplist1[i].close();
 
 		stringstream ss2;
-		ss2 << "Custom_2_" << i << ".txt";
+		ss2 << "Custom_ev2_core" << i << ".txt";
 		fplist2[i].open(ss2.str().c_str());
   	    for (it =  plists2[i].begin(); it != plists2[i].end(); ++it)
 			fplist2[i] << *it << " ";
 		fplist2[i].close();
 
 		stringstream ss3;
-		ss3 << "Custom_3_" << i << ".txt";
+		ss3 << "Custom_ev3_core" << i << ".txt";
 		fplist3[i].open(ss3.str().c_str());
   	    for (it =  plists3[i].begin(); it != plists3[i].end(); ++it)
 			fplist3[i] << *it << " ";
 		fplist3[i].close();
 
+		stringstream ss4;
+		ss4 << "Cycles_core_" << i << ".txt";
+		fplist_cycles[i].open(ss4.str().c_str());
+  	    for (it =  plist_cycles[i].begin(); it != plist_cycles[i].end(); ++it)
+			fplist_cycles[i] << *it << " ";
+		fplist_cycles[i].close();
 
+		stringstream ss5;
+		ss5 << "RefCycles_core_" << i << ".txt";
+		fplist_refcycles[i].open(ss5.str().c_str());
+  	    for (it =  plist_refcycles[i].begin(); it != plist_refcycles[i].end(); ++it)
+			fplist_refcycles[i] << *it << " ";
+		fplist_refcycles[i].close();
+
+		stringstream ss6;
+		ss6 << "TSC_core_" << i << ".txt";
+		fplist_tsc[i].open(ss6.str().c_str());
+  	    for (it =  plist_tsc[i].begin(); it != plist_tsc[i].end(); ++it)
+			fplist_tsc[i] << *it << " ";
+		fplist_tsc[i].close();
 		
 	}
 
