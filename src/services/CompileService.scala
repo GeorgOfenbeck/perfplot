@@ -36,7 +36,7 @@ object CompileService {
     {
       val cmdbat = new PrintStream("C:\\Users\\ofgeorg\\command.bat")
       cmdbat.println("echo \"compiling !\"")
-      cmdbat.println("\"" + compiler.getAbsolutePath +"\" " + codeFile +".cpp -o "  + codeFile +".exe  /link C:\\Users\\ofgeorg\\IdeaProjects\\perfplot\\pcm\\MeasuringCore.lib /DYNAMICBASE \"kernel32.lib\" \"user32.lib\" \"gdi32.lib\" \"winspool.lib\" \"comdlg32.lib\" \"advapi32.lib\" \"shell32.lib\" \"ole32.lib\" \"oleaut32.lib\" \"uuid.lib\" \"odbc32.lib\" \"odbccp32.lib\" ")
+      cmdbat.println("\"" + compiler.getAbsolutePath +"\" " + codeFile +".cpp -o "  + codeFile +".exe  /O3 /QxAVX /Quse-intel-optimized-headers /link C:\\Users\\ofgeorg\\IdeaProjects\\perfplot\\pcm\\MeasuringCore.lib /DYNAMICBASE \"kernel32.lib\" \"user32.lib\" \"gdi32.lib\" \"winspool.lib\" \"comdlg32.lib\" \"advapi32.lib\" \"shell32.lib\" \"ole32.lib\" \"oleaut32.lib\" \"uuid.lib\" \"odbc32.lib\" \"odbccp32.lib\" ")
 
       cmdbat.println("echo \"finished\"")
       cmdbat.close()

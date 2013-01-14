@@ -41,6 +41,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include "measuring_core.h"
 
 
+
 #define SIZE (10000000)
 #define DELAY 1 // in seconds
 
@@ -158,6 +159,10 @@ long cycles_a, cycles_b;
  list<uint64> *plist_refcycles;
  list<uint64> *plist_tsc;
 
+ list<uint64> *plist_mcread;
+ list<uint64> *plist_mcwrite;
+
+
  ofstream * fplist0;
  ofstream * fplist1;
  ofstream * fplist2;
@@ -165,6 +170,8 @@ long cycles_a, cycles_b;
  ofstream * fplist_cycles;
  ofstream * fplist_refcycles;
  ofstream * fplist_tsc;
+ ofstream * fplist_mcread;
+ ofstream * fplist_mcwrite;
  
 
 
@@ -300,8 +307,9 @@ int perfmon_init(int type, bool flushData = false, bool flushICache = false, boo
     case PCM::PMUBusy:
         cout << "Access to Intel(r) Performance Counter Monitor has denied (Performance Monitoring Unit is occupied by other application). Try to stop the application that uses PMU." << endl;
         cout << "Alternatively you can try to reset PMU configuration at your own risk. Try to reset? (y/n)" << endl;
-        char yn;
-        std::cin >> yn;
+		char yn;
+		yn = 'y'; //GO: what could possibly go wrong ;P		
+        //std::cin >> yn;
         if ('y' == yn)
         {
             m->resetPMU();
@@ -350,9 +358,12 @@ int perfmon_init(int type, bool flushData = false, bool flushICache = false, boo
    plist_refcycles = new list<uint64>[nrcores]; //saving rtdsc here
    plist_tsc = new list<uint64>[nrcores]; //saving rtdsc here
 
+   plist_mcread = new list<uint64>[1]; //GO: fixme multi socket
+   plist_mcwrite = new list<uint64>[1];
+
 //	PCM::getInstance()->cleanup();
-
-
+   
+   
 }
 
 void perfmon_start ()
@@ -402,8 +413,14 @@ void perfmon_stop()
 		plists3[i].push_front(getCustom3(cstates1[i], cstates2[i]));
 		plist_cycles[i].push_front(getCycles(cstates1[i], cstates2[i]));
 		plist_refcycles[i].push_front(getRefCycles(cstates1[i], cstates2[i]));
-		plist_tsc[i].push_front(getInvariantTSC(cstates1[i], cstates2[i]));
+		plist_tsc[i].push_front(getInvariantTSC(cstates1[i], cstates2[i]));		
 	}			
+
+	plist_mcread[0].push_front(getBytesReadFromMC(sktstate1[0], sktstate2[0]));
+	plist_mcwrite[0].push_front(getBytesWrittenToMC(sktstate1[0], sktstate2[0]));
+
+
+
 }
 
 
@@ -421,11 +438,15 @@ void perfmon_end()
 	fplist_cycles = new ofstream[nrcores];
 	fplist_refcycles = new ofstream[nrcores];
 	fplist_tsc = new ofstream[nrcores];
-	
+
+	fplist_mcread = new ofstream[1];
+	fplist_mcwrite = new ofstream[1];
+
+	list<uint64>::iterator it;
 	for (uint32 i = 0; i < m->getNumCores(); ++i)
 	{	
 		stringstream ss0;
-		list<uint64>::iterator it;
+		
 		ss0 << "Custom_ev0_core" << i << ".txt";
 		//strcpy(ss0.str(),tstring);
 		fplist0[i].open(ss0.str().c_str());
@@ -477,8 +498,22 @@ void perfmon_end()
 		fplist_tsc[i].close();
 		
 	}
+	
+	stringstream ss_read;
+	ss_read << "MC_read.txt";
+	fplist_mcread[0].open(ss_read.str().c_str());	
+	for (it =  plist_mcread[0].begin(); it != plist_mcread[0].end(); ++it)
+		fplist_mcread[0] << *it << " ";
+	fplist_mcread[0].close();
 
-
+	stringstream ss_write;
+	ss_write << "MC_write.txt";
+	fplist_mcwrite[0].open(ss_write.str().c_str());  	
+	for (it =  plist_mcwrite[0].begin(); it != plist_mcwrite[0].end(); ++it)
+		fplist_mcwrite[0] << *it << " ";
+	fplist_mcwrite[0].close();
+	
+	
 	PCM::getInstance()->cleanup();	
     /*delete[] cstates1;
     delete[] cstates2;

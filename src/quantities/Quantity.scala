@@ -18,7 +18,19 @@ case class flops(value: Double) extends OperationCount
 case class fladds(value: Double) extends OperationCount
 case class flmults(value: Double) extends OperationCount
 
+
+trait ByteCount extends Quantity
+case class TransferredBytes(value: Double) extends ByteCount
+
+
+
 case class Performance( ops : OperationCount, time: Time) extends Quantity
 {
   val value = ops.value/time.value
 }
+
+case class Throughput (bytes: ByteCount, time: Time) extends Quantity
+{
+  val value = bytes.value/time.value
+}
+

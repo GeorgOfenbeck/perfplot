@@ -17,12 +17,12 @@ case class PerformanceSeries (label: String, points: scala.collection.immutable.
 
 
 
-case class PerformancePlot(series : List[PerformanceSeries], peakperformances : List[(String,Performance)]) extends Plot2D{
+case class PerformancePlot(series : List[PerformanceSeries], peakPerformances : List[(String,Performance)]) extends Plot2D{
   xMin = 0.1
   xMax = 80
 
   yMin = 0.1
-  yMax =  peakperformances.head._2.value *1.1
+  yMax =  peakPerformances.head._2.value *1.1
 
   logX = true
   logY = true

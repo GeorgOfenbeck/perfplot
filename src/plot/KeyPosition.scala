@@ -11,3 +11,7 @@ package plot
 object KeyPosition extends Enumeration {
   val TopLeft, TopRight, BottomLeft, BottomRight, NoKey, Undefined = Value
 }
+
+object SameSizeConnection extends Enumeration{
+  val None, ByPerformance, ByOperationalIntensity = Value
+}

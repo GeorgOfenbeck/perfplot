@@ -34,7 +34,7 @@ object CommandService {
     var line: String = null //need to use the stderr buffer - otherwise it will hang on windows
     do {
       line = stderr.readLine()
-      //if (line != null && Config.debug )System.err.println(line) //TODO - Config
+      if (line != null && Config.debug )System.err.println(line) //TODO - Config
     } while(line != null)
 
     val exitVal = compileProcess.waitFor()
@@ -42,7 +42,7 @@ object CommandService {
     if (exitVal != 0) {
       System.err.println("compilation: had errors")
     } else {
-      //if ( Config.debug ) System.err.println("compilation: ok") //TODO - Config
+      if ( Config.debug ) System.err.println("compilation: ok") //TODO - Config
     }
 
     //if ( Config.debug ) System.err.println("Creating shared library: " + libFileName); //TODO - Config

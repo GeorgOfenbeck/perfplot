@@ -31,6 +31,115 @@ class PlotService {
   val lineColors = ( "black", "red", "green", "blue", "#FFFF00" )
 
 
+
+
+  def plot (plot: RooflinePlot)
+  {
+    val output = new PrintStream(plot.outputName + ".gnuplot")
+    preparePlot2D(output,plot)
+
+    //output.printf("set xtics scale 0 (%s)\n",getLo)
+
+
+
+    val plotLines = scala.collection.mutable.MutableList[String]()
+      //----------------------------------------------------------------------------------------------
+      //build the peak performance lines
+
+    var first : Boolean = true
+    for ((name,peak) <- plot.peakPerformances)
+    {
+      val (lineColor, lw) = if (first)
+      {
+        first = false
+        // set the color of the first line
+        ("rgb\"black\"",lwMaxBound)
+      }
+      else
+        ("rgb\"#B0B0B0\"",lwBound)
+
+      // generate the string
+      plotLines += String.format(
+        "%e notitle with lines lc %s lw %d",
+        double2Double(peak.value), lineColor, int2Integer(lw))
+    }
+    for ((name,peak) <- plot.peakBandwidths)
+    {
+      val (lineColor, lw) = if (first)
+      {
+        first = false
+        // set the color of the first line
+        ("rgb\"black\"",lwMaxBound)
+      }
+      else
+        ("rgb\"#B0B0B0\"",lwBound)
+
+      // generate the string
+      plotLines += String.format(
+        "%e*x notitle with lines lc %s lw %d",
+        double2Double(peak.value), lineColor, int2Integer(lw))
+    }
+
+
+
+  //print the peak performance lines
+    for ((name,peak) <- plot.peakPerformances)
+      output.printf(
+        "set label '%s (%.2g F/C)' at graph 1,first %e right offset -1,graph 0.015\n",
+        name, double2Double(peak.value), double2Double(peak.value))
+
+    val performance = 30
+
+
+    val aspectRatio = (plotHeight/plotWidth) * (tMargin-bMargin)/(rMargin-lMargin)
+    val opIntensityRatio = plot.xMax / plot.xMin
+    val performanceRatio = plot.yMax / plot.yMin
+    val angle = Math.toDegrees(Math.atan(aspectRatio * Math.log(opIntensityRatio)/ Math.log(performanceRatio)))
+
+
+    //print the peak performance lines
+    for ((name,peak) <- plot.peakBandwidths)
+    {
+      val performance = 48*0.85
+      val bandwidth = peak.value
+      val opIntens = 20.0
+
+
+      val borderOpIntens = performance/bandwidth
+      val borderPerformance = opIntens * bandwidth
+
+      if (borderOpIntens < opIntens) {
+        // we hit the top of the graph
+        output.printf(
+          "set label '%s (%.2g B/C)' at first %e , first %e right offset 0,graph 0.02 rotate by %e\n",
+          name, double2Double(bandwidth), double2Double(borderOpIntens),
+          double2Double(performance), double2Double(angle))
+      }
+      else {
+        // we hit the right of the graph
+        output.printf(
+          "set label '%s (%.2g byte/cycle)' at graph 1, first %e right offset 0,graph -0.015 rotate by %e\n",
+          name, double2Double(bandwidth), double2Double(borderPerformance), double2Double(angle))
+      }
+
+
+    }
+
+
+      output.println("plot \\")
+      first = true
+      for (line <- plotLines)
+      {
+        if (first) first = false else output.print(",\\\n")
+        output.print(line) // + )
+      }
+
+
+    output.close()
+    val arg  =  plot.outputName + ".gnuplot"
+    CommandService.rungnuplot(arg)
+  }
+
   def plot (plot: SimplePlot) {
     if (plot.values.isEmpty)
       return
@@ -156,7 +265,7 @@ class PlotService {
 
     //build the peak performance lines
     var first : Boolean = true
-    for ((name,peak) <- plot.peakperformances)
+    for ((name,peak) <- plot.peakPerformances)
     {
       val (lineColor, lw) = if (first)
       {
@@ -175,10 +284,10 @@ class PlotService {
     }
 
     //print the peak performance lines
-    for ((name,peak) <- plot.peakperformances)
+    for ((name,peak) <- plot.peakPerformances)
       output.printf(
         "set label '%s (%.2g F/C)' at graph 1,first %e right offset -1,graph 0.015\n",
-          name, double2Double(peak.value), double2Double(peak.value))
+        name, double2Double(peak.value), double2Double(peak.value))
 
 
 

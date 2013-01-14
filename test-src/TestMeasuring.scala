@@ -8,6 +8,7 @@
 import org.scalatest.Suite
 
 import roofline.plot._
+import roofline.quantities.{TransferredBytes, Throughput}
 import roofline.services._
 
 import services._
@@ -33,7 +34,227 @@ class TestMeasuring extends Suite{
   }
 
 
-  def test_Memory_Bandwith()
+
+  def test_Roofline_lines()
+  {
+    val filename = "rooflines"
+
+    val temp : File = File.createTempFile("rooflines","");
+    temp.delete()
+    temp.mkdir()
+
+    val cmdbat = new PrintStream(temp.getPath + File.separator +  filename + ".cpp")
+    cmdbat.println("#include <iostream>\n#include \"immintrin.h\" \n#ifndef MEASURING_CORE_HEADER\n#define MEASURING_CORE_HEADER\n\n\n\nint perfmon_init(int type, bool flushData , bool flushICache , bool flushTLB );\nvoid perfmon_start();\nvoid perfmon_stop();\nvoid perfmon_end();\n\n#endif\n\n#include <immintrin.h>\n\n\nvoid flushCacheLine(void *p){\n  __asm__ __volatile__ (\"clflush %0\" :: \"m\" (*(char*)p));\n}")
+    cmdbat.println("int main () {")
+
+    cmdbat.println("std::cout << \"malloc test\"; ")
+    cmdbat.println("perfmon_init(3,false,false,false);\n ");
+    cmdbat.println("std::cout << \"malloc test2\"; ")
+    cmdbat.println("\n    double * buffer;\n    \n    const int page = 1024*4;\n    const int mem = 256*512; //128 MB")
+    cmdbat.println(" buffer = (double*)  _mm_malloc( mem*page, page );\n  if (!buffer) {\n    std::cout << \"malloc failed\";\n")
+    cmdbat.println("perfmon_end();")
+    cmdbat.println("return -1;\n  }\n   std::cout << \"malloc worked\"; ")
+    cmdbat.println()
+    /*
+    cmdbat.println("    for(long i = 0; i< mem*page/sizeof(double); i++)    \n      buffer[i] = i%2;    \n ")
+    cmdbat.println("for(long i = 0; i< mem*page/sizeof(double); i++)\n      flushCacheLine(&(buffer[i]));")
+    cmdbat.println("double result = 0;    \nperfmon_start();\n    for(long i = 0; i< mem*page/sizeof(double); i=i+page)    \n      result += buffer[i];\nperfmon_stop();\n\t\t\tstd::cout << result;")
+    */
+    cmdbat.println("for(long i = 0; i< mem*page/sizeof(double); i++)    \n      buffer[i] = i%2;    \n ")
+
+    cmdbat.println("for(long i = 0; i< mem*page/sizeof(double); i++)\n      flushCacheLine(&(buffer[i]));")
+
+    cmdbat.println("perfmon_start(); perfmon_stop();")
+
+    cmdbat.println("\nperfmon_start();\n    for(long i = 0; i< mem*page/sizeof(double); i=i+1)    \n      buffer[i] = 1.0;\n");
+    cmdbat.println("perfmon_stop();\n\t\t\t")
+
+    cmdbat.println("perfmon_start();")
+    cmdbat.println("for(long i = 0; i< mem*page/sizeof(double); i= i+1)\n      flushCacheLine(&(buffer[i]));")
+    cmdbat.println("perfmon_stop();\n\t\t\t")
+
+    cmdbat.println("double result = 0;perfmon_start();    \n\n    for(long i = 0; i< mem*page/sizeof(double); i=i+1)    \n      result += buffer[i]; perfmon_stop();\n\n\t\t\tstd::cout << result;")
+
+    cmdbat.println("std::cout << \"\\n\" << (mem/sizeof(double)) << \"\\n\";")
+
+    cmdbat.println("for(long i = 0; i< mem*page/sizeof(double); i++)\n      flushCacheLine(&(buffer[i]));")
+
+    cmdbat.println("long size = mem*page/sizeof(double);")
+    cmdbat.println("perfmon_start();    \n\n    for(long i = 0; i< size; i=i+1)    \n      buffer[(size/2 + i)%(size)] = buffer[i]; perfmon_stop();\n\n\t\t\tstd::cout << result;")
+    cmdbat.println("for(long i = 0; i< mem*page/sizeof(double); i++)\n      flushCacheLine(&(buffer[i]));")
+    cmdbat.println("perfmon_start();    \n\n    for(long i = 0; i< size; i=i+1)    \n      buffer[i] = buffer[i]-1; perfmon_stop();\n\n\t\t\tstd::cout << result;")
+    cmdbat.println("for(long i = 0; i< mem*page/sizeof(double); i++)\n      flushCacheLine(&(buffer[i]));")
+
+
+    cmdbat.println("double vec_res[4];")
+    //cmdbat.println("result = 0;perfmon_start();    \n\n    for(long i = 0; i< mem*page/sizeof(double); i=i+1)    \n      result += buffer[i]; perfmon_stop();\n\n\t\t\tstd::cout << result;")
+    cmdbat.println(" __m256d a,b ; b= _mm256_set1_pd( 1.1 ); perfmon_start();    \n\n    for(long i = 0; i< mem*page/sizeof(double); i=i+4)    \n      {a = _mm256_load_pd (&(buffer[i])); /*b = _mm256_add_pd ( a, b);*/} perfmon_stop(); _mm256_storeu_pd (vec_res,a); \n\n\t\t\tstd::cout << vec_res[0];")
+    cmdbat.println(" __m256d avx_res = _mm256_set1_pd( 1.1 ); perfmon_start();    \n\n    for(long i = 0; i< mem*page/sizeof(double); i=i+4)    \n      _mm256_stream_pd(&(buffer[i]),avx_res); perfmon_stop();\n\n\t\t\tstd::cout << result;")
+
+    cmdbat.println("perfmon_start(); perfmon_stop();")
+    cmdbat.println("perfmon_start(); perfmon_stop();")
+
+
+
+
+    cmdbat.println("perfmon_end();")
+    cmdbat.println("_mm_free (buffer);")
+    cmdbat.println("    return 0;\n  }")
+    CompileService.compile(temp.getPath +File.separator + filename)
+    System.out.println("working here:")
+    System.out.println(temp.getPath + File.separator + filename)
+
+    if (roofline.Config.isWin)
+    {
+      val batch_source = "@echo off\n\n:: BatchGotAdmin\n:-------------------------------------\nREM  --> Check for permissions\n>nul 2>&1 \"%SYSTEMROOT%\\system32\\cacls.exe\" \"%SYSTEMROOT%\\system32\\config\\system\"\n\nREM --> If error flag set, we do not have admin.\nif '%errorlevel%' NEQ '0' (\n    echo Requesting administrative privileges...\n    goto UACPrompt\n) else ( goto gotAdmin )\n\n:UACPrompt\n    echo Set UAC = CreateObject^(\"Shell.Application\"^) > \"%temp%\\getadmin.vbs\"\n    echo UAC.ShellExecute \"%~s0\", \"\", \"\", \"runas\", 1 >> \"%temp%\\getadmin.vbs\"\n\n    \"%temp%\\getadmin.vbs\"\n    exit /B\n\n:gotAdmin\n    if exist \"%temp%\\getadmin.vbs\" ( del \"%temp%\\getadmin.vbs\" )\n    pushd \"%CD%\"\n    CD /D \"%~dp0\"\n:--------------------------------------\ncopy C:\\Users\\ofgeorg\\IdeaProjects\\perfplot\\pcm\\WinRing* ."
+      val bat = new PrintStream(temp.getPath + File.separator +  filename + ".bat")
+      bat.println(batch_source)
+      bat.println(filename + ".exe")
+      bat.close()
+      CompileService.execute(temp.getPath + File.separator + filename + ".bat")
+    }
+    else
+    {
+      CompileService.execute(temp.getPath + File.separator + filename + ".x", temp)
+    }
+
+    val nrcores = getFile(temp.getPath + File.separator + "NrCores.txt").toInt
+    println(nrcores)
+
+    val Counter0 = new Array[Array[Long]](nrcores)
+    val Counter1 = new Array[Array[Long]](nrcores)
+    val Counter2 = new Array[Array[Long]](nrcores)
+    val Counter3 = new Array[Array[Long]](nrcores)
+    val CycleCounter = new Array[Array[Long]](nrcores)
+    val RefCycleCounter = new Array[Array[Long]](nrcores)
+    val TSCCounter = new Array[Array[Long]](nrcores)
+
+    println("\t\t\tevents[0].event_number = ARCH_LLC_REFERENCE_EVTNR;\n\t\t\tevents[0].umask_value =  ARCH_LLC_REFERENCE_UMASK;\n\n\t\t\tevents[1].event_number = ARCH_LLC_MISS_EVTNR;\n\t\t\tevents[1].umask_value = ARCH_LLC_MISS_UMASK;\n\n\t\t\tevents[2].event_number = UNC_L3_MISS_ANY_EVTNR;\n\t\t\tevents[2].umask_value = UNC_L3_MISS_ANY_UMASK;\n\n\t\t\tevents[3].event_number = MEM_LOAD_RETIRED_L2_HIT_EVTNR;\n\t\t\tevents[3].umask_value = MEM_LOAD_RETIRED_L2_HIT_UMASK;")
+    for (i <- 0 until nrcores)
+    {
+      Counter0(i) = getFile(temp.getPath + File.separator + "Custom_ev0_core" + i + ".txt").split(" ").map( x => x.toLong)
+      Counter1(i) = getFile(temp.getPath + File.separator + "Custom_ev1_core" + i + ".txt").split(" ").map( x => x.toLong)
+      Counter2(i) = getFile(temp.getPath + File.separator + "Custom_ev2_core" + i + ".txt").split(" ").map( x => x.toLong)
+      Counter3(i) = getFile(temp.getPath + File.separator + "Custom_ev3_core" + i + ".txt").split(" ").map( x => x.toLong)
+      CycleCounter(i) = getFile(temp.getPath + File.separator + "Cycles_core_" + i + ".txt").split(" ").map( x => x.toLong)
+      RefCycleCounter(i) = getFile(temp.getPath + File.separator + "RefCycles_core_" + i + ".txt").split(" ").map( x => x.toLong)
+      TSCCounter(i) = getFile(temp.getPath + File.separator + "TSC_core_" + i + ".txt").split(" ").map( x => x.toLong)
+    }
+
+    for (i <- 0 until nrcores)
+    {
+      println("-------------")
+      println("Core " + i)
+      println (Counter0(i).mkString(" "))
+      println (Counter1(i).mkString(" "))
+      println (Counter2(i).mkString(" "))
+      println (Counter3(i).mkString(" "))
+      println("-")
+      println(CycleCounter(i).mkString(" "))
+      println(RefCycleCounter(i).mkString(" "))
+      println(TSCCounter(i).mkString(" "))
+    }
+
+
+
+
+    val mcread = getFile(temp.getPath + File.separator + "MC_read.txt").split(" ").map( x => x.toLong )// /1024/1024 )
+    val mcwrite = getFile(temp.getPath + File.separator + "MC_write.txt").split(" ").map( x => x.toLong ) // /1024/1024)
+
+
+    import roofline.plot._
+    import roofline.services._
+    import roofline.quantities._
+
+
+    println("-------------")
+    println("read")
+    println (mcread.mkString(" "))
+    println("write")
+    println (mcwrite.mkString(" "))
+
+
+    val all = mcread.size-1
+    var nr = 1
+    val b_write = Throughput(
+                    TransferredBytes(mcread(all-nr) + mcwrite(all-nr)),
+                    Cycles(TSCCounter(0)(all-nr)) )
+
+
+    nr = 3
+    val b_read = Throughput(
+      TransferredBytes(mcread(all-nr) + mcwrite(all-nr)),
+      Cycles(TSCCounter(0)(all-nr)) )
+    /*println("-----")
+    println("Bytes: " + (mcread(nr) + mcwrite(nr)) )
+    println("Cycles: " + TSCCounter(0)(nr))*/
+    nr = 4
+    val b_read_write = Throughput(
+      TransferredBytes(mcread(all-nr) + mcwrite(all-nr)),
+      Cycles(TSCCounter(0)(all-nr)) )
+    nr = 5
+    val b_update = Throughput(
+      TransferredBytes(mcread(all-nr) + mcwrite(all-nr)),
+      Cycles(TSCCounter(0)(all-nr)) )
+    nr = 6
+    val b_avx_load = Throughput(
+      TransferredBytes(mcread(all-nr) + mcwrite(all-nr)),
+      Cycles(TSCCounter(0)(all-nr)) )
+   println("-----")
+   println("Bytes: " + (mcread(all-nr) + mcwrite(all-nr)) )
+   println("Cycles: " + TSCCounter(0)(all-nr))
+    nr = 7
+    val b_avx_write = Throughput(
+      TransferredBytes(mcread(all-nr) + mcwrite(all-nr)),
+      Cycles(TSCCounter(0)(all-nr)) )
+    println("-----")
+    println("Bytes: " + (mcread(all-nr) + mcwrite(all-nr)) + "..." + all + " - " +  mcwrite(all-nr))
+    println("Cycles: " + TSCCounter(0)(all-nr))
+
+    println(b_write.value)
+    println(b_read.value)
+    println(b_read_write.value)
+    println(b_update.value)
+    println(b_avx_load.value)
+    println(b_avx_write.value)
+
+    val myplot = new RooflinePlot(
+      List(
+        ("6 * AVX",Performance(flops(48),Cycles(1))),
+        ("AVX",Performance(flops(8),Cycles(1))),
+        ("Scalar",Performance(flops(2),Cycles(1)))
+      ),
+      List(
+        ("Write", b_write),
+        ("Read", b_read),
+        //("Read/Write", b_read_write),
+        ("Update", b_update)//,
+        //("AVX Load", b_avx_load),
+        //("AVX SStore", b_avx_write)
+      )
+
+    )
+    myplot.outputName = "TestRooflinePlot"
+    myplot.title = "Title"
+    myplot.xLabel = "xLabel"
+    myplot.yLabel = "yLabel"
+
+    myplot.xUnit = "xUnit"
+    myplot.yUnit = "yUnit"
+
+
+    val ps = new PlotService
+    System.out.println("Calling plot")
+    ps.plot(myplot)
+
+  }
+
+
+
+
+
+
+  def Memory_Bandwith()
   {
     val filename = "mem"
     val temp : File = File.createTempFile("memtest","");
@@ -48,7 +269,7 @@ class TestMeasuring extends Suite{
     cmdbat.println("std::cout << \"malloc test\"; ")
     cmdbat.println("  perfmon_init(3,false,false,false);\n ");
     cmdbat.println("std::cout << \"malloc test2\"; ")
-    cmdbat.println("\n    double * buffer;\n    \n    const int page = 1024*4;\n    const int mem = 256*64; //12 MB")
+    cmdbat.println("\n    double * buffer;\n    \n    const int page = 1024*4;\n    const int mem = 256*128; //12 MB")
     cmdbat.println(" buffer = (double*)  _mm_malloc( mem*page, page );\n  if (!buffer) {\n    std::cout << \"malloc failed\";\n")
     cmdbat.println("perfmon_end();")
     cmdbat.println("return -1;\n  }\n   std::cout << \"malloc worked\"; ")
@@ -60,10 +281,17 @@ class TestMeasuring extends Suite{
     */
     cmdbat.println("    for(long i = 0; i< mem*page/sizeof(double); i++)    \n      buffer[i] = i%2;    \n ")
     cmdbat.println("for(long i = 0; i< mem*page/sizeof(double); i++)\n      flushCacheLine(&(buffer[i]));")
-    cmdbat.println("\nperfmon_start();\n    for(long i = 0; i< mem*page/sizeof(double); i=i+page)    \n      buffer[i] = 3.0;\nperfmon_stop();\n\t\t\t")
-    cmdbat.println("double result = 0;    \n\n    for(long i = 0; i< mem*page/sizeof(double); i=i+page)    \n      result += buffer[i];\n\n\t\t\tstd::cout << result;")
+    cmdbat.println("perfmon_start(); perfmon_stop();")
+    cmdbat.println("\nperfmon_start();\n    for(long i = 0; i< mem*page/sizeof(double); i=i+1)    \n      buffer[i] = 1.0;\n");
+    cmdbat.println("perfmon_stop();\n\t\t\t")
+
+    cmdbat.println("perfmon_start();")
+    cmdbat.println("for(long i = 0; i< mem*page/sizeof(double); i= i+4)\n      flushCacheLine(&(buffer[i]));")
+    cmdbat.println("perfmon_stop();\n\t\t\t")
+    cmdbat.println("double result = 0;perfmon_start();    \n\n    for(long i = 0; i< mem*page/sizeof(double); i=i+1)    \n      result += buffer[i]; perfmon_stop();\n\n\t\t\tstd::cout << result;")
 
     cmdbat.println("std::cout << \"\\n\" << (mem/sizeof(double)) << \"\\n\";")
+    cmdbat.println("perfmon_start(); perfmon_stop();")
     cmdbat.println("perfmon_end();")
 
     cmdbat.println("_mm_free (buffer);")
@@ -89,39 +317,48 @@ class TestMeasuring extends Suite{
     val nrcores = getFile(temp.getPath + File.separator + "NrCores.txt").toInt
     println(nrcores)
 
-    val Counter0 = new Array[Long](nrcores)
-    val Counter1 = new Array[Long](nrcores)
-    val Counter2 = new Array[Long](nrcores)
-    val Counter3 = new Array[Long](nrcores)
-    val CycleCounter = new Array[Long](nrcores)
-    val RefCycleCounter = new Array[Long](nrcores)
-    val TSCCounter = new Array[Long](nrcores)
+    val Counter0 = new Array[Array[Long]](nrcores)
+    val Counter1 = new Array[Array[Long]](nrcores)
+    val Counter2 = new Array[Array[Long]](nrcores)
+    val Counter3 = new Array[Array[Long]](nrcores)
+    val CycleCounter = new Array[Array[Long]](nrcores)
+    val RefCycleCounter = new Array[Array[Long]](nrcores)
+    val TSCCounter = new Array[Array[Long]](nrcores)
 
     println("\t\t\tevents[0].event_number = ARCH_LLC_REFERENCE_EVTNR;\n\t\t\tevents[0].umask_value =  ARCH_LLC_REFERENCE_UMASK;\n\n\t\t\tevents[1].event_number = ARCH_LLC_MISS_EVTNR;\n\t\t\tevents[1].umask_value = ARCH_LLC_MISS_UMASK;\n\n\t\t\tevents[2].event_number = UNC_L3_MISS_ANY_EVTNR;\n\t\t\tevents[2].umask_value = UNC_L3_MISS_ANY_UMASK;\n\n\t\t\tevents[3].event_number = MEM_LOAD_RETIRED_L2_HIT_EVTNR;\n\t\t\tevents[3].umask_value = MEM_LOAD_RETIRED_L2_HIT_UMASK;")
     for (i <- 0 until nrcores)
     {
-      Counter0(i) = getFile(temp.getPath + File.separator + "Custom_ev0_core" + i + ".txt").toLong
-      Counter1(i) = getFile(temp.getPath + File.separator + "Custom_ev1_core" + i + ".txt").toLong
-      Counter2(i) = getFile(temp.getPath + File.separator + "Custom_ev2_core" + i + ".txt").toLong
-      Counter3(i) = getFile(temp.getPath + File.separator + "Custom_ev3_core" + i + ".txt").toLong
-      CycleCounter(i) = getFile(temp.getPath + File.separator + "Cycles_core_" + i + ".txt").toLong
-      RefCycleCounter(i) = getFile(temp.getPath + File.separator + "RefCycles_core_" + i + ".txt").toLong
-      TSCCounter(i) = getFile(temp.getPath + File.separator + "TSC_core_" + i + ".txt").toLong
+      Counter0(i) = getFile(temp.getPath + File.separator + "Custom_ev0_core" + i + ".txt").split(" ").map( x => x.toLong)
+      Counter1(i) = getFile(temp.getPath + File.separator + "Custom_ev1_core" + i + ".txt").split(" ").map( x => x.toLong)
+      Counter2(i) = getFile(temp.getPath + File.separator + "Custom_ev2_core" + i + ".txt").split(" ").map( x => x.toLong)
+      Counter3(i) = getFile(temp.getPath + File.separator + "Custom_ev3_core" + i + ".txt").split(" ").map( x => x.toLong)
+      CycleCounter(i) = getFile(temp.getPath + File.separator + "Cycles_core_" + i + ".txt").split(" ").map( x => x.toLong)
+      RefCycleCounter(i) = getFile(temp.getPath + File.separator + "RefCycles_core_" + i + ".txt").split(" ").map( x => x.toLong)
+      TSCCounter(i) = getFile(temp.getPath + File.separator + "TSC_core_" + i + ".txt").split(" ").map( x => x.toLong)
     }
 
     for (i <- 0 until nrcores)
     {
       println("-------------")
       println("Core " + i)
-      println (Counter0(i))
-      println (Counter1(i))
-      println (Counter2(i))
-      println (Counter3(i))
+      println (Counter0(i).mkString(" "))
+      println (Counter1(i).mkString(" "))
+      println (Counter2(i).mkString(" "))
+      println (Counter3(i).mkString(" "))
       println("-")
-      println(CycleCounter(i))
-      println(RefCycleCounter(i))
-      println(TSCCounter(i))
+      println(CycleCounter(i).mkString(" "))
+      println(RefCycleCounter(i).mkString(" "))
+      println(TSCCounter(i).mkString(" "))
     }
+
+    val mcread = getFile(temp.getPath + File.separator + "MC_read.txt").split(" ").map( x => x.toLong /1024/1024)
+    val mcwrite = getFile(temp.getPath + File.separator + "MC_write.txt").split(" ").map( x => x.toLong /1024/1024)
+
+    println("-------------")
+    println("read")
+    println (mcread.mkString(" "))
+    println("write")
+    println (mcwrite.mkString(" "))
 
   }
 
