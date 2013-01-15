@@ -100,6 +100,8 @@ class TestMeasuring extends Suite{
     cmdbat.println("perfmon_end();")
     cmdbat.println("_mm_free (buffer);")
     cmdbat.println("    return 0;\n  }")
+    cmdbat.close()
+
     CompileService.compile(temp.getPath +File.separator + filename)
     System.out.println("working here:")
     System.out.println(temp.getPath + File.separator + filename)
