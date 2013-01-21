@@ -60,7 +60,7 @@ class TestOverview extends Suite{
     temp.mkdir()
     val cmdbat = new PrintStream(temp.getPath + File.separator +  filename + ".cpp")
 
-    cmdbat.println("  \n#include <windows.h>\n#include \"mkl_dfti.h\" \n#include <mkl.h>\n#include <iostream>\n#include \"immintrin.h\" \n#ifndef MEASURING_CORE_HEADER\n#define MEASURING_CORE_HEADER\n\n\n\nint perfmon_init(int type, bool flushData , bool flushICache , bool flushTLB );\nvoid perfmon_start();\nvoid perfmon_stop();\nvoid perfmon_end();\n\n#endif\n\n#include <immintrin.h>\n\n\n")
+    cmdbat.println("  \n\n#include \"mkl_dfti.h\" \n#include <mkl.h>\n#include <iostream>\n#include \"immintrin.h\" \n#ifndef MEASURING_CORE_HEADER\n#define MEASURING_CORE_HEADER\n\n\n\nint perfmon_init(int type, bool flushData , bool flushICache , bool flushTLB );\nvoid perfmon_start();\nvoid perfmon_stop();\nvoid perfmon_end();\n\n#endif\n\n#include <immintrin.h>\n\n\n")
     cmdbat.println("\nvoid flushCache()\n{\n const int page = 1024*4;\n long size = 28 * 1024 * 1024;\n double* buffer = (double*) _mm_malloc( size, page );\n if (!buffer) {\n      std::cout << \"malloc failed\";\n      perfmon_end();\n      return ;\n    }\n double result = 0; \n for (long i = 0; i < size/sizeof(double); i= i+4)\n  buffer[i] = 1.2;\n for (long i = 0; i < size/sizeof(double); i= i+4)\n   result = buffer[i] + result;   \n std::cout << \"res\" << result << \"\\n\";\n _mm_free(buffer);     \n    \n}")
     cmdbat.println("\nvoid flushCacheLine(void *p){\n  __asm__ __volatile__ (\"clflush %0\" :: \"m\" (*(char*)p));\n}\n\n\ndouble * a, *b, *c;\ndouble alpha;\n\n\n\nint main () {\n\n  ");
     cmdbat.println("perfmon_init(1,false,false,false);\n\tdouble  *complexData;\n\tDFTI_DESCRIPTOR_HANDLE mklDescriptor;\n  const int page = 1024*4;\n  int mem = 256*512; //128 MB\n  \n  \n  \n")
@@ -225,7 +225,7 @@ class TestOverview extends Suite{
     temp.mkdir()
     val cmdbat = new PrintStream(temp.getPath + File.separator +  filename + ".cpp")
 
-    cmdbat.println(" #include <windows.h>\n#include <mkl.h>\n#include <iostream>\n#include \"immintrin.h\" \n#ifndef MEASURING_CORE_HEADER\n#define MEASURING_CORE_HEADER\n\n\n\nint perfmon_init(int type, bool flushData , bool flushICache , bool flushTLB );\nvoid perfmon_start();\nvoid perfmon_stop();\nvoid perfmon_end();\n\n#endif\n\n#include <immintrin.h>\n\n\n")
+    cmdbat.println(" \n#include <mkl.h>\n#include <iostream>\n#include \"immintrin.h\" \n#ifndef MEASURING_CORE_HEADER\n#define MEASURING_CORE_HEADER\n\n\n\nint perfmon_init(int type, bool flushData , bool flushICache , bool flushTLB );\nvoid perfmon_start();\nvoid perfmon_stop();\nvoid perfmon_end();\n\n#endif\n\n#include <immintrin.h>\n\n\n")
     cmdbat.println("\nvoid flushCache()\n{\n const int page = 1024*4;\n long size = 28 * 1024 * 1024;\n double* buffer = (double*) _mm_malloc( size, page );\n if (!buffer) {\n      std::cout << \"malloc failed\";\n      perfmon_end();\n      return ;\n    }\n double result = 0; \n for (long i = 0; i < size/sizeof(double); i= i+4)\n  buffer[i] = 1.2;\n for (long i = 0; i < size/sizeof(double); i= i+4)\n   result = buffer[i] + result;   \n std::cout << \"res\" << result << \"\\n\";\n _mm_free(buffer);     \n    \n}")
     cmdbat.println("\nvoid flushCacheLine(void *p){\n  __asm__ __volatile__ (\"clflush %0\" :: \"m\" (*(char*)p));\n}\n\n\ndouble * a, *b, *c;\ndouble alpha;\n\n\n\nint main () {\n\n  ");
     cmdbat.println("perfmon_init(1,false,false,false);\n\n  const int page = 1024*4;\n  int mem = 256*512; //128 MB\n  \n  \n  \n")
@@ -391,7 +391,7 @@ class TestOverview extends Suite{
       temp.mkdir()
       val cmdbat = new PrintStream(temp.getPath + File.separator +  filename + ".cpp")
 
-      cmdbat.println(" #include <windows.h>\n#include <mkl.h>\n#include <iostream>\n#include \"immintrin.h\" \n#ifndef MEASURING_CORE_HEADER\n#define MEASURING_CORE_HEADER\n\n\n\nint perfmon_init(int type, bool flushData , bool flushICache , bool flushTLB );\nvoid perfmon_start();\nvoid perfmon_stop();\nvoid perfmon_end();\n\n#endif\n\n#include <immintrin.h>\n\n\n")
+      cmdbat.println(" \n#include <mkl.h>\n#include <iostream>\n#include \"immintrin.h\" \n#ifndef MEASURING_CORE_HEADER\n#define MEASURING_CORE_HEADER\n\n\n\nint perfmon_init(int type, bool flushData , bool flushICache , bool flushTLB );\nvoid perfmon_start();\nvoid perfmon_stop();\nvoid perfmon_end();\n\n#endif\n\n#include <immintrin.h>\n\n\n")
       cmdbat.println("\nvoid flushCache()\n{\n const int page = 1024*4;\n long size = 28 * 1024 * 1024;\n double* buffer = (double*) _mm_malloc( size, page );\n if (!buffer) {\n      std::cout << \"malloc failed\";\n      perfmon_end();\n      return ;\n    }\n double result = 0; \n for (long i = 0; i < size/sizeof(double); i= i+4)\n  buffer[i] = 1.2;\n for (long i = 0; i < size/sizeof(double); i= i+4)\n   result = buffer[i] + result;   \n std::cout << \"res\" << result << \"\\n\";\n _mm_free(buffer);     \n    \n}")
       cmdbat.println("\nvoid flushCacheLine(void *p){\n  __asm__ __volatile__ (\"clflush %0\" :: \"m\" (*(char*)p));\n}\n\n\ndouble * a, *b, *c;\ndouble alpha;\n\n\n\nint main () {\n\n  ");
       cmdbat.println("perfmon_init(1,false,false,false);\n\n  const int page = 1024*4;\n  int mem = 256*512; //128 MB\n  \n  \n  \n")
@@ -551,7 +551,7 @@ class TestOverview extends Suite{
     temp.mkdir()
     val cmdbat = new PrintStream(temp.getPath + File.separator +  filename + ".cpp")
 
-    cmdbat.println(" #include <windows.h>\n#include <mkl.h>\n#include <iostream>\n#include \"immintrin.h\" \n#ifndef MEASURING_CORE_HEADER\n#define MEASURING_CORE_HEADER\n\n\n\nint perfmon_init(int type, bool flushData , bool flushICache , bool flushTLB );\nvoid perfmon_start();\nvoid perfmon_stop();\nvoid perfmon_end();\n\n#endif\n\n#include <immintrin.h>\n\n\n")
+    cmdbat.println(" \n#include <mkl.h>\n#include <iostream>\n#include \"immintrin.h\" \n#ifndef MEASURING_CORE_HEADER\n#define MEASURING_CORE_HEADER\n\n\n\nint perfmon_init(int type, bool flushData , bool flushICache , bool flushTLB );\nvoid perfmon_start();\nvoid perfmon_stop();\nvoid perfmon_end();\n\n#endif\n\n#include <immintrin.h>\n\n\n")
     cmdbat.println("\nvoid flushCache()\n{\n const int page = 1024*4;\n long size = 28 * 1024 * 1024;\n double* buffer = (double*) _mm_malloc( size, page );\n if (!buffer) {\n      std::cout << \"malloc failed\";\n      perfmon_end();\n      return ;\n    }\n double result = 0; \n for (long i = 0; i < size/sizeof(double); i= i+4)\n  buffer[i] = 1.2;\n for (long i = 0; i < size/sizeof(double); i= i+4)\n   result = buffer[i] + result;   \n std::cout << \"res\" << result << \"\\n\";\n _mm_free(buffer);     \n    \n}")
     cmdbat.println("\nvoid flushCacheLine(void *p){\n  __asm__ __volatile__ (\"clflush %0\" :: \"m\" (*(char*)p));\n}\n\n\ndouble * x, *y;\ndouble alpha;\n\n\n\nint main () {\n\n  ");
     cmdbat.println("perfmon_init(1,false,false,false);\n\n  const int page = 1024*4;\n  int mem = 256*512; //128 MB\n  \n  \n  \n")
