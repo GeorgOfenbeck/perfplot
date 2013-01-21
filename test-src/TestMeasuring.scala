@@ -1,4 +1,4 @@
-/*
+
 /**
  * Georg Ofenbeck
  First created:
@@ -234,7 +234,7 @@ class TestMeasuring extends Suite{
         ("Update", b_update)//,
         //("AVX Load", b_avx_load),
         //("AVX SStore", b_avx_write)
-      )
+      ),List()
 
     )
     myplot.outputName = "TestRooflinePlot"
@@ -539,4 +539,4 @@ class TestMeasuring extends Suite{
 
 
 }
-*/
+
