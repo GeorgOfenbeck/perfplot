@@ -1,3 +1,4 @@
+/*
 /**
  * Georg Ofenbeck
  First created:
@@ -222,9 +223,9 @@ class TestMeasuring extends Suite{
 
     val myplot = new RooflinePlot(
       List(
-        ("6 * AVX",Performance(flops(48),Cycles(1))),
-        ("AVX",Performance(flops(8),Cycles(1))),
-        ("Scalar",Performance(flops(2),Cycles(1)))
+        ("6 * AVX",Performance(Flops(48),Cycles(1))),
+        ("AVX",Performance(Flops(8),Cycles(1))),
+        ("Scalar",Performance(Flops(2),Cycles(1)))
       ),
       List(
         ("Write", b_write),
@@ -538,3 +539,4 @@ class TestMeasuring extends Suite{
 
 
 }
+*/

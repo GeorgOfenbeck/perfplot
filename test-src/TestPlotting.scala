@@ -1,3 +1,4 @@
+/*
 /**
  * Georg Ofenbeck
  First created:
@@ -18,8 +19,8 @@ class TestPlotting extends Suite{
     import roofline.quantities._
     val myplot = new RooflinePlot(
       List(
-        ("first",Performance(flops(8),Cycles(1))),
-        ("second",Performance(flops(2),Cycles(1)))
+        ("first",Performance(Flops(8),Cycles(1))),
+        ("second",Performance(Flops(2),Cycles(1)))
       ),
         List(
         ("firstB",  Throughput(TransferredBytes(10), Cycles(1))),
@@ -86,3 +87,4 @@ class TestPlotting extends Suite{
     ps.plot(myplot)
   }     */
 }
+*/

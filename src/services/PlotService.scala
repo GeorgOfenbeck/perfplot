@@ -27,14 +27,37 @@ class PlotService {
   val lwBound = 2
   val lwLine = 2
 
-  val pointTypes = ( 5, 7, 9, 11, 13 )
-  val lineColors = ( "black", "red", "green", "blue", "#FFFF00" )
+  val pointTypes = List( 5, 7, 9, 11, 13 )
+  val lineColors = List( "black", "red", "green", "blue", "#FFFF00" )
 
 
 
 
   def plot (plot: RooflinePlot)
   {
+    //first generate the .data files
+    val outputFile = new PrintStream(plot.outputName + ".data")
+    for (serie <- plot.series)
+    {
+      val i = plot.series.indexOf(serie)
+      outputFile.printf("# [Median %d]\n", int2Integer(i));
+      for (point <- serie.series)
+      {
+        outputFile.printf("%e %e\n",
+          double2Double(point.getMedianIntensity),
+          double2Double(point.getMedianPerformance))
+          //point.point._2.value,
+          //point.point._1.value)
+      }
+      outputFile.printf("\n\n");
+    }
+
+    outputFile.close()
+
+
+
+
+
     val output = new PrintStream(plot.outputName + ".gnuplot")
     preparePlot2D(output,plot)
 
@@ -121,7 +144,31 @@ class PlotService {
           "set label '%s (%.2g byte/cycle)' at graph 1, first %e right offset 0,graph -0.015 rotate by %e\n",
           name, double2Double(bandwidth), double2Double(borderPerformance), double2Double(angle))
       }
+    }
 
+    for (mserie <- plot.series)
+    {
+      val i = plot.series.indexOf(mserie)
+      plotLines += String.format("'%s.data' index '[Median %d]' title '%s' with linespoints lw %d lt -1 pt %d lc rgb\"%s\"",
+        plot.outputName,
+        int2Integer(i),
+        mserie.name,
+        int2Integer(lwLine),
+        int2Integer(pointTypes(i)),
+        lineColors(i)
+      )
+
+      // add label for the first and the last point
+      output.printf(
+        "set label \"%s\" at first %g,%g center nopoint offset graph 0,0.02 front\n",
+        mserie.series.head.problemSize.toString,
+        double2Double(mserie.series.head.getMedianIntensity),
+        double2Double(mserie.series.head.getMedianPerformance))
+      output.printf(
+        "set label \"%s\" at first %g,%g center nopoint offset graph 0,0.02 front\n",
+        mserie.series.last.problemSize.toString,
+        double2Double(mserie.series.last.getMedianIntensity),
+        double2Double(mserie.series.last.getMedianPerformance))
 
     }
 
@@ -238,23 +285,7 @@ class PlotService {
    * plot a roofline plot
    */
   def plot (plot : PerformancePlot) {
-    //print data file
-    val outputFile = new PrintStream(plot.outputName + ".data")
 
-
-    {
-      var i = 0
-      for (serie <- plot.series)
-      {
-        outputFile.printf("# [Median %d]\n", int2Integer(i))
-        for (point <- serie.points)
-        {
-
-        }
-      }
-
-    }
-    outputFile.close()
 
     //write gnuplot file
     val output = new PrintStream(plot.outputName + ".gnuplot")
@@ -291,6 +322,8 @@ class PlotService {
 
 
 
+
+
     output.println("plot \\")
     first = true
     for (line <- plotLines)
@@ -298,6 +331,11 @@ class PlotService {
       if (first) first = false else output.print(",\\\n")
       output.print(line) // + )
     }
+
+
+
+
+
     output.close()
 
 

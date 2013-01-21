@@ -14,15 +14,19 @@ case class Cycles(value: Double) extends Time
 case class Seconds(value: Double) extends Time
 
 trait OperationCount extends Quantity
-case class flops(value: Double) extends OperationCount
-case class fladds(value: Double) extends OperationCount
-case class flmults(value: Double) extends OperationCount
+case class Flops(value: Double) extends OperationCount
+case class Fladds(value: Double) extends OperationCount
+case class Flmults(value: Double) extends OperationCount
 
 
 trait ByteCount extends Quantity
 case class TransferredBytes(value: Double) extends ByteCount
 
 
+case class OperationalIntensity( ops: OperationCount, bytes: ByteCount)
+{
+  val value = ops.value / bytes.value
+}
 
 case class Performance( ops : OperationCount, time: Time) extends Quantity
 {
