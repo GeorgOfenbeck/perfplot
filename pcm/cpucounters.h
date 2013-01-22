@@ -654,6 +654,15 @@ class BasicCounterState
 	template <class CounterStateType>
     friend uint64 getCustom3(const CounterStateType & before, const CounterStateType & after);
 
+	template <class CounterStateType>
+    friend uint64 getCustom4(const CounterStateType & before, const CounterStateType & after);
+	template <class CounterStateType>
+    friend uint64 getCustom5(const CounterStateType & before, const CounterStateType & after);
+	template <class CounterStateType>
+    friend uint64 getCustom6(const CounterStateType & before, const CounterStateType & after);
+	template <class CounterStateType>
+    friend uint64 getCustom7(const CounterStateType & before, const CounterStateType & after);
+
 	//Double Flops
 	template <class CounterStateType>
     friend uint64 getScalarDouble(const CounterStateType & before, const CounterStateType & after);
@@ -710,6 +719,12 @@ protected:
         uint64 L2Hit;
         uint64 Event3;
     };
+
+		uint64 Custom4;
+		uint64 Custom5;
+		uint64 Custom6;
+		uint64 Custom7;
+
     uint64 InvariantTSC; // invariant time stamp counter
     uint64 C3Residency;
     uint64 C6Residency;
@@ -1307,6 +1322,37 @@ uint64 getCustom3(const CounterStateType & before, const CounterStateType & afte
 }
 
 
+template <class CounterStateType>
+uint64 getCustom4(const CounterStateType & before, const CounterStateType & after) // 0.0 - 1.0
+{
+    if (PCM::getInstance()->getCPUModel() == PCM::ATOM) return -1;
+    uint64 counter = after.Custom4 - before.Custom4;
+	return counter;    
+}
+
+template <class CounterStateType>
+uint64 getCustom5(const CounterStateType & before, const CounterStateType & after) // 0.0 - 1.0
+{
+    if (PCM::getInstance()->getCPUModel() == PCM::ATOM) return -1;
+    uint64 counter = after.Custom5 - before.Custom5;
+	return counter;    
+}
+
+template <class CounterStateType>
+uint64 getCustom6(const CounterStateType & before, const CounterStateType & after) // 0.0 - 1.0
+{
+    if (PCM::getInstance()->getCPUModel() == PCM::ATOM) return -1;
+    uint64 counter = after.Custom6 - before.Custom6;
+	return counter;    
+}
+
+template <class CounterStateType>
+uint64 getCustom7(const CounterStateType & before, const CounterStateType & after) // 0.0 - 1.0
+{
+    if (PCM::getInstance()->getCPUModel() == PCM::ATOM) return -1;
+    uint64 counter = after.Custom7 - before.Custom7;
+	return counter;    
+}
 
 
 

@@ -992,6 +992,7 @@ PCM::ErrorCode PCM::program(PCM::ProgramMode mode_, void * parameter_)
     // copy custom event descriptions
     if (mode == CUSTOM_CORE_EVENTS)
     {
+
         CustomCoreEventDescription * pDesc = (CustomCoreEventDescription *)parameter_;
         coreEventDesc[0] = pDesc[0];
         coreEventDesc[1] = pDesc[1];
@@ -1072,10 +1073,14 @@ PCM::ErrorCode PCM::program(PCM::ProgramMode mode_, void * parameter_)
     
     ExtendedCustomCoreEventDescription * pExtDesc = (ExtendedCustomCoreEventDescription *)parameter_;
     
+
     if(EXT_CUSTOM_CORE_EVENTS == mode_ && pExtDesc && pExtDesc->gpCounterCfg)
     {
+
         core_gen_counter_num_used = (std::min)(core_gen_counter_num_used,pExtDesc->nGPCounters);
     }
+	//std::cout << "GO: number of counters: " << pExtDesc->nGPCounters << "\n";
+
     // Version for linux/windows
     for (int i = 0; i < num_cores; ++i)
     {
@@ -1823,6 +1828,11 @@ void BasicCounterState::readAndAggregate(MsrHandle * msr)
     uint64 cC3Residency = 0;
     uint64 cC6Residency = 0;
     uint64 cC7Residency = 0;
+
+	uint64 cLev4 = 0;
+	uint64 cLev5 = 0;
+	uint64 cLev6 = 0;
+	uint64 cLev7 = 0;
     TemporalThreadAffinity tempThreadAffinity(msr->getCoreId()); // speedup trick for Linux
 
     msr->read(INST_RETIRED_ANY_ADDR, &cInstRetiredAny);
@@ -1844,6 +1854,13 @@ void BasicCounterState::readAndAggregate(MsrHandle * msr)
         msr->read(IA32_PMC1, &cL3UnsharedHit);
         msr->read(IA32_PMC2, &cL2HitM);
         msr->read(IA32_PMC3, &cL2Hit);
+
+		//GO: using all 8 counters
+		msr->read(IA32_PMC4, &cLev4);
+		msr->read(IA32_PMC5, &cLev5);
+		msr->read(IA32_PMC6, &cLev6);
+		msr->read(IA32_PMC7, &cLev7);
+		
         break;
     case PCM::ATOM:
         msr->read(IA32_PMC0, &cL3Miss);         // for Atom mapped to ArchLLCMiss field
@@ -1874,10 +1891,18 @@ void BasicCounterState::readAndAggregate(MsrHandle * msr)
     L3UnsharedHit += m->extractCoreGenCounterValue(cL3UnsharedHit);
     L2HitM += m->extractCoreGenCounterValue(cL2HitM);
     L2Hit += m->extractCoreGenCounterValue(cL2Hit);
+
+	Custom4 += m->extractCoreGenCounterValue(cLev4);
+	Custom5 += m->extractCoreGenCounterValue(cLev5);
+	Custom6 += m->extractCoreGenCounterValue(cLev6);
+	Custom7 += m->extractCoreGenCounterValue(cLev7);
+
     InvariantTSC += cInvariantTSC;
     C3Residency += cC3Residency;
     C6Residency += cC6Residency;
     C7Residency += cC7Residency;
+
+
 
     uint64 thermStatus = 0;
     msr->read(MSR_IA32_THERM_STATUS, &thermStatus);

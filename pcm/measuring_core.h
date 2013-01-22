@@ -8,6 +8,11 @@ void perfmon_start();
 void perfmon_stop();
 void perfmon_end();
 
+int flushTLB();
+int flushICache();
+int flushCache();
+
+
 #endif
 
 #ifdef NOTHING

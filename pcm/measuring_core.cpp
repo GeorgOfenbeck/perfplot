@@ -155,6 +155,10 @@ long cycles_a, cycles_b;
  list<uint64> *plists1;
  list<uint64> *plists2;
  list<uint64> *plists3;
+ list<uint64> *plists4;
+ list<uint64> *plists5;
+ list<uint64> *plists6;
+ list<uint64> *plists7;
  list<uint64> *plist_cycles;
  list<uint64> *plist_refcycles;
  list<uint64> *plist_tsc;
@@ -167,6 +171,10 @@ long cycles_a, cycles_b;
  ofstream * fplist1;
  ofstream * fplist2;
  ofstream * fplist3;
+ ofstream * fplist4;
+ ofstream * fplist5;
+ ofstream * fplist6;
+ ofstream * fplist7;
  ofstream * fplist_cycles;
  ofstream * fplist_refcycles;
  ofstream * fplist_tsc;
@@ -175,12 +183,44 @@ long cycles_a, cycles_b;
  
 
 
-int perfmon_init(int type, bool flushData = false, bool flushICache = false, bool flushTLB = false)
-{   	
-	gflushData = flushData;
-	gflushICache = flushICache;
-	gflushTLB = flushTLB;
+int flushTLB()
+{
+	
+}
 
+
+int flushICache()
+{
+
+}
+
+
+int flushCache()
+{
+	//GO: TODO - get LLC cache size from CPUID
+	long size = 14 * 1024 * 1024; //14 MB
+	double * buffer = (double *) malloc(size);
+	double result = 0;
+	for (int i = 0; i < size; i=i+4)
+	{
+		result += buffer[i];
+	}
+	for (int i = 0; i < size; i=i+4)
+	{
+		result += buffer[i];
+	}
+	free(buffer);
+	std::cout << "flushed cache"<< result << endl;
+}
+
+
+
+int perfmon_init(int type, bool flushData = false, bool flushICache = false, bool flushTLB = false)
+{
+        gflushData = flushData;
+        gflushICache = flushICache;
+        gflushTLB = flushTLB;
+	
 	flog.open("log.txt");	 
 	coutbuf = std::cout.rdbuf(); //save old buf
 	std::cout.rdbuf(flog.rdbuf());
@@ -229,7 +269,41 @@ int perfmon_init(int type, bool flushData = false, bool flushICache = false, boo
 	case 0:
 		status = m->program();
 		break;
+
 	case 1:		
+		//GO: FLOP (Double) Events
+		{
+			
+			PCM::CustomCoreEventDescription events[8];	
+			events[0].event_number = FP_COMP_OPS_EXE_SSE_SCALAR_DOUBLE_EVTNR;
+			events[0].umask_value = FP_COMP_OPS_EXE_SSE_SCALAR_DOUBLE_UMASK;	
+
+			events[1].event_number = FP_COMP_OPS_EXE_SSE_FP_PACKED_DOUBLE_EVTNR;
+			events[1].umask_value = FP_COMP_OPS_EXE_SSE_FP_PACKED_DOUBLE_UMASK;
+
+			events[2].event_number = SIMD_FP_256_PACKED_DOUBLE_EVTNR;
+			events[2].umask_value = SIMD_FP_256_PACKED_DOUBLE_UMASK;
+
+			events[3].event_number = FP_COMP_OPS_EXE_SSE_FP_SCALAR_SINGLE_EVTNR;
+			events[3].umask_value = FP_COMP_OPS_EXE_SSE_FP_SCALAR_SINGLE_UMASK;	
+
+			events[4].event_number = FP_COMP_OPS_EXE_SSE_PACKED_SINGLE_EVTNR;
+			events[4].umask_value = FP_COMP_OPS_EXE_SSE_PACKED_SINGLE_UMASK;
+
+			events[5].event_number = SIMD_FP_256_PACKED_SINGLE_EVTNR;
+			events[5].umask_value = SIMD_FP_256_PACKED_SINGLE_UMASK;
+
+			events[6].event_number = ARCH_LLC_REFERENCE_EVTNR;
+			events[6].umask_value =  ARCH_LLC_REFERENCE_UMASK;
+
+			events[7].event_number = ARCH_LLC_MISS_EVTNR;
+			events[7].umask_value = ARCH_LLC_MISS_UMASK;
+			
+
+			status = m->program(PCM::CUSTOM_CORE_EVENTS,events);
+		}
+		break;
+/*	case 1:		
 		//GO: FLOP (Double) Events
 		{
 			
@@ -248,7 +322,7 @@ int perfmon_init(int type, bool flushData = false, bool flushICache = false, boo
 
 			status = m->program(PCM::CUSTOM_CORE_EVENTS,events);
 		}
-		break;
+		break;*/
 	case 2: 
 		//GO: FLOP (Single) Events
 		{
@@ -353,6 +427,11 @@ int perfmon_init(int type, bool flushData = false, bool flushICache = false, boo
    plists2 = new list<uint64>[nrcores];
    plists3 = new list<uint64>[nrcores];
 
+   plists4 = new list<uint64>[nrcores];
+   plists5 = new list<uint64>[nrcores];
+   plists6 = new list<uint64>[nrcores];
+   plists7 = new list<uint64>[nrcores];
+
 
    plist_cycles = new list<uint64>[nrcores]; //saving rtdsc here
    plist_refcycles = new list<uint64>[nrcores]; //saving rtdsc here
@@ -411,6 +490,11 @@ void perfmon_stop()
 		plists1[i].push_front(getCustom1(cstates1[i], cstates2[i]));
 		plists2[i].push_front(getCustom2(cstates1[i], cstates2[i]));
 		plists3[i].push_front(getCustom3(cstates1[i], cstates2[i]));
+		plists4[i].push_front(getCustom4(cstates1[i], cstates2[i]));
+		plists5[i].push_front(getCustom5(cstates1[i], cstates2[i]));
+		plists6[i].push_front(getCustom6(cstates1[i], cstates2[i]));
+		plists7[i].push_front(getCustom7(cstates1[i], cstates2[i]));
+
 		plist_cycles[i].push_front(getCycles(cstates1[i], cstates2[i]));
 		plist_refcycles[i].push_front(getRefCycles(cstates1[i], cstates2[i]));
 		plist_tsc[i].push_front(getInvariantTSC(cstates1[i], cstates2[i]));		
@@ -435,6 +519,11 @@ void perfmon_end()
 	fplist1 = new ofstream[nrcores];
 	fplist2 = new ofstream[nrcores];
 	fplist3 = new ofstream[nrcores];
+	fplist4 = new ofstream[nrcores];
+	fplist5 = new ofstream[nrcores];
+	fplist6 = new ofstream[nrcores];
+	fplist7 = new ofstream[nrcores];
+
 	fplist_cycles = new ofstream[nrcores];
 	fplist_refcycles = new ofstream[nrcores];
 	fplist_tsc = new ofstream[nrcores];
@@ -476,6 +565,8 @@ void perfmon_end()
 			fplist3[i] << *it << " ";
 		fplist3[i].close();
 
+
+
 		stringstream ss4;
 		ss4 << "Cycles_core_" << i << ".txt";
 		fplist_cycles[i].open(ss4.str().c_str());
@@ -497,6 +588,37 @@ void perfmon_end()
 			fplist_tsc[i] << *it << " ";
 		fplist_tsc[i].close();
 		
+
+		stringstream ss7;
+		ss7 << "Custom_ev4_core" << i << ".txt";
+		fplist4[i].open(ss7.str().c_str());
+  	    for (it =  plists4[i].begin(); it != plists4[i].end(); ++it)
+			fplist4[i] << *it << " ";
+		fplist4[i].close();
+
+		stringstream ss8;
+		ss8 << "Custom_ev5_core" << i << ".txt";
+		fplist5[i].open(ss8.str().c_str());
+  	    for (it =  plists5[i].begin(); it != plists5[i].end(); ++it)
+			fplist5[i] << *it << " ";
+		fplist5[i].close();
+
+		stringstream ss9;
+		ss9 << "Custom_ev6_core" << i << ".txt";
+		fplist6[i].open(ss9.str().c_str());
+  	    for (it =  plists6[i].begin(); it != plists6[i].end(); ++it)
+			fplist6[i] << *it << " ";
+		fplist6[i].close();
+
+		stringstream ss10;
+		ss10 << "Custom_ev7_core" << i << ".txt";
+		fplist7[i].open(ss10.str().c_str());
+  	    for (it =  plists7[i].begin(); it != plists7[i].end(); ++it)
+			fplist7[i] << *it << " ";
+		fplist7[i].close();
+
+
+
 	}
 	
 	stringstream ss_read;

@@ -58,6 +58,12 @@ typedef signed int int32;
 #define IA32_PMC2                       (0xC1 + 2)
 #define IA32_PMC3                       (0xC1 + 3)
 
+//GO - we gonna use all 8 counters (hyperthreading deactivated)
+#define IA32_PMC4                       (0xC1 + 4)
+#define IA32_PMC5                       (0xC1 + 5)
+#define IA32_PMC6                       (0xC1 + 6)
+#define IA32_PMC7                       (0xC1 + 7)
+
 /* From Table B-5. of the above mentioned document */
 #define PLATFORM_INFO_ADDR              (0xCE)
 
