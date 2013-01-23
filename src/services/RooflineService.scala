@@ -25,7 +25,7 @@ object RooflineService {
     sourcefile.println(Config.MeasuringCoreH)
     sourcefile.println("int main () {\n    ")
     sourcefile.println("perfmon_init(1,false,false,false);")
-    sourcefile.println("  const long DLP = "+DLP+";\n  const long iterations = 1000000;double result = 0;\n  double result2 = 0;")
+    sourcefile.println("  const long DLP = "+DLP+";\n  const long iterations = 200000000;double result = 0;\n  double result2 = 0;")
     sourcefile.println("for (long r =0; r < " + repeats + "; r++) {")
       sourcefile.println("perfmon_start();");
       if (threaded)
@@ -71,7 +71,14 @@ object RooflineService {
 
   def get_scalar_peak () =
   {
-
+    val filename = "get_peak_scalar"
+    val tempdir = CommandService.getTempDir(filename)
+    val sourcefile = new PrintStream(tempdir.getPath + File.separator +  filename + ".cpp")
+    peak_def_code(sourcefile,false,true)
+    sourcefile.close()
+    CommandService.compile(tempdir.getPath + File.separator +  filename, "")
+    val resultdir = CommandService.measureCode(tempdir, filename)
+    resultdir
   }
 
   def get_vectorized_peak (): File =

@@ -62,9 +62,8 @@ class TestCounters extends Suite{
  {
    val path = RooflineService.get_vectorized_peak()
    val res = CommandService.Counters(path)
-   println("Perf:")
-   println(res.getPerformance(0))
-   println(res.getPerformance(1))
+   res.prettyprint()
+
 
  }
 

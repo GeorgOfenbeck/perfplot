@@ -63,9 +63,67 @@ object CommandService {
       get_avx_double_flops(i) + get_avx_single_flops(i)
     }
 
-    def getPerformance(i: Int) =
+    def getFlops(core: Int, exp: Int) =
     {
-      getFlops(i) * 1.0 / TSCCounter(0)(i)
+      Counter0(core)(exp) +
+      Counter1(core)(exp)*2 +
+      Counter2(core)(exp)*4 +
+      Counter3(core)(exp) +
+      Counter4(core)(exp)*4 +
+      Counter5(core)(exp)*8
+    }
+
+    def getPerformance(i: Int) = (getFlops(i) * 1.0 / TSCCounter(0)(i))
+
+    def getPerformance(core: Int, exp: Int) = (getFlops(core,exp) * 1.0/TSCCounter(core)(exp))
+
+
+    def prettyprint () =
+    {
+      for (j<- 0 until SCounter0.size)
+      {
+      println(
+        "%10s".format("Corenr:") +
+        "%10s".format("TSC") +
+        "%10s".format("Scalar_D") +
+        "%10s".format("SSE_D") +
+        "%10s".format("AVX_D") +
+        "%10s".format("Scalar_S") +
+        "%10s".format("SSE_S") +
+        "%10s".format("AVX_S") +
+        "%10s".format("x:") +
+        "%10s".format("x") +
+        "%10s".format("Perf")
+      )
+      for (i <- 0 until nrcores)
+        println(
+          "%10d".format(i) +
+          "%10d".format(TSCCounter(i)(j)) +
+          "%10d".format(Counter0(i)(j)) +
+          "%10d".format(Counter1(i)(j)) +
+          "%10d".format(Counter2(i)(j)) +
+          "%10d".format(Counter3(i)(j)) +
+          "%10d".format(Counter4(i)(j)) +
+          "%10d".format(Counter5(i)(j)) +
+          "%10d".format(Counter6(i)(j)) +
+          "%10d".format(Counter7(i)(j)) +
+          "%10f".format(getPerformance(i,j))
+        )
+      println("--------------------------------------------------------------------------------------------------------")
+      println(
+        "%10d".format(-1) +
+          "%10d".format(avgTSCCounter(j)) +
+          "%10d".format(SCounter0(j)) +
+          "%10d".format(SCounter1(j)) +
+          "%10d".format(SCounter2(j)) +
+          "%10d".format(SCounter3(j)) +
+          "%10d".format(SCounter4(j)) +
+          "%10d".format(SCounter5(j)) +
+          "%10d".format(SCounter6(j)) +
+          "%10d".format(SCounter7(j)) +
+          "%10f".format(getPerformance(j))
+      )
+      }
     }
   }
 
