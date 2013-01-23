@@ -17,6 +17,187 @@ import roofline.Config
 object CommandService {
 
 
+
+
+  class Counters (nrcores: Int,
+      Counter0 : Array[Array[Long]],
+      Counter1 : Array[Array[Long]],
+      Counter2 : Array[Array[Long]],
+      Counter3 : Array[Array[Long]],
+      Counter4 : Array[Array[Long]],
+      Counter5 : Array[Array[Long]],
+      Counter6 : Array[Array[Long]],
+      Counter7 : Array[Array[Long]],
+      CycleCounter : Array[Array[Long]],
+      RefCycleCounter : Array[Array[Long]],
+      TSCCounter: Array[Array[Long]],
+
+
+      SCounter0: Array[Long],
+      SCounter1: Array[Long],
+      SCounter2: Array[Long],
+      SCounter3: Array[Long],
+      SCounter4: Array[Long],
+      SCounter5: Array[Long],
+      SCounter6: Array[Long],
+      SCounter7: Array[Long],
+
+      sCycleCounter: Array[Long],
+      sRefCycleCounter: Array[Long],
+      avgTSCCounter: Array[Long],
+      mcread: Array[Long],
+      mcwrite: Array[Long]
+    )
+  {
+    def get_scalar_double_flops = SCounter0
+    def get_sse_double_flops = SCounter1.map(x => x*2)
+    def get_avx_double_flops = SCounter2.map(x => x*4)
+    def get_scalar_single_flops = SCounter3
+    def get_sse_single_flops = SCounter4.map(x => x*4)
+    def get_avx_single_flops = SCounter5.map(x => x*8)
+
+    def getFlops (i: Int) =
+    {
+      get_scalar_double_flops(i) + get_scalar_single_flops(i) +
+      get_sse_double_flops(i) + get_sse_single_flops(i) +
+      get_avx_double_flops(i) + get_avx_single_flops(i)
+    }
+
+    def getPerformance(i: Int) =
+    {
+      getFlops(i) * 1.0 / TSCCounter(0)(i)
+    }
+  }
+
+  object Counters{
+
+    def apply(path: File):Counters =
+    {
+
+      def getFile(name: String ) : String =
+      {
+        val filecheck = new File(name)
+        System.out.println("waiting for: " + filecheck.getAbsolutePath)
+        while (!filecheck.exists())
+        {
+          //System.out.print(".")
+        }
+        val source = scala.io.Source.fromFile(name)
+        val lines = source.mkString.trim
+        source.close ()
+        lines
+      }
+
+      val nrcores = getFile(path.getPath + File.separator + "NrCores.txt").toInt
+      val Counter0 = new Array[Array[Long]](nrcores)
+      val Counter1 = new Array[Array[Long]](nrcores)
+      val Counter2 = new Array[Array[Long]](nrcores)
+      val Counter3 = new Array[Array[Long]](nrcores)
+      val Counter4 = new Array[Array[Long]](nrcores)
+      val Counter5 = new Array[Array[Long]](nrcores)
+      val Counter6 = new Array[Array[Long]](nrcores)
+      val Counter7 = new Array[Array[Long]](nrcores)
+      val CycleCounter = new Array[Array[Long]](nrcores)
+      val RefCycleCounter = new Array[Array[Long]](nrcores)
+      val TSCCounter = new Array[Array[Long]](nrcores)
+
+
+      for (i <- 0 until nrcores)
+      {
+        Counter0(i) = getFile(path.getPath + File.separator + "Custom_ev0_core" + i + ".txt").split(" ").map( x => x.toLong).reverse
+        Counter1(i) = getFile(path.getPath + File.separator + "Custom_ev1_core" + i + ".txt").split(" ").map( x => x.toLong).reverse
+        Counter2(i) = getFile(path.getPath + File.separator + "Custom_ev2_core" + i + ".txt").split(" ").map( x => x.toLong).reverse
+        Counter3(i) = getFile(path.getPath + File.separator + "Custom_ev3_core" + i + ".txt").split(" ").map( x => x.toLong).reverse
+        Counter4(i) = getFile(path.getPath + File.separator + "Custom_ev4_core" + i + ".txt").split(" ").map( x => x.toLong).reverse
+        Counter5(i) = getFile(path.getPath + File.separator + "Custom_ev5_core" + i + ".txt").split(" ").map( x => x.toLong).reverse
+        Counter6(i) = getFile(path.getPath + File.separator + "Custom_ev6_core" + i + ".txt").split(" ").map( x => x.toLong).reverse
+        Counter7(i) = getFile(path.getPath + File.separator + "Custom_ev7_core" + i + ".txt").split(" ").map( x => x.toLong).reverse
+        CycleCounter(i) = getFile(path.getPath + File.separator + "Cycles_core_" + i + ".txt").split(" ").map( x => x.toLong).reverse
+        RefCycleCounter(i) = getFile(path.getPath + File.separator + "RefCycles_core_" + i + ".txt").split(" ").map( x => x.toLong).reverse
+        TSCCounter(i) = getFile(path.getPath + File.separator + "TSC_core_" + i + ".txt").split(" ").map( x => x.toLong).reverse
+      }
+
+      val sCounter0 = new Array[Long](Counter0(0).size)
+      val sCounter1 = new Array[Long](Counter1(0).size)
+      val sCounter2 = new Array[Long](Counter2(0).size)
+      val sCounter3 = new Array[Long](Counter3(0).size)
+      val sCounter4 = new Array[Long](Counter4(0).size)
+      val sCounter5 = new Array[Long](Counter5(0).size)
+      val sCounter6 = new Array[Long](Counter6(0).size)
+      val sCounter7 = new Array[Long](Counter7(0).size)
+
+      val sCycleCounter = new Array[Long](CycleCounter(0).size)
+      val sRefCycleCounter = new Array[Long](RefCycleCounter(0).size)
+      val avgTSCCounter = new Array[Long](TSCCounter(0).size)
+
+
+      def sumCounters(sumc : Array[Long], orgc: Array[Array[Long]]) =
+      {
+        for (i <- 0 until sumc.size) {
+          sumc(i) = 0
+          for (j <- 0 until nrcores)
+            sumc(i) = sumc(i) + orgc(j)(i)
+        }
+      }
+
+
+      for (i <- 0 until avgTSCCounter.size) {
+        avgTSCCounter(i) = 0
+        for (j <- 0 until nrcores)
+          avgTSCCounter(i) = avgTSCCounter(i) + TSCCounter(j)(i)
+        avgTSCCounter(i) = avgTSCCounter(i)/nrcores
+      }
+
+
+      sumCounters(sCounter0,Counter0)
+      sumCounters(sCounter1,Counter1)
+      sumCounters(sCounter2,Counter2)
+      sumCounters(sCounter3,Counter3)
+      sumCounters(sCounter4,Counter4)
+      sumCounters(sCounter5,Counter5)
+      sumCounters(sCounter6,Counter6)
+      sumCounters(sCounter7,Counter7)
+
+      sumCounters(sCycleCounter, CycleCounter)
+      sumCounters(sRefCycleCounter,RefCycleCounter)
+
+      val mcread = getFile(path.getPath + File.separator + "MC_read.txt").split(" ").map( x => x.toLong  ).reverse // /1024/1024 )
+      val mcwrite = getFile(path.getPath + File.separator + "MC_write.txt").split(" ").map( x => x.toLong ).reverse // /1024/1024)
+
+      new Counters(nrcores,
+        Counter0,
+        Counter1,
+        Counter2,
+        Counter3,
+        Counter4,
+        Counter5,
+        Counter6,
+        Counter7,
+        CycleCounter,
+        RefCycleCounter,
+        TSCCounter,
+        sCounter0,
+        sCounter1,
+        sCounter2,
+        sCounter3,
+        sCounter4,
+        sCounter5,
+        sCounter6,
+        sCounter7,
+        sCycleCounter,
+        sRefCycleCounter,
+        avgTSCCounter,
+        mcread,
+        mcwrite
+      )
+    }
+  }
+
+
+
+
+
+
   //GO: This function executes the code and returns the directory that contains the result (directory depends on caching)
   def measureCode(path: File, filename : String): File =
   {

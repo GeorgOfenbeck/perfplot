@@ -54,13 +54,17 @@ class TestCounters extends Suite{
    print_def_code(sourcefile)
    sourcefile.close()
    CommandService.compile(tempdir.getPath + File.separator +  filename, "")
-   val resultdir = CommandService.measureCode(tempdir, filename)
-   println(resultdir.toString)
+   val path = CommandService.measureCode(tempdir, filename)
+   CommandService.Counters(path)
  }
 
  def test_op_count () =
  {
-   RooflineService.get_vectorized_peak()
+   val path = RooflineService.get_vectorized_peak()
+   val res = CommandService.Counters(path)
+   println("Perf:")
+   println(res.getPerformance(1))
+
  }
 
 

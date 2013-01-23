@@ -17,7 +17,7 @@ object RooflineService {
 
   def peak_def_code(sourcefile: PrintStream, threaded: Boolean, vectorized: Boolean) =
   {
-    val DLP = 5;
+    val DLP = 10;
     val unrolling = 100;
     val nrthreads = 24;
     val repeats = 2;
@@ -25,9 +25,8 @@ object RooflineService {
     sourcefile.println(Config.MeasuringCoreH)
     sourcefile.println("int main () {\n    ")
     sourcefile.println("perfmon_init(1,false,false,false);")
-    sourcefile.println("const long DLP = "+DLP+";\n\t\t\t\tconst long iterations = 100000;double result = 0;\n  double result2 = 0;\n")
-    for (r <- 0 until repeats)
-    {
+    sourcefile.println("  const long DLP = "+DLP+";\n  const long iterations = 10000;double result = 0;\n  double result2 = 0;")
+    sourcefile.println("for (long r =0; r < " + repeats + "; r++) {")
       sourcefile.println("perfmon_start();");
       if (threaded)
         sourcefile.println("for (long p = 0; p <  "+ nrthreads + "; p++){")
@@ -56,8 +55,9 @@ object RooflineService {
       if (threaded)
         sourcefile.println("}")
       sourcefile.println("perfmon_stop();")
+
       sourcefile.println("\n\t\t\t\t\n  std::cout << result;\n  std::cout << result2;")
-  }
+    sourcefile.println("}")
 
     sourcefile.println("perfmon_end();")
     sourcefile.println("}")
@@ -74,7 +74,7 @@ object RooflineService {
 
   }
 
-  def get_vectorized_peak () =
+  def get_vectorized_peak (): File =
   {
     val filename = "get_peak_SSE"
     val tempdir = CommandService.getTempDir(filename)
@@ -83,6 +83,7 @@ object RooflineService {
     sourcefile.close()
     CommandService.compile(tempdir.getPath + File.separator +  filename, "")
     val resultdir = CommandService.measureCode(tempdir, filename)
+    resultdir
   }
 
 
