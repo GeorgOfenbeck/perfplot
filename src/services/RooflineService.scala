@@ -21,7 +21,7 @@ object RooflineService {
     val unrolling = 100;
     val nrthreads = 24;
     val repeats = 2;
-    sourcefile.println("#include <iostream>")
+    sourcefile.println("#include <iostream>\n #include \"immintrin.h\" ")
     sourcefile.println(Config.MeasuringCoreH)
     sourcefile.println("int main () {\n    ")
     sourcefile.println("perfmon_init(1,false,false,false);")

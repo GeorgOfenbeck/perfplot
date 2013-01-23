@@ -367,7 +367,7 @@ object CommandService {
   def execute (command: String, wd: File = null)
   {
     val runtime = java.lang.Runtime.getRuntime()
-    val compileProcess = if (wd == null)
+    val compileProcess = if (wd != null)
       runtime.exec(command,null,wd)
     else
       runtime.exec(command)
