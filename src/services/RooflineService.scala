@@ -17,7 +17,7 @@ object RooflineService {
 
   def peak_def_code(sourcefile: PrintStream, threaded: Boolean, vectorized: Boolean) =
   {
-    val DLP = 10;
+    val DLP = 5;
     val unrolling = 100;
     val nrthreads = 24;
     val repeats = 2;
@@ -25,7 +25,7 @@ object RooflineService {
     sourcefile.println(Config.MeasuringCoreH)
     sourcefile.println("int main () {\n    ")
     sourcefile.println("perfmon_init(1,false,false,false);")
-    sourcefile.println("  const long DLP = "+DLP+";\n  const long iterations = 10000;double result = 0;\n  double result2 = 0;")
+    sourcefile.println("  const long DLP = "+DLP+";\n  const long iterations = 1000000;double result = 0;\n  double result2 = 0;")
     sourcefile.println("for (long r =0; r < " + repeats + "; r++) {")
       sourcefile.println("perfmon_start();");
       if (threaded)
@@ -34,7 +34,7 @@ object RooflineService {
       sourcefile.println("__m128d a[DLP], b[DLP], c,d;")
       sourcefile.println("double t;\n\n    t = 1.1;\n\n    for (int i = 0; i < DLP; i++) {\n      tmp[0] = t;\n      t += 0.1;\n      tmp[1] = t;\n      t += 0.1;\n      a[i] = _mm_loadu_pd(tmp);\n      b[i] = _mm_loadu_pd(tmp);\n    }\n\n    tmp[0] = 1;\n    tmp[1] = 1;\n    c = _mm_loadu_pd(tmp);\n    d = _mm_loadu_pd(tmp);")
 
-      sourcefile.println("for (long i = 0; i < iterations/ "+ unrolling + "; i++) {")
+      sourcefile.println("for (long i = 0; i < iterations/ "+ (unrolling * DLP) + "; i++) {")
 
         for (i <- 0 until unrolling)
           for (j <- 0 until DLP)
@@ -58,7 +58,7 @@ object RooflineService {
 
       sourcefile.println("\n\t\t\t\t\n  std::cout << result;\n  std::cout << result2;")
     sourcefile.println("}")
-
+    sourcefile.println("std::cout << \"iterations: \" <<  iterations ;")
     sourcefile.println("perfmon_end();")
     sourcefile.println("}")
   }
