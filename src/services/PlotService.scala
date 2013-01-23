@@ -184,6 +184,7 @@ class PlotService {
 
     output.close()
     val arg  =  plot.outputName + ".gnuplot"
+
     CommandService.rungnuplot(arg)
   }
 

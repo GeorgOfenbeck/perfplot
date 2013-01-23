@@ -201,11 +201,11 @@ int flushCache()
 	long size = 14 * 1024 * 1024; //14 MB
 	double * buffer = (double *) malloc(size);
 	double result = 0;
-	for (int i = 0; i < size; i=i+4)
+	for (long i = 0; i < size/sizeof(double); i=i+4)
 	{
 		result += buffer[i];
 	}
-	for (int i = 0; i < size; i=i+4)
+	for (long i = 0; i < size/sizeof(double); i=i+4)
 	{
 		result += buffer[i];
 	}

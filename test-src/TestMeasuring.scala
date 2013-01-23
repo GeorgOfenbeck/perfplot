@@ -1,3 +1,5 @@
+/*
+/*
 
 /**
  * Georg Ofenbeck
@@ -34,9 +36,9 @@ class TestMeasuring extends Suite{
     lines
   }
 
+  */
 
-
-  def test_Roofline_lines()
+  def Roofline_lines()
   {
     val filename = "rooflines"
 
@@ -365,7 +367,7 @@ class TestMeasuring extends Suite{
 
   }
 
-  def Peak_Performance()
+  def test_Peak_Performance()
   {
     val filename = "tmp"
     val temp : File = File.createTempFile("perfplot","");
@@ -539,4 +541,6 @@ class TestMeasuring extends Suite{
 
 
 }
+
+*/
 
