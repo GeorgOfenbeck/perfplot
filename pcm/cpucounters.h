@@ -1292,15 +1292,15 @@ double getActiveRelativeFrequency(const CounterStateType & before, const Counter
 template <class CounterStateType>
 uint64 getCustom0(const CounterStateType & before, const CounterStateType & after) // 0.0 - 1.0
 {
-    if (PCM::getInstance()->getCPUModel() == PCM::ATOM) return -1;
+	if (after.Custom0 < before.Custom0) return 0;
     uint64 counter = after.Custom0 - before.Custom0;
 	return counter;    
 }
 
 template <class CounterStateType>
 uint64 getCustom1(const CounterStateType & before, const CounterStateType & after) // 0.0 - 1.0
-{
-    if (PCM::getInstance()->getCPUModel() == PCM::ATOM) return -1;
+{		
+	if (after.Custom1 < before.Custom1) return 0;
     uint64 counter = after.Custom1 - before.Custom1;
 	return counter;    
 }
@@ -1308,48 +1308,48 @@ uint64 getCustom1(const CounterStateType & before, const CounterStateType & afte
 template <class CounterStateType>
 uint64 getCustom2(const CounterStateType & before, const CounterStateType & after) // 0.0 - 1.0
 {
-    if (PCM::getInstance()->getCPUModel() == PCM::ATOM) return -1;
+	if (after.Custom2 < before.Custom2) return 0;
     uint64 counter = after.Custom2 - before.Custom2;
 	return counter;    
 }
 
 template <class CounterStateType>
 uint64 getCustom3(const CounterStateType & before, const CounterStateType & after) // 0.0 - 1.0
-{
-    if (PCM::getInstance()->getCPUModel() == PCM::ATOM) return -1;
-    uint64 counter = after.Custom3 - before.Custom3;
+{   
+	if (after.Custom3 < before.Custom3) return 0;
+	uint64 counter = after.Custom3 - before.Custom3;	
 	return counter;    
 }
 
 
 template <class CounterStateType>
 uint64 getCustom4(const CounterStateType & before, const CounterStateType & after) // 0.0 - 1.0
-{
-    if (PCM::getInstance()->getCPUModel() == PCM::ATOM) return -1;
+{ 
+	if (after.Custom4 < before.Custom4) return 0;
     uint64 counter = after.Custom4 - before.Custom4;
 	return counter;    
 }
 
 template <class CounterStateType>
 uint64 getCustom5(const CounterStateType & before, const CounterStateType & after) // 0.0 - 1.0
-{
-    if (PCM::getInstance()->getCPUModel() == PCM::ATOM) return -1;
+{ 
+	if (after.Custom5 < before.Custom5) return 0;
     uint64 counter = after.Custom5 - before.Custom5;
 	return counter;    
 }
 
 template <class CounterStateType>
 uint64 getCustom6(const CounterStateType & before, const CounterStateType & after) // 0.0 - 1.0
-{
-    if (PCM::getInstance()->getCPUModel() == PCM::ATOM) return -1;
+{ 
+	if (after.Custom6 < before.Custom6) return 0;
     uint64 counter = after.Custom6 - before.Custom6;
 	return counter;    
 }
 
 template <class CounterStateType>
 uint64 getCustom7(const CounterStateType & before, const CounterStateType & after) // 0.0 - 1.0
-{
-    if (PCM::getInstance()->getCPUModel() == PCM::ATOM) return -1;
+{ 
+	if (after.Custom7 < before.Custom7) return 0;
     uint64 counter = after.Custom7 - before.Custom7;
 	return counter;    
 }
