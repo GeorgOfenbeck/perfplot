@@ -34,6 +34,7 @@ class TestPlotting extends Suite{
     myplot.xLabel = "xLabel"
     myplot.yLabel = "yLabel"
 
+
     myplot.xUnit = "xUnit"
     myplot.yUnit = "yUnit"
 

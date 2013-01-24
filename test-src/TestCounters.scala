@@ -60,11 +60,8 @@ class TestCounters extends Suite{
 
  def test_op_count () =
  {
-   val path = RooflineService.get_vectorized_peak()
-   val res = CommandService.Counters(path)
-   res.prettyprint()
-
-
+   CommandService.Counters(RooflineService.get_scalar_peak()).prettyprint()
+   CommandService.Counters(RooflineService.get_vectorized_peak()).prettyprint()
  }
 
 

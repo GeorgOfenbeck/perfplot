@@ -31,7 +31,64 @@ class PlotService {
   val lineColors = List( "black", "red", "green", "blue", "#FFFF00" )
 
 
+  def plot (plot: OpsPlot)
+  {
+    var first : Boolean = true
+    //first generate the .data files
+    val outputFile = new PrintStream(plot.outputName + ".data")
+    for (serie <- plot.series)
+    {
+      val i = plot.series.indexOf(serie)
+      outputFile.printf("# [Median %d]\n", int2Integer(i));
+      for (point <- serie.series)
+      {
+        outputFile.printf("%e %e\n",
+          double2Double(point.problemSize),
+          double2Double(point.getOperations)
+          )
+        //point.point._2.value,
+        //point.point._1.value)
+      }
+      outputFile.printf("\n\n");
+    }
+    outputFile.close()
 
+    val output = new PrintStream(plot.outputName + ".gnuplot")
+    preparePlot2D(output,plot)
+    //output.printf("set xtics scale 0 (%s)\n",getLo)
+    val plotLines = scala.collection.mutable.MutableList[String]()
+
+    for (mserie <- plot.series)
+    {
+      val i = plot.series.indexOf(mserie)
+      plotLines += String.format("'%s.data' index '[Median %d]' title '%s' with linespoints lw %d lt -1 pt %d lc rgb\"%s\"",
+        plot.outputName,
+        int2Integer(i),
+        mserie.name,
+        int2Integer(lwLine),
+        int2Integer(pointTypes(i)),
+        lineColors(i)
+      )
+
+    }
+
+
+    output.println("plot \\")
+    first = true
+    for (line <- plotLines)
+    {
+      if (first) first = false else output.print(",\\\n")
+      output.print(line) // + )
+    }
+
+
+    output.close()
+    val arg  =  plot.outputName + ".gnuplot"
+
+    CommandService.rungnuplot(arg)
+
+
+  }
 
   def plot (plot: RooflinePlot)
   {
@@ -283,20 +340,35 @@ class PlotService {
   }
 
   /**
-   * plot a roofline plot
+   * plot a performance
    */
   def plot (plot : PerformancePlot) {
+    var first : Boolean = true
+    //first generate the .data files
+    val outputFile = new PrintStream(plot.outputName + ".data")
+    for (serie <- plot.series)
+    {
+      val i = plot.series.indexOf(serie)
+      outputFile.printf("# [Median %d]\n", int2Integer(i));
+      for (point <- serie.series)
+      {
+        outputFile.printf("%e %e\n",
+          double2Double(point.problemSize),
+          double2Double(point.getAVG)
+        )
+        //point.point._2.value,
+        //point.point._1.value)
+      }
+      outputFile.printf("\n\n");
+    }
+    outputFile.close()
 
-
-    //write gnuplot file
     val output = new PrintStream(plot.outputName + ".gnuplot")
-    preparePlot2D(output, plot)
-
-
+    preparePlot2D(output,plot)
+    //output.printf("set xtics scale 0 (%s)\n",getLo)
     val plotLines = scala.collection.mutable.MutableList[String]()
 
-    //build the peak performance lines
-    var first : Boolean = true
+    first = true
     for ((name,peak) <- plot.peakPerformances)
     {
       val (lineColor, lw) = if (first)
@@ -309,20 +381,24 @@ class PlotService {
         ("rgb\"#B0B0B0\"",lwBound)
 
       // generate the string
-
       plotLines += String.format(
         "%e notitle with lines lc %s lw %d",
         double2Double(peak.value), lineColor, int2Integer(lw))
     }
 
-    //print the peak performance lines
-    for ((name,peak) <- plot.peakPerformances)
-      output.printf(
-        "set label '%s (%.2g F/C)' at graph 1,first %e right offset -1,graph 0.015\n",
-        name, double2Double(peak.value), double2Double(peak.value))
+    for (mserie <- plot.series)
+    {
+      val i = plot.series.indexOf(mserie)
+      plotLines += String.format("'%s.data' index '[Median %d]' title '%s' with linespoints lw %d lt -1 pt %d lc rgb\"%s\"",
+        plot.outputName,
+        int2Integer(i),
+        mserie.name,
+        int2Integer(lwLine),
+        int2Integer(pointTypes(i)),
+        lineColors(i)
+      )
 
-
-
+    }
 
 
     output.println("plot \\")
@@ -334,14 +410,12 @@ class PlotService {
     }
 
 
-
-
-
     output.close()
-
-
     val arg  =  plot.outputName + ".gnuplot"
+
     CommandService.rungnuplot(arg)
+
+
   }
 
 

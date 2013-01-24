@@ -74,7 +74,7 @@ object RooflineService {
     val filename = "get_peak_scalar"
     val tempdir = CommandService.getTempDir(filename)
     val sourcefile = new PrintStream(tempdir.getPath + File.separator +  filename + ".cpp")
-    peak_def_code(sourcefile,false,true)
+    peak_def_code(sourcefile,false,false)
     sourcefile.close()
     CommandService.compile(tempdir.getPath + File.separator +  filename, "")
     val resultdir = CommandService.measureCode(tempdir, filename)

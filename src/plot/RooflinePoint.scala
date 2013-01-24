@@ -27,5 +27,20 @@ case class RooflinePoint (problemSize: Long, measurments: List[(Performance,Oper
     sum/measurments.size
   }
 }
+
+case class PerformancePoint (problemSize: Long, measurments: List[Performance], label: String = "")
+{
+  def getAVG = measurments.map(x=>x.value).sum/measurments.size
+}
+case class OperationPoint (problemSize: Long, measurments: List[OperationCount], label: String = "")
+{
+  def getOperations = measurments.map(x=>x.value).sum/measurments.size
+}
+
+
+
+
+case class OperationSeries (name: String, series: List[OperationPoint])
+case class PerformanceSeries (name: String, series: List[PerformancePoint])
 case class RooflineSeries (name: String, series: List[RooflinePoint])
 

@@ -12,6 +12,8 @@ import java.io._
 import java.security.MessageDigest
 import java.security.DigestInputStream
 import roofline.Config
+import roofline.plot._
+import roofline.quantities._
 
 
 object CommandService {
@@ -49,6 +51,39 @@ object CommandService {
       mcwrite: Array[Long]
     )
   {
+
+
+
+
+    def toFlopSeries (name: String, sizes: List[Long], warmup : Int = 1) =
+    {
+      val repeats = TSCCounter(0).size/sizes.size
+      val series = new Array[OperationPoint](sizes.size)
+
+      for (i <- 0 until sizes.size)
+      {
+        series(i) = OperationPoint(sizes(i),
+          getFlops( ( (i*repeats+warmup) until (i+1)*repeats) ).map(x => Flops(x))
+        )
+      }
+      OperationSeries(name,series.toList)
+    }
+
+    def toPerformanceSeries (name: String, sizes: List[Long], warmup : Int = 1) =
+    {
+      val repeats = TSCCounter(0).size/sizes.size
+      val series = new Array[PerformancePoint](sizes.size)
+      for (i <- 0 until sizes.size)
+      {
+        series(i) = PerformancePoint(sizes(i),
+          getPerformance( ( (i*repeats+warmup) until (i+1)*repeats) )
+        )
+      }
+      PerformanceSeries(name,series.toList)
+    }
+
+
+
     def get_scalar_double_flops = SCounter0
     def get_sse_double_flops = SCounter1.map(x => x*2)
     def get_avx_double_flops = SCounter2.map(x => x*4)
@@ -56,7 +91,9 @@ object CommandService {
     def get_sse_single_flops = SCounter4.map(x => x*4)
     def get_avx_single_flops = SCounter5.map(x => x*8)
 
-    def getFlops (i: Int) =
+    def getFlops(r : Range): List[Long] = (for (i <- r) yield getFlops(i)).toList
+
+    def getFlops (i: Int) : Long =
     {
       get_scalar_double_flops(i) + get_scalar_single_flops(i) +
       get_sse_double_flops(i) + get_sse_single_flops(i) +
@@ -72,10 +109,11 @@ object CommandService {
       Counter4(core)(exp)*4 +
       Counter5(core)(exp)*8
     }
+    def getPerformance(r: Range): List[Performance] = (for (i <- r) yield getPerformance(i)).toList
 
-    def getPerformance(i: Int) = (getFlops(i) * 1.0 / TSCCounter(0)(i))
+    def getPerformance(i: Int) = Performance(Flops(getFlops(i)),Cycles(TSCCounter(0)(i)))
 
-    def getPerformance(core: Int, exp: Int) = (getFlops(core,exp) * 1.0/TSCCounter(core)(exp))
+    def getPerformance(core: Int, exp: Int) = Performance(Flops(getFlops(core,exp)),Cycles(TSCCounter(core)(exp)))
 
 
     def prettyprint () =
@@ -83,46 +121,49 @@ object CommandService {
       for (j<- 0 until SCounter0.size)
       {
       println(
-        "%10s".format("Corenr:") +
-        "%10s".format("TSC") +
-        "%10s".format("Scalar_D") +
-        "%10s".format("SSE_D") +
-        "%10s".format("AVX_D") +
-        "%10s".format("Scalar_S") +
-        "%10s".format("SSE_S") +
-        "%10s".format("AVX_S") +
-        "%10s".format("x:") +
-        "%10s".format("x") +
-        "%10s".format("Perf")
+        "%6s".format("Corenr:") +
+        "%12s".format("TSC") +
+        "%12s".format("Scalar_D") +
+        "%12s".format("SSE_D") +
+        "%12s".format("AVX_D") +
+        "%12s".format("Scalar_S") +
+        "%12s".format("SSE_S") +
+        "%12s".format("AVX_S") +
+        //"%12s".format("x:") +
+        //"%12s".format("x") +
+        "%12s".format("Perf")
       )
       for (i <- 0 until nrcores)
         println(
-          "%10d".format(i) +
-          "%10d".format(TSCCounter(i)(j)) +
-          "%10d".format(Counter0(i)(j)) +
-          "%10d".format(Counter1(i)(j)) +
-          "%10d".format(Counter2(i)(j)) +
-          "%10d".format(Counter3(i)(j)) +
-          "%10d".format(Counter4(i)(j)) +
-          "%10d".format(Counter5(i)(j)) +
-          "%10d".format(Counter6(i)(j)) +
-          "%10d".format(Counter7(i)(j)) +
-          "%10f".format(getPerformance(i,j))
+          "%6d".format(i) +
+          "%12d".format(TSCCounter(i)(j)) +
+          "%12d".format(Counter0(i)(j)) +
+          "%12d".format(Counter1(i)(j)) +
+          "%12d".format(Counter2(i)(j)) +
+          "%12d".format(Counter3(i)(j)) +
+          "%12d".format(Counter4(i)(j)) +
+          "%12d".format(Counter5(i)(j)) +
+          //"%12d".format(Counter6(i)(j)) +
+          //"%12d".format(Counter7(i)(j)) +
+          "%12f".format(getPerformance(i,j).value)
         )
       println("--------------------------------------------------------------------------------------------------------")
       println(
-        "%10d".format(-1) +
-          "%10d".format(avgTSCCounter(j)) +
-          "%10d".format(SCounter0(j)) +
-          "%10d".format(SCounter1(j)) +
-          "%10d".format(SCounter2(j)) +
-          "%10d".format(SCounter3(j)) +
-          "%10d".format(SCounter4(j)) +
-          "%10d".format(SCounter5(j)) +
-          "%10d".format(SCounter6(j)) +
-          "%10d".format(SCounter7(j)) +
-          "%10f".format(getPerformance(j))
+        "%6d".format(-1) +
+          "%12d".format(avgTSCCounter(j)) +
+          "%12d".format(SCounter0(j)) +
+          "%12d".format(SCounter1(j)) +
+          "%12d".format(SCounter2(j)) +
+          "%12d".format(SCounter3(j)) +
+          "%12d".format(SCounter4(j)) +
+          "%12d".format(SCounter5(j)) +
+          //"%12d".format(SCounter6(j)) +
+          //"%12d".format(SCounter7(j)) +
+          "%12f".format(getPerformance(j).value) +
+          "%12f".format(mcread(j)) +
+          "%12f".format(mcwrite(j))
       )
+        println()
       }
     }
   }
@@ -252,7 +293,15 @@ object CommandService {
   }
 
 
-
+  def fromScratch (filename: String, codegenfunction: (PrintStream => Unit), flags: String = "") : Counters =
+  {
+    val tempdir = CommandService.getTempDir(filename)
+    val sourcefile = new PrintStream(tempdir.getPath + File.separator +  filename + ".cpp")
+    codegenfunction(sourcefile)
+    sourcefile.close()
+    CommandService.compile(tempdir.getPath + File.separator +  filename, flags)
+    Counters(CommandService.measureCode(tempdir, filename))
+  }
 
 
 
@@ -416,7 +465,7 @@ object CommandService {
       execute(" \"C:\\Program Files (x86)\\Intel\\Composer XE 2013\\bin\\compilervars.bat\" intel64 vs2012shell")
     }
     else
-      execute("icc " + codeFile +".cpp " + Config.MeasuringCore.getAbsolutePath + "  -lpthread -lrt -o "+ codeFile + ".x")
+      execute("icc " + codeFile +".cpp " + Config.MeasuringCore.getAbsolutePath + flags + "  -lpthread -lrt -o "+ codeFile + ".x")
     //execute(compiler.getAbsolutePath + " -std=c99 -mkl -fasm-blocks " + codeFile +".cpp " + " pcm/MeasuringCore.lib -lpthread -lrt -o "+ codeFile + ".x")
   }
 
