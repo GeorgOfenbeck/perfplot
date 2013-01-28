@@ -160,8 +160,8 @@ object CommandService {
           //"%12d".format(SCounter6(j)) +
           //"%12d".format(SCounter7(j)) +
           "%12f".format(getPerformance(j).value) +
-          "%12f".format(mcread(j)) +
-          "%12f".format(mcwrite(j))
+          "%12d".format(mcread(j)/1024) +
+          "%12d".format(mcwrite(j)/1024)
       )
         println()
       }
@@ -172,7 +172,7 @@ object CommandService {
 
     def apply(path: File):Counters =
     {
-
+      System.out.println("reading counters from " + path.getPath + File.separator)
       def getFile(name: String ) : String =
       {
         val filecheck = new File(name)
@@ -300,7 +300,12 @@ object CommandService {
     codegenfunction(sourcefile)
     sourcefile.close()
     CommandService.compile(tempdir.getPath + File.separator +  filename, flags)
-    Counters(CommandService.measureCode(tempdir, filename))
+    System.out.println("executing ...")
+    val file = CommandService.measureCode(tempdir, filename)
+    System.out.println("gather results ..." + file.getPath)
+    val c = Counters.apply(file)
+    System.out.println("return results ...")
+    return c
   }
 
 

@@ -57,7 +57,10 @@ class FFT_Comparison extends Suite{
   {
     //this assumes that the code is in the home directory under ~/fft_scalar
     sourcefile.println(Config.MeasuringCoreH)
-    sourcefile.println("#include \"/home/ofgeorg/fft_scalar/spiral_fft.h\"\n    #include \"/home/ofgeorg/fft_scalar/spiral_private.h\"\n    #include \"/home/ofgeorg/fft_scalar/spiral_private.c\"\n    #include \"/home/ofgeorg/fft_scalar/spiral_fft_double.c\"")
+    if (Config.isWin)
+      sourcefile.println("#include \"C:\\Users\\ofgeorg\\fft_scalar\\spiral_fft.h\"\n    #include \"C:\\Users\\ofgeorg\\fft_scalar\\spiral_private.h\"\n    #include \"C:\\Users\\ofgeorg\\fft_scalar\\spiral_private.c\"\n    #include \"C:\\Users\\ofgeorg\\fft_scalar\\spiral_fft_double.c\"")
+    else
+      sourcefile.println("#include \"/home/ofgeorg/fft_scalar/spiral_fft.h\"\n    #include \"/home/ofgeorg/fft_scalar/spiral_private.h\"\n    #include \"/home/ofgeorg/fft_scalar/spiral_private.c\"\n    #include \"/home/ofgeorg/fft_scalar/spiral_fft_double.c\"")
     sourcefile.println("#include <iostream>")
     sourcefile.println("#include <cstdio>")
     sourcefile.println("#include <stdlib.h>")
@@ -89,20 +92,85 @@ class FFT_Comparison extends Suite{
   }
 
 
+  def SpiralSCode(sourcefile: PrintStream, sizes: List[Long]) =
+  {
+    //this assumes that the code is in the home directory under ~/fft_scalar
+    sourcefile.println(Config.MeasuringCoreH)
+    sourcefile.println("#include <iostream>")
+    sourcefile.println("#include <cstdio>")
+    sourcefile.println("#include <stdlib.h>")
+    sourcefile.println("typedef struct {\n        double* input;\n        double* output;\n} spiral_t;")
+
+
+    for (s <- sizes)
+      //sourcefile.println("void fft"+s+"(spiral_t* );")
+      if (Config.isWin)
+        sourcefile.println("#include \"C:\\Users\\ofgeorg\\IdeaProjects\\SpiralS\\fft"+s+".c\"")
+      else
+        sourcefile.println("#include \"/home/ofgeorg/SpiralS_generated/fft"+s+".c\"")
+
+    sourcefile.println("int main () {\n    ")
+    sourcefile.println("perfmon_init(1,false,false,false);")
+    sourcefile.println("double * pSrc; double * pDst;")
+    sourcefile.println("spiral_t dummy;")
+    sourcefile.println("const int page = 1024*4;\n long size = 28 * 1024 * 1024;\n ")
+    for (s <- sizes)
+    {
+      sourcefile.println("pSrc = (double*) _mm_malloc( "+s+ " *2*sizeof(double), page );")
+      sourcefile.println("if (!pSrc) {\n      std::cout << \"malloc failed\";\n      perfmon_end();\n      return -1;\n    }")
+      sourcefile.println("pDst = (double*) _mm_malloc( "+s+ " *2*sizeof(double), page );")
+      sourcefile.println("if (!pDst) {\n      std::cout << \"malloc failed\";\n      perfmon_end();\n      return -1;\n    }")
+      sourcefile.println("for (long r =0; r < " + repeats + "; r++) {")
+      sourcefile.println("        dummy.input = pSrc;\n        dummy.output = pDst;")
+      sourcefile.println("perfmon_start();");
+      for (x <- 0 until 100)
+        sourcefile.println("fft"+ s + "(&dummy);")
+      sourcefile.println("perfmon_stop();")
+      sourcefile.println("std::cout << pDst[0];")
+      sourcefile.println("}")
+      sourcefile.println("_mm_free(pSrc);")
+      sourcefile.println("_mm_free(pDst);")
+    }
+    sourcefile.println("perfmon_end();")
+    sourcefile.println("}")
+  }
+
 
 
   def test() =
   {
     val sizes = (for (i<-6 until 13) yield Math.pow(2,i).toLong).toList
-      def fftw (sourcefile: PrintStream) = FFTWCode(sourcefile,sizes)
-      def spiral (sourcefile: PrintStream) = SpiralCode (sourcefile,sizes)
-    val fftw_res = CommandService.fromScratch("fftw", fftw, " -lfftw3 -lm " )
-    val spiral_res = CommandService.fromScratch("spiral", spiral )
-    
-    val spiral_ops_series = spiral_res.toFlopSeries("spiral",sizes)
-    val fftw_ops_series = fftw_res.toFlopSeries("fftw",sizes)
 
-    val opsplot = new OpsPlot(List(fftw_ops_series,spiral_ops_series))
+    def fftw (sourcefile: PrintStream) = FFTWCode(sourcefile,sizes)
+    def spiral (sourcefile: PrintStream) = SpiralCode (sourcefile,sizes)
+    def spiralS (sourcefile: PrintStream) = SpiralSCode (sourcefile,sizes)
+
+
+
+
+    val spiralS_res = CommandService.fromScratch("spiral", spiralS, Config.flag_c99 + Config.flag_optimization + Config.flag_hw + Config.flag_novec  )
+    val spiralS_ops_series = spiralS_res.toFlopSeries("spiralS",sizes)
+    val spiralS_perf_series = spiralS_res.toPerformanceSeries("spiralS",sizes)
+
+    val spiral_res = CommandService.fromScratch("spiral", spiral ,Config.flag_c99 + Config.flag_optimization + Config.flag_hw + Config.flag_novec)
+    val spiral_ops_series = spiral_res.toFlopSeries("spiral",sizes)
+    val spiral_perf_series = spiral_res.toPerformanceSeries("spiral",sizes)
+
+    val lists = if (!Config.isWin)
+    {
+      val fftw_res = CommandService.fromScratch("fftw", fftw, Config.flag_c99 + Config.flag_optimization + Config.flag_hw + Config.flag_novec  + " -lfftw3 -lm " )
+      val fftw_ops_series = fftw_res.toFlopSeries("fftw",sizes)
+      val fftw_perf_series = fftw_res.toPerformanceSeries("fftw",sizes)
+
+      (List(spiralS_ops_series,fftw_ops_series,spiral_ops_series),List(spiralS_perf_series,fftw_perf_series,spiral_perf_series))
+    }
+    else
+      (List(spiralS_ops_series,spiral_ops_series),List(spiralS_perf_series,spiral_perf_series))
+
+
+
+
+    val opsplot = new OpsPlot(lists._1)
     opsplot.outputName = "TestOps"
     opsplot.title = "Op Count"
     opsplot.xLabel = "size"
@@ -111,11 +179,7 @@ class FFT_Comparison extends Suite{
     opsplot.yUnit = "Flops"
 
 
-    val spiral_perf_series = spiral_res.toPerformanceSeries("spiral",sizes)
-    val fftw_perf_series = fftw_res.toPerformanceSeries("fftw",sizes)
-
-
-    val perfplot = new PerformancePlot(List(fftw_perf_series,spiral_perf_series),
+    val perfplot = new PerformancePlot(lists._2,
       List(
         ("Scalar",Performance(Flops(2),Cycles(1)))
       ))

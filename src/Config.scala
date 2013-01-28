@@ -33,6 +33,7 @@ object Config {
   def flag_mkl_seq = if (isWin) " /Qmkl:sequential" else " -mkl:sequential"
   def flag_optimization = if (isWin) " /O3" else " -O3"
   def flag_hw = if (isWin) " /Qmarch=corei7-avx" else " -march=corei7-avx"
+  def flag_novec = if (isWin) " /Qno-simd /Qno-vec" else " -no-simd -no-vec"
 
 
   val MeasuringCoreH = "#ifndef MEASURING_CORE_HEADER\n#define MEASURING_CORE_HEADER\n\n\n\nint perfmon_init(int type, bool flushData , bool flushICache , bool flushTLB );\nvoid perfmon_start();\nvoid perfmon_stop();\nvoid perfmon_end();int flushTLB();\n  int flushICache();\n  int flushCache();\n\n#endif"

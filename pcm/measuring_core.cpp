@@ -293,8 +293,8 @@ int perfmon_init(int type, bool flushData = false, bool flushICache = false, boo
 			events[5].event_number = SIMD_FP_256_PACKED_SINGLE_EVTNR;
 			events[5].umask_value = SIMD_FP_256_PACKED_SINGLE_UMASK;
 
-			events[6].event_number = ARCH_LLC_REFERENCE_EVTNR;
-			events[6].umask_value =  ARCH_LLC_REFERENCE_UMASK;
+			events[6].event_number = UNC_L3_MISS_ANY_EVTNR;
+			events[6].umask_value =  UNC_L3_MISS_ANY_UMASK;
 
 			events[7].event_number = ARCH_LLC_MISS_EVTNR;
 			events[7].umask_value = ARCH_LLC_MISS_UMASK;
