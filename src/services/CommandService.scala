@@ -82,6 +82,21 @@ object CommandService {
       PerformanceSeries(name,series.toList)
     }
 
+    def toPerformanceSeries_fft (name: String, sizes: List[Long], warmup : Int = 1) =
+    {
+      val repeats = TSCCounter(0).size/sizes.size
+      val series = new Array[PerformancePoint](sizes.size)
+      for (i <- 0 until sizes.size)
+      {
+        val pseudo_ops: Double = 5 * sizes(i) * 100.0 * (Math.log(sizes(i)*1.0)/math.log(2)) //100 cause of repeats
+        System.out.println("Pseudo ops: " + pseudo_ops)
+        val t = getPerformance( ( (i*repeats+warmup) until (i+1)*repeats))
+        val pseudo_perf = t.map( perf => Performance(PseudoFlops(pseudo_ops),Cycles(perf.time.value)))
+        series(i) = PerformancePoint(sizes(i), pseudo_perf  )
+
+      }
+      PerformanceSeries(name,series.toList)
+    }
 
 
     def get_scalar_double_flops = SCounter0
@@ -110,10 +125,12 @@ object CommandService {
       Counter5(core)(exp)*8
     }
     def getPerformance(r: Range): List[Performance] = (for (i <- r) yield getPerformance(i)).toList
-
     def getPerformance(i: Int) = Performance(Flops(getFlops(i)),Cycles(TSCCounter(0)(i)))
-
     def getPerformance(core: Int, exp: Int) = Performance(Flops(getFlops(core,exp)),Cycles(TSCCounter(core)(exp)))
+
+
+
+
 
 
     def prettyprint () =

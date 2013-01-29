@@ -19,9 +19,15 @@ case class OpsPlot (series : List[OperationSeries]) extends Plot2D
   xRange = (xMin, xMax)
 
   yMin = 1
-  yMax = series.map (single_series => single_series.series.map( point => point.measurments.map( op => op.value).max).max).max * 1.1
+
+  //val maxis = series.map(singles => singles.series.map (point => point.getOperations).toList).transpose.map(x => x.max)
+  //val minis = series.map(singles => singles.series.map (point => point.getOperations).toList).transpose.map(x => x.min)
+
+
+  yMax = 2
+  //series.map (single_series => single_series.series.map( point => point.measurments.map( op => op.value).max).max).max * 1.1
   yRange = (yMin, yMax)
 
   logX = true
-  logY = true
+  logY = false
 }

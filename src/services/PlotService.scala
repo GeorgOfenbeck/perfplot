@@ -36,15 +36,21 @@ class PlotService {
     var first : Boolean = true
     //first generate the .data files
     val outputFile = new PrintStream(plot.outputName + ".data")
+
+    //calculate the minimum
+    val all = plot.series.map(singles => singles.series.map (point => point.getOperations).toList)
+
+    val minimums : List[Double] = all.transpose.map(x => x.min)
     for (serie <- plot.series)
     {
       val i = plot.series.indexOf(serie)
       outputFile.printf("# [Median %d]\n", int2Integer(i));
       for (point <- serie.series)
       {
+        val j = serie.series.indexOf(point)
         outputFile.printf("%e %e\n",
           double2Double(point.problemSize),
-          double2Double(point.getOperations)
+          double2Double(point.getOperations/ minimums(j))
           )
         //point.point._2.value,
         //point.point._1.value)

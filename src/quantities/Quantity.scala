@@ -15,6 +15,7 @@ case class Seconds(value: Double) extends Time
 
 trait OperationCount extends Quantity
 case class Flops(value: Double) extends OperationCount
+case class PseudoFlops(value: Double) extends OperationCount
 case class Fladds(value: Double) extends OperationCount
 case class Flmults(value: Double) extends OperationCount
 

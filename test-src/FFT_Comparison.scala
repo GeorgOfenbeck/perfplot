@@ -139,7 +139,7 @@ class FFT_Comparison extends Suite{
 
   def test() =
   {
-    val sizes = (for (i<-6 until 13) yield Math.pow(2,i).toLong).toList
+    val sizes = (for (i<-2 until 13) yield Math.pow(2,i).toLong).toList
 
     def fftw (sourcefile: PrintStream) = FFTWCode(sourcefile,sizes)
     def spiral (sourcefile: PrintStream) = SpiralCode (sourcefile,sizes)
@@ -151,21 +151,24 @@ class FFT_Comparison extends Suite{
     val spiralS_res = CommandService.fromScratch("spiral", spiralS, Config.flag_c99 + Config.flag_optimization + Config.flag_hw + Config.flag_novec  )
     val spiralS_ops_series = spiralS_res.toFlopSeries("spiralS",sizes)
     val spiralS_perf_series = spiralS_res.toPerformanceSeries("spiralS",sizes)
+    val spiralS_pseudo_perf_series = spiralS_res.toPerformanceSeries_fft("spiralS",sizes)
 
     val spiral_res = CommandService.fromScratch("spiral", spiral ,Config.flag_c99 + Config.flag_optimization + Config.flag_hw + Config.flag_novec)
     val spiral_ops_series = spiral_res.toFlopSeries("spiral",sizes)
     val spiral_perf_series = spiral_res.toPerformanceSeries("spiral",sizes)
+    val spiral_pseudo_perf_series = spiral_res.toPerformanceSeries_fft("spiral",sizes)
 
     val lists = if (!Config.isWin)
     {
       val fftw_res = CommandService.fromScratch("fftw", fftw, Config.flag_c99 + Config.flag_optimization + Config.flag_hw + Config.flag_novec  + " -lfftw3 -lm " )
       val fftw_ops_series = fftw_res.toFlopSeries("fftw",sizes)
       val fftw_perf_series = fftw_res.toPerformanceSeries("fftw",sizes)
+      val fftw_pseudo_perf_series = fftw_res.toPerformanceSeries_fft("fftw",sizes)
 
-      (List(spiralS_ops_series,fftw_ops_series,spiral_ops_series),List(spiralS_perf_series,fftw_perf_series,spiral_perf_series))
+      (List(spiralS_ops_series,fftw_ops_series,spiral_ops_series),List(spiralS_perf_series,fftw_perf_series,spiral_perf_series),List(spiralS_pseudo_perf_series,fftw_pseudo_perf_series,spiral_pseudo_perf_series))
     }
     else
-      (List(spiralS_ops_series,spiral_ops_series),List(spiralS_perf_series,spiral_perf_series))
+      (List(spiralS_ops_series,spiral_ops_series),List(spiralS_perf_series,spiral_perf_series),List(spiralS_pseudo_perf_series,spiral_pseudo_perf_series))
 
 
 
@@ -174,9 +177,9 @@ class FFT_Comparison extends Suite{
     opsplot.outputName = "TestOps"
     opsplot.title = "Op Count"
     opsplot.xLabel = "size"
-    opsplot.yLabel = "Ops"
+    opsplot.yLabel = "%Op Overhead to minimum"
     opsplot.xUnit = "# Complex Doubles"
-    opsplot.yUnit = "Flops"
+    opsplot.yUnit = "% Overhead"
 
 
     val perfplot = new PerformancePlot(lists._2,
@@ -192,15 +195,23 @@ class FFT_Comparison extends Suite{
 
 
 
-
-
-
-
+    val pseudoperfplot = new PerformancePlot(lists._3,
+      List(
+        ("Scalar",Performance(Flops(2),Cycles(1)))
+      ))
+    pseudoperfplot.outputName = "Pseudo-Performance"
+    pseudoperfplot.title = "Pseudo-Performance Comparison"
+    pseudoperfplot.xLabel = "size"
+    pseudoperfplot.yLabel = "Pseudo-Performance"
+    pseudoperfplot.xUnit = "# Complex Doubles"
+    pseudoperfplot.yUnit = "Pseudo-flops/cycle"
+    
 
     val ps = new PlotService
     System.out.println("Calling plot")
     ps.plot(opsplot)
     ps.plot(perfplot)
+    ps.plot(pseudoperfplot)
 
     spiral_res.prettyprint()
   }
