@@ -13,6 +13,8 @@ object Config {
   val use_cache = false;
   val use_gcc = false;
   val debug = true;
+  val home = System.getProperty( "user.home" )
+
   val gnuplot = if (isWin) "C:\\Program Files (x86)\\gnuplot\\bin\\gnuplot.exe" else "gnuplot"
 
 
@@ -23,7 +25,7 @@ object Config {
   def MeasuringCore: File = if (isWin)
                          new File("C:\\Users\\ofgeorg\\IdeaProjects\\perfplot\\pcm\\","MeasuringCore.lib")
                       else
-                         new File("pcm/MeasuringCore.lib")
+                         new File(home + "/perfplot/pcm/MeasuringCore.lib")
 
 
   def default_flags = flag_c99 + flag_optimization + flag_hw
@@ -32,7 +34,7 @@ object Config {
   def flag_mkl = if (isWin) " /Qmkl" else " -mkl"
   def flag_mkl_seq = if (isWin) " /Qmkl:sequential" else " -mkl:sequential"
   def flag_optimization = if (isWin) " /O3" else " -O3"
-  def flag_hw = if (isWin) " /Qmarch=corei7-avx" else " -march=corei7-avx"
+  def flag_hw = if (isWin) " /Qmarch=corei7-avx /QxHost" else " -march=corei7-avx -xHost"
   def flag_novec = if (isWin) " /Qno-simd /Qno-vec" else " -no-simd -no-vec"
 
 

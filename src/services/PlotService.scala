@@ -27,8 +27,8 @@ class PlotService {
   val lwBound = 2
   val lwLine = 2
 
-  val pointTypes = List( 5, 7, 9, 11, 13 )
-  val lineColors = List( "black", "red", "green", "blue", "#FFFF00" )
+  val pointTypes = List( 5, 7, 9, 11, 13, 15, 17 )
+  val lineColors = List( "black", "red", "green", "blue", "#FFFF00", "#7B119E", "#475E01"  )
 
 
   def plot (plot: OpsPlot)

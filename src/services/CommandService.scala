@@ -147,7 +147,7 @@ object CommandService {
         "%12s".format("SSE_S") +
         "%12s".format("AVX_S") +
         //"%12s".format("x:") +
-        //"%12s".format("x") +
+        "%12s".format("x") +
         "%12s".format("Perf")
       )
       for (i <- 0 until nrcores)
@@ -161,7 +161,7 @@ object CommandService {
           "%12d".format(Counter4(i)(j)) +
           "%12d".format(Counter5(i)(j)) +
           //"%12d".format(Counter6(i)(j)) +
-          //"%12d".format(Counter7(i)(j)) +
+          "%12d".format(Counter7(i)(j)) +
           "%12f".format(getPerformance(i,j).value)
         )
       println("--------------------------------------------------------------------------------------------------------")
@@ -175,7 +175,7 @@ object CommandService {
           "%12d".format(SCounter4(j)) +
           "%12d".format(SCounter5(j)) +
           //"%12d".format(SCounter6(j)) +
-          //"%12d".format(SCounter7(j)) +
+          "%12d".format(SCounter7(j)) +
           "%12f".format(getPerformance(j).value) +
           "%12d".format(mcread(j)/1024) +
           "%12d".format(mcwrite(j)/1024)

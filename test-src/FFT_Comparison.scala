@@ -17,7 +17,7 @@ import roofline.quantities._
 
 class FFT_Comparison extends Suite{
 
-  val repeats = 3
+  val repeats = 20
 
 
   def FFTWCode (sourcefile: PrintStream, sizes: List[Long]) =
@@ -60,7 +60,7 @@ class FFT_Comparison extends Suite{
     if (Config.isWin)
       sourcefile.println("#include \"C:\\Users\\ofgeorg\\fft_scalar\\spiral_fft.h\"\n    #include \"C:\\Users\\ofgeorg\\fft_scalar\\spiral_private.h\"\n    #include \"C:\\Users\\ofgeorg\\fft_scalar\\spiral_private.c\"\n    #include \"C:\\Users\\ofgeorg\\fft_scalar\\spiral_fft_double.c\"")
     else
-      sourcefile.println("#include \"/home/ofgeorg/fft_scalar/spiral_fft.h\"\n    #include \"/home/ofgeorg/fft_scalar/spiral_private.h\"\n    #include \"/home/ofgeorg/fft_scalar/spiral_private.c\"\n    #include \"/home/ofgeorg/fft_scalar/spiral_fft_double.c\"")
+      sourcefile.println("#include \""+Config.home+"/fft_scalar/spiral_fft.h\"\n    #include \""+Config.home+"/fft_scalar/spiral_private.h\"\n    #include \""+Config.home+"/fft_scalar/spiral_private.c\"\n    #include \""+Config.home+"/fft_scalar/spiral_fft_double.c\"")
     sourcefile.println("#include <iostream>")
     sourcefile.println("#include <cstdio>")
     sourcefile.println("#include <stdlib.h>")
@@ -92,7 +92,7 @@ class FFT_Comparison extends Suite{
   }
 
 
-  def SpiralSCode(sourcefile: PrintStream, sizes: List[Long]) =
+  def SpiralSCode(sourcefile: PrintStream, sizes: List[Long],includepath: String) =
   {
     //this assumes that the code is in the home directory under ~/fft_scalar
     sourcefile.println(Config.MeasuringCoreH)
@@ -104,10 +104,8 @@ class FFT_Comparison extends Suite{
 
     for (s <- sizes)
       //sourcefile.println("void fft"+s+"(spiral_t* );")
-      if (Config.isWin)
-        sourcefile.println("#include \"C:\\Users\\ofgeorg\\IdeaProjects\\SpiralS\\fft"+s+".c\"")
-      else
-        sourcefile.println("#include \"/home/ofgeorg/SpiralS_generated/fft"+s+".c\"")
+              //sourcefile.println("#include \"/home/ofgeorg/SpiralS_generated/fft"+s+".c\"")
+        sourcefile.println(includepath + "fft"+s+".c\"")
 
     sourcefile.println("int main () {\n    ")
     sourcefile.println("perfmon_init(1,false,false,false);")
@@ -141,18 +139,51 @@ class FFT_Comparison extends Suite{
   {
     val sizes = (for (i<-2 until 13) yield Math.pow(2,i).toLong).toList
 
+    val path2 =
+      if(Config.isWin)
+        "C:\\Users\\ofgeorg\\SpiralS_generated\\"
+      else
+        Config.home +  "/SpiralS_generated/"
+
+    val path = "#include \"" + path2
+
     def fftw (sourcefile: PrintStream) = FFTWCode(sourcefile,sizes)
     def spiral (sourcefile: PrintStream) = SpiralCode (sourcefile,sizes)
-    def spiralS (sourcefile: PrintStream) = SpiralSCode (sourcefile,sizes)
+    //def spiralS (sourcefile: PrintStream) = SpiralSCode (sourcefile,sizes)
+
+    def spiralS_16 (sourcefile: PrintStream) = SpiralSCode (sourcefile,sizes,path+ "unroll17/")
+    def spiralS_32 (sourcefile: PrintStream) = SpiralSCode (sourcefile,sizes,path+ "unroll33/")
+
+    def spiralS_16_linear (sourcefile: PrintStream) = SpiralSCode (sourcefile,sizes,path+ "unroll17_linear/")
+    def spiralS_32_linear (sourcefile: PrintStream) = SpiralSCode (sourcefile,sizes,path+ "unroll33_linear/")
 
 
+    val spiralS_16_res = CommandService.fromScratch("spiral", spiralS_16, Config.flag_c99 + Config.flag_optimization + Config.flag_hw + Config.flag_novec  )
+    val spiralS_16_ops_series = spiralS_16_res.toFlopSeries("spiralS_16",sizes)
+    val spiralS_16_perf_series = spiralS_16_res.toPerformanceSeries("spiralS_16",sizes)
+    val spiralS_16_pseudo_perf_series = spiralS_16_res.toPerformanceSeries_fft("spiralS_16",sizes)
 
+    val spiralS_32_res = CommandService.fromScratch("spiral", spiralS_32, Config.flag_c99 + Config.flag_optimization + Config.flag_hw + Config.flag_novec  )
+    val spiralS_32_ops_series = spiralS_32_res.toFlopSeries("spiralS_32",sizes)
+    val spiralS_32_perf_series = spiralS_32_res.toPerformanceSeries("spiralS_32",sizes)
+    val spiralS_32_pseudo_perf_series = spiralS_32_res.toPerformanceSeries_fft("spiralS_32",sizes)
 
+    val spiralS_16_linear_res = CommandService.fromScratch("spiral", spiralS_16_linear, Config.flag_c99 + Config.flag_optimization + Config.flag_hw + Config.flag_novec  )
+    val spiralS_16_linear_ops_series = spiralS_16_linear_res.toFlopSeries("spiralS_16_linear",sizes)
+    val spiralS_16_linear_perf_series = spiralS_16_linear_res.toPerformanceSeries("spiralS_16_linear",sizes)
+    val spiralS_16_linear_pseudo_perf_series = spiralS_16_linear_res.toPerformanceSeries_fft("spiralS_16_linear",sizes)
+
+    val spiralS_32_linear_res = CommandService.fromScratch("spiral", spiralS_32_linear, Config.flag_c99 + Config.flag_optimization + Config.flag_hw + Config.flag_novec  )
+    val spiralS_32_linear_ops_series = spiralS_32_linear_res.toFlopSeries("spiralS_32_linear",sizes)
+    val spiralS_32_linear_perf_series = spiralS_32_linear_res.toPerformanceSeries("spiralS_32_linear",sizes)
+    val spiralS_32_linear_pseudo_perf_series = spiralS_32_linear_res.toPerformanceSeries_fft("spiralS_32_linear",sizes)
+
+    /*
     val spiralS_res = CommandService.fromScratch("spiral", spiralS, Config.flag_c99 + Config.flag_optimization + Config.flag_hw + Config.flag_novec  )
     val spiralS_ops_series = spiralS_res.toFlopSeries("spiralS",sizes)
     val spiralS_perf_series = spiralS_res.toPerformanceSeries("spiralS",sizes)
     val spiralS_pseudo_perf_series = spiralS_res.toPerformanceSeries_fft("spiralS",sizes)
-
+    */
     val spiral_res = CommandService.fromScratch("spiral", spiral ,Config.flag_c99 + Config.flag_optimization + Config.flag_hw + Config.flag_novec)
     val spiral_ops_series = spiral_res.toFlopSeries("spiral",sizes)
     val spiral_perf_series = spiral_res.toPerformanceSeries("spiral",sizes)
@@ -165,10 +196,18 @@ class FFT_Comparison extends Suite{
       val fftw_perf_series = fftw_res.toPerformanceSeries("fftw",sizes)
       val fftw_pseudo_perf_series = fftw_res.toPerformanceSeries_fft("fftw",sizes)
 
-      (List(spiralS_ops_series,fftw_ops_series,spiral_ops_series),List(spiralS_perf_series,fftw_perf_series,spiral_perf_series),List(spiralS_pseudo_perf_series,fftw_pseudo_perf_series,spiral_pseudo_perf_series))
+      //(List(spiralS_ops_series,fftw_ops_series,spiral_ops_series),List(spiralS_perf_series,fftw_perf_series,spiral_perf_series),List(spiralS_pseudo_perf_series,fftw_pseudo_perf_series,spiral_pseudo_perf_series))
+     (
+      List(fftw_ops_series,spiralS_16_ops_series,spiralS_32_ops_series,spiralS_16_linear_ops_series,spiralS_32_linear_ops_series,spiral_ops_series),
+      List(fftw_perf_series,spiralS_16_perf_series,spiralS_32_perf_series,spiralS_16_linear_perf_series,spiralS_32_linear_perf_series,spiral_perf_series),
+      List(fftw_pseudo_perf_series,spiralS_16_pseudo_perf_series,spiralS_32_pseudo_perf_series,spiralS_16_linear_pseudo_perf_series,spiralS_32_linear_pseudo_perf_series,spiral_pseudo_perf_series)
+     )
     }
     else
-      (List(spiralS_ops_series,spiral_ops_series),List(spiralS_perf_series,spiral_perf_series),List(spiralS_pseudo_perf_series,spiral_pseudo_perf_series))
+      (List(spiralS_16_ops_series,spiralS_32_ops_series,spiralS_16_linear_ops_series,spiralS_32_linear_ops_series,spiral_ops_series),        
+       List(spiralS_16_perf_series,spiralS_32_perf_series,spiralS_16_linear_perf_series,spiralS_32_linear_perf_series,spiral_perf_series),
+       List(spiralS_16_pseudo_perf_series,spiralS_32_pseudo_perf_series,spiralS_16_linear_pseudo_perf_series,spiralS_32_linear_pseudo_perf_series,spiral_pseudo_perf_series))
+
 
 
 
@@ -213,7 +252,7 @@ class FFT_Comparison extends Suite{
     ps.plot(perfplot)
     ps.plot(pseudoperfplot)
 
-    spiral_res.prettyprint()
+    spiralS_32_linear_res.prettyprint()
   }
 
 }
