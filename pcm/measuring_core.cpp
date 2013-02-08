@@ -40,6 +40,9 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include "cpucounters.h"
 #include "measuring_core.h"
 
+#include <algorithm>
+#include <climits>
+#include <vector>
 
 
 #define SIZE (10000000)
@@ -162,6 +165,12 @@ long cycles_a, cycles_b;
  list<uint64> *plist_cycles;
  list<uint64> *plist_refcycles;
  list<uint64> *plist_tsc;
+
+// Dani start
+ vector<size_t> *runvec;
+ vector<double> *meancyclesvec;
+// vector<double> *sdcyclesvec;
+// Dani end
 
  list<uint64> *plist_mcread;
  list<uint64> *plist_mcwrite;
@@ -442,7 +451,11 @@ int perfmon_init(int type, bool flushData = false, bool flushICache = false, boo
 
 //	PCM::getInstance()->cleanup();
    
-   
+   //Dani start
+   runvec = new vector<size_t>();
+   meancyclesvec = new vector<double>();
+   sdcyclesvec = new vector<double>();
+   //Dani end
 }
 
 void perfmon_start ()
@@ -475,8 +488,8 @@ void perfmon_start ()
 	
 }
 
-
-void perfmon_stop()
+// Dani: added parameter size
+void perfmon_stop(size_t runs)
 {
 	*sstate2 = getSystemCounterState();
     for (uint32 i = 0; i < m->getNumSockets(); ++i)
@@ -503,13 +516,239 @@ void perfmon_stop()
 	plist_mcread[0].push_front(getBytesReadFromMC(sktstate1[0], sktstate2[0]));
 	plist_mcwrite[0].push_front(getBytesWrittenToMC(sktstate1[0], sktstate2[0]));
 
-
+	// Dani start
+	runvec->push_back(runs);
+	// Dani end
 
 }
 
+// Start Dani
 
+void perfmon_emptyLists(bool clearRuns)
+{
+	for (uint32 i = 0; i < m->getNumCores(); ++i)
+	{
+		plists0[i].clear();
+		plists1[i].clear();
+		plists2[i].clear();
+		plists3[i].clear();
+		plists4[i].clear();
+		plists5[i].clear();
+		plists6[i].clear();
+		plists7[i].clear();
 
+		plist_cycles[i].clear();
+		plist_refcycles[i].clear();
+		plist_tsc[i].clear();
+	}
 
+	plist_mcread[0].clear();
+	plist_mcwrite[0].clear();
+
+	if(clearRuns) runvec->clear();
+}
+
+//bool perfmon_customTest(size_t runs, size_t vlen)
+//{
+//	cout << endl << "TSC measurements" << endl;
+//	for (uint32 c = 0; c < m->getNumCores(); ++c)
+//	{
+//		size_t n = plist_tsc[c].size();
+//		double sumcycle2 = 0, sumcycle = 0, minCycle=ULLONG_MAX, maxCycle=0;
+//
+//  	    for (list<uint64>::iterator it =  plist_tsc[c].begin(); it != plist_tsc[c].end(); ++it) {
+//  	    	double lat = double(*it)/runs/vlen;
+//			sumcycle2 += lat*lat;
+//			sumcycle += lat;
+//			minCycle = min(minCycle, lat);
+//			maxCycle = max(maxCycle, lat);
+//		}
+//
+//		double s2 = (n*sumcycle2 - sumcycle*sumcycle)/(n*(n-1));
+//		cout << "Core " << c << ": " << endl;
+//		cout << "\tAverage latency: " << sumcycle/n << endl;
+//		cout << "\tStandard deviation: " << sqrt(s2) << endl;
+//		cout << "\tMin: " << minCycle << endl;
+//		cout << "\tMax: " << maxCycle << endl;
+//	}
+//
+//	cout << endl << "Ref. Cycles measurements" << endl;
+//	for (uint32 c = 0; c < m->getNumCores(); ++c)
+//	{
+//		size_t n = plist_tsc[c].size();
+//		double sumcycle2 = 0, sumcycle = 0, minCycle=ULLONG_MAX, maxCycle=0;
+//
+//  	    for (list<uint64>::iterator it =  plist_refcycles[c].begin(); it != plist_refcycles[c].end(); ++it) {
+//  	    	double lat = double(*it)/runs/vlen;
+//			sumcycle2 += lat*lat;
+//			sumcycle += lat;
+//			minCycle = min(minCycle, lat);
+//			maxCycle = max(maxCycle, lat);
+//		}
+//
+//		double s2 = (n*sumcycle2 - sumcycle*sumcycle)/(n*(n-1));
+//		cout << "Core " << c << ": " << endl;
+//		cout << "\tAverage latency: " << sumcycle/n << endl;
+//		cout << "\tStandard deviation: " << sqrt(s2) << endl;
+//		cout << "\tMin: " << minCycle << endl;
+//		cout << "\tMax: " << maxCycle << endl;
+//	}
+//
+//	cout << endl << "Cycles measurements" << endl;
+//	for (uint32 c = 0; c < m->getNumCores(); ++c)
+//	{
+//		size_t n = plist_tsc[c].size();
+//		double sumcycle2 = 0, sumcycle = 0, minCycle=ULLONG_MAX, maxCycle=0;
+//
+//  	    for (list<uint64>::iterator it =  plist_cycles[c].begin(); it != plist_cycles[c].end(); ++it) {
+//  	    	double lat = double(*it)/runs/vlen;
+//			sumcycle2 += lat*lat;
+//			sumcycle += lat;
+//			minCycle = min(minCycle, lat);
+//			maxCycle = max(maxCycle, lat);
+//		}
+//
+//		double s2 = (n*sumcycle2 - sumcycle*sumcycle)/(n*(n-1));
+//		cout << "Core " << c << ": " << endl;
+//		cout << "\tAverage latency: " << sumcycle/n << endl;
+//		cout << "\tStandard deviation: " << sqrt(s2) << endl;
+//		cout << "\tMin: " << minCycle << endl;
+//		cout << "\tMax: " << maxCycle << endl;
+//	}
+//
+//	return true;
+//}
+
+//bool perfmon_testSD(size_t runs)
+//{
+//	size_t n = plist_refcycles[3].size();
+//	double sumcycle2 = 0, sumcycle = 0, cycles;
+//
+//	for (list<uint64>::iterator it =  plist_refcycles[3].begin(); it != plist_refcycles[3].end(); ++it) {
+//		cycles = double(*it)/runs;
+//		sumcycle2 += cycles*cycles;
+//		sumcycle += cycles;
+//	}
+//
+//	double s2 = (n*sumcycle2 - sumcycle*sumcycle)/(n*(n-1));
+//	double m  = sumcycle/n;
+//	double sd = sqrt(s2);
+//
+//	cout << endl << endl << "SD Test on Core " << 3 << ": " << endl;
+//	cout << "\tAverage cycles: " << m << endl;
+//	cout << "\tStandard deviation: " << sd << endl;
+//
+//	size_t counter = 0;
+//	for (list<uint64>::iterator it =  plist_refcycles[3].begin(); it != plist_refcycles[3].end(); ++it) {
+//		cycles = double(*it)/runs;
+//		if (fabs(cycles - m) <= 2*sd)
+//			counter++;
+//	}
+//
+//	cout << "\tSamples within 2SD: " << double(counter)/n << endl;
+//
+//}
+
+bool perfmon_testDerivative(size_t runs, double threshold, size_t points) {
+
+	// Using TSC
+	size_t n = plist_tsc[0].size();
+//	double sumcycle2 = 0;
+	double sumcycle = 0, cycles;
+
+	uint32 ncores = m->getNumCores();
+	list<uint64>::iterator* it = new list<uint64>::iterator[ncores];
+	for(uint32 c = 0; c < ncores; c++)
+		it[c] = plist_tsc[c].begin();
+
+	// Average, and sd is computed based on the max. TSC
+	for (size_t i = 0; i < n; ++i) {
+		uint64 maxtsc = *it[0];
+		for(uint32 c = 1; c < ncores; c++)
+			maxtsc = max(maxtsc, *it[c]);
+		cycles = double(maxtsc)/runs;
+//		sumcycle2 += cycles*cycles;
+		sumcycle += cycles;
+		for(uint32 c = 0; c < ncores; c++)
+			it[c]++;
+	}
+
+//	double s2 = (n*sumcycle2 - sumcycle*sumcycle)/(n*(n-1));
+	double m  = sumcycle/n;
+//	double sd = sqrt(s2);
+
+//	cout << endl << endl << "SD Test on Core " << 3 << ": " << endl;
+//	cout << "\tAverage cycles: " << m << endl;
+//	cout << "\tStandard deviation: " << sd << endl;
+//
+	meancyclesvec->push_back(m);
+//	sdcyclesvec->push_back(sd);
+
+	if (runvec->size() < points+2)
+		return false;
+
+	n = runvec->size();
+
+	bool condition = true;
+
+	while ((condition) && (points>0)) {
+		double d = ((*meancyclesvec)[n-points] - (*meancyclesvec)[n-points-2])/((*runvec)[n-points] - (*runvec)[n-points-2]);
+		condition = (fabs(d) <= threshold);
+		--points;
+	}
+//	cout << "Derivative value: " << d << endl;
+
+	return (condition || m >= 1e6);
+
+}
+
+//void perfmon_meanSingleRun() {
+//
+//	size_t n = plist_tsc[0].size();
+//	double sumcycle2 = 0, sumcycle = 0, cycles;
+//
+//	uint32 ncores = m->getNumCores();
+//	list<uint64>::iterator* it = new list<uint64>::iterator[ncores];
+//
+//	for(uint32 c = 0; c < ncores; c++)
+//		it[c] = plist_tsc[c].begin();
+//
+//	for (size_t i = 0; i < n; ++i) {
+//		uint64 maxtsc = *it[0];
+//		for(uint32 c = 1; c < ncores; c++)
+//			maxtsc = max(maxtsc, *it[c]);
+//		cycles = double(maxtsc);
+//		sumcycle2 += cycles*cycles;
+//		sumcycle += cycles;
+//		for(uint32 c = 0; c < ncores; c++)
+//			it[c]++;
+//	}
+//
+//	double s2 = (n*sumcycle2 - sumcycle*sumcycle)/(n*(n-1));
+//	double m  = sumcycle/n;
+//	double sd = sqrt(s2);
+//
+////	cout << endl << endl << "SD Test on Core " << 3 << ": " << endl;
+////	cout << "\tAverage cycles: " << m << endl;
+////	cout << "\tStandard deviation: " << sd << endl;
+////
+//	runvec->push_back(n);
+//	meancyclesvec->push_back(m);
+//	sdcyclesvec->push_back(sd);
+//
+//}
+
+void dumpMeans()
+{
+	ofstream f;
+	f.open("tsc_means.csv");
+	size_t n = runvec->size();
+	for (size_t i = 0; i < n; ++i)
+		f << (*runvec)[i] << "," << (*meancyclesvec)[i] << endl;
+//		f << (*runvec)[i] << "," << (*meancyclesvec)[i] << "," << (*sdcyclesvec)[i] << endl;
+	f.close();
+}
+// End Dani
 
 void perfmon_end()
 {
@@ -634,7 +873,14 @@ void perfmon_end()
 	for (it =  plist_mcwrite[0].begin(); it != plist_mcwrite[0].end(); ++it)
 		fplist_mcwrite[0] << *it << " ";
 	fplist_mcwrite[0].close();
-	
+
+	// Dani start
+	ofstream runsfile;
+	runsfile.open("runs.txt");
+	for (vector<size_t>::iterator it =  runvec->begin(); it != runvec->end(); ++it)
+		runsfile << *it << " ";
+	runsfile.close();
+	// Dani end
 	
 	PCM::getInstance()->cleanup();	
     /*delete[] cstates1;
