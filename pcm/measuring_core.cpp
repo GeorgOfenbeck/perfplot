@@ -20,6 +20,9 @@
 #include "cpucounters.h"
 #include "measuring_core.h"
 
+#include <algorithm>
+#include <climits>
+#include <vector>
 
 
 #define SIZE (10000000)
@@ -64,7 +67,7 @@ long cycles_a, cycles_b;
  std::streambuf *cerrtbuf;
 
 
- list<uint64> *plist_nrruns;
+
  list<uint64> *plists0;
  list<uint64> *plists1;
  list<uint64> *plists2;
@@ -77,6 +80,7 @@ long cycles_a, cycles_b;
  list<uint64> *plist_refcycles;
  list<uint64> *plist_tsc;
 
+ list<uint64> *plist_nrruns;
  list<uint64> *plist_mcread;
  list<uint64> *plist_mcwrite;
 
@@ -96,7 +100,11 @@ long cycles_a, cycles_b;
  ofstream * fplist_mcread;
  ofstream * fplist_mcwrite;
  
-
+// Dani start
+ vector<size_t> *runvec;
+ vector<double> *meancyclesvec;
+// vector<double> *sdcyclesvec;
+// Dani end
 
 int flushTLB()
 {
@@ -265,17 +273,22 @@ int perfmon_init(long * custom_counters = NULL)
    plists6 = new list<uint64>[nrcores];
    plists7 = new list<uint64>[nrcores];
 
-
+   
    plist_cycles = new list<uint64>[nrcores]; //saving rtdsc here
    plist_refcycles = new list<uint64>[nrcores]; //saving rtdsc here
    plist_tsc = new list<uint64>[nrcores]; //saving rtdsc here
 
-   plist_mcread = new list<uint64>[1]; //GO: fixme multi socket
+   plist_nrruns = new list<uint64>[1];
+   plist_mcread = new list<uint64>[1]; 
    plist_mcwrite = new list<uint64>[1];
 
-//	PCM::getInstance()->cleanup();
+
+   //Dani start
+   runvec = new vector<size_t>();
+   meancyclesvec = new vector<double>();
    
-   
+   //Dani end
+
 }
 
 void perfmon_start ()
@@ -307,7 +320,6 @@ void perfmon_start ()
     for (uint32 i = 0; i < m->getNumCores(); ++i)
         cstates1[i] = getCoreCounterState(i);	
 }
-
 
 
 
@@ -351,14 +363,11 @@ void perfmon_stop(long nr_runs = 1)
 		plist_tsc[i].push_front(getInvariantTSC(cstates1[i], cstates2[i]));		
 
 		
-	}			
-
-	plist_nrruns[0].push_front(nr_runs);
-
+	}
+	
 	long sysRead, sysWrite;
 	sysRead = 0;
 	sysWrite = 0;
-		 
 
 	for (uint32 i = 0; i < m->getNumSockets(); ++i)
 	{
@@ -368,11 +377,142 @@ void perfmon_stop(long nr_runs = 1)
 
 	plist_mcread[0].push_front(sysRead);
 	plist_mcwrite[0].push_front(sysWrite);
+	plist_nrruns[0].push_front(nr_runs);	
+	
+	// Dani start
+	runvec->push_back(nr_runs);
+	// Dani end
+
 }
 
 
+//// Start Dani
 
+void perfmon_emptyLists(bool clearRuns)
+{
+	for (uint32 i = 0; i < m->getNumCores(); ++i)
+	{
+		plists0[i].clear();
+		plists1[i].clear();
+		plists2[i].clear();
+		plists3[i].clear();
+		plists4[i].clear();
+		plists5[i].clear();
+		plists6[i].clear();
+		plists7[i].clear();
 
+		plist_cycles[i].clear();
+		plist_refcycles[i].clear();
+		plist_tsc[i].clear();
+	}
+
+	plist_nrruns[0].clear();
+	plist_mcread[0].clear();
+	plist_mcwrite[0].clear();
+	
+	if(clearRuns) runvec->clear();
+ 
+}
+bool perfmon_testDerivative(size_t runs, double threshold, size_t points) {
+
+	// Using TSC
+	size_t n = plist_tsc[0].size();
+//	double sumcycle2 = 0;
+	double sumcycle = 0, cycles;
+
+	uint32 ncores = m->getNumCores();
+	list<uint64>::iterator* it = new list<uint64>::iterator[ncores];
+	for(uint32 c = 0; c < ncores; c++)
+		it[c] = plist_tsc[c].begin();
+
+	// Average, and sd is computed based on the max. TSC
+	for (size_t i = 0; i < n; ++i) {
+		uint64 maxtsc = *it[0];
+		for(uint32 c = 1; c < ncores; c++)
+			maxtsc = max(maxtsc, *it[c]);
+		cycles = double(maxtsc)/runs;
+//		sumcycle2 += cycles*cycles;
+		sumcycle += cycles;
+		for(uint32 c = 0; c < ncores; c++)
+			it[c]++;
+	}
+
+//	double s2 = (n*sumcycle2 - sumcycle*sumcycle)/(n*(n-1));
+	double m  = sumcycle/n;
+//	double sd = sqrt(s2);
+
+//	cout << endl << endl << "SD Test on Core " << 3 << ": " << endl;
+//	cout << "\tAverage cycles: " << m << endl;
+//	cout << "\tStandard deviation: " << sd << endl;
+//
+	meancyclesvec->push_back(m);
+//	sdcyclesvec->push_back(sd);
+
+	if (runvec->size() < points+2)
+		return false;
+
+	n = runvec->size();
+
+	bool condition = true;
+
+	while ((condition) && (points>0)) {
+		double d = ((*meancyclesvec)[n-points] - (*meancyclesvec)[n-points-2])/((*runvec)[n-points] - (*runvec)[n-points-2]);
+		condition = (fabs(d) <= threshold);
+		--points;
+	}
+//	cout << "Derivative value: " << d << endl;
+
+	return (condition || m >= 1e6);
+
+}
+
+//void perfmon_meanSingleRun() {
+//
+//	size_t n = plist_tsc[0].size();
+//	double sumcycle2 = 0, sumcycle = 0, cycles;
+//
+//	uint32 ncores = m->getNumCores();
+//	list<uint64>::iterator* it = new list<uint64>::iterator[ncores];
+//
+//	for(uint32 c = 0; c < ncores; c++)
+//		it[c] = plist_tsc[c].begin();
+//
+//	for (size_t i = 0; i < n; ++i) {
+//		uint64 maxtsc = *it[0];
+//		for(uint32 c = 1; c < ncores; c++)
+//			maxtsc = max(maxtsc, *it[c]);
+//		cycles = double(maxtsc);
+//		sumcycle2 += cycles*cycles;
+//		sumcycle += cycles;
+//		for(uint32 c = 0; c < ncores; c++)
+//			it[c]++;
+//	}
+//
+//	double s2 = (n*sumcycle2 - sumcycle*sumcycle)/(n*(n-1));
+//	double m  = sumcycle/n;
+//	double sd = sqrt(s2);
+//
+////	cout << endl << endl << "SD Test on Core " << 3 << ": " << endl;
+////	cout << "\tAverage cycles: " << m << endl;
+////	cout << "\tStandard deviation: " << sd << endl;
+////
+//	runvec->push_back(n);
+//	meancyclesvec->push_back(m);
+//	sdcyclesvec->push_back(sd);
+//
+//}
+
+void dumpMeans()
+{
+	ofstream f;
+	f.open("tsc_means.csv");
+	size_t n = runvec->size();
+	for (size_t i = 0; i < n; ++i)
+		f << (*runvec)[i] << "," << (*meancyclesvec)[i] << endl;
+//		f << (*runvec)[i] << "," << (*meancyclesvec)[i] << "," << (*sdcyclesvec)[i] << endl;
+	f.close();
+}
+// End Dani
 
 
 
