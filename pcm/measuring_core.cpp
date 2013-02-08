@@ -67,6 +67,8 @@ long cycles_a, cycles_b;
  std::streambuf *cerrtbuf;
 
 
+ 
+
 
  list<uint64> *plists0;
  list<uint64> *plists1;
@@ -138,7 +140,7 @@ int flushCache()
 
 
 
-int perfmon_init(long * custom_counters = NULL)
+int perfmon_init(long * custom_counters = NULL, long offcore_response0 = 0, long offcore_response1 = 0)
 {
     
 	flog.open("log.txt");	 
@@ -203,6 +205,10 @@ int perfmon_init(long * custom_counters = NULL)
 			events[i].umask_value = custom_counters[i*2+1];
 		}
 		status = m->program(PCM::CUSTOM_CORE_EVENTS,events);
+
+		g_offcore_response0 = offcore_response0;
+		g_offcore_response1 = offcore_response1;
+			
 	}
 
 
@@ -323,7 +329,7 @@ void perfmon_start ()
 
 
 
-void perfmon_stop(long nr_runs = 1)
+void perfmon_stop(long nr_runs)
 {
 	*sstate2 = getSystemCounterState();
     for (uint32 i = 0; i < m->getNumSockets(); ++i)
