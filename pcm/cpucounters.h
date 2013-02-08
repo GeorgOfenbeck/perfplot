@@ -22,7 +22,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
         Include this header file if you want to access CPU counters (core and uncore - including memory controller chips and QPI)
 */
 
-#define INTEL_PCM_VERSION "V2.3 (2012-09-20 10:00:15 +0200 ID=ccfb40f)"
+#define INTEL_PCM_VERSION "V2.35 (2013-01-23 13:28:21 +0100 ID=75f74dd)"
 
 #ifndef INTELPCM_API
 #define INTELPCM_API
@@ -34,6 +34,13 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include "width_extender.h"
 #include <vector>
 #include <limits>
+
+#ifdef PCM_USE_PERF
+#include <linux/perf_event.h>
+#include <sys/syscall.h>
+#include <errno.h>
+#define PCM_PERF_COUNT_HW_REF_CPU_CYCLES (9)
+#endif
 
 #ifndef _MSC_VER
 #include <semaphore.h>
@@ -47,6 +54,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 class SystemCounterState;
 class SocketCounterState;
 class CoreCounterState;
+class BasicCounterState;
 class JKTUncorePowerState;
 class PCM;
 
@@ -134,6 +142,9 @@ public:
 
     //! \brief Measures/computes the maximum theoretical QPI link bandwidth speed in GByte/seconds
     uint64 computeQPISpeed();
+
+    //! \brief Enable correct counting of various LLC events (with memory access perf penalty)
+    void enableJKTWorkaround(bool enable);
 };
 #ifndef HACK_TO_REMOVE_DUPLICATE_ERROR 
 template class INTELPCM_API std::allocator<TopologyEntry>;
@@ -152,6 +163,7 @@ template class INTELPCM_API std::allocator<char>;
 */
 class INTELPCM_API PCM
 {
+    friend class BasicCounterState;
     PCM();     // forbidden to call directly because it is a singleton
 
     const char * UnsupportedMessage;
@@ -178,9 +190,6 @@ class INTELPCM_API PCM
     uint64 qpi_speed; // in GBytes/second
     int32 pkgThermalSpecPower, pkgMinimumPower, pkgMaximumPower;
 
-	//GO:
-	uint64 core_running_perf;
-
     std::vector<TopologyEntry> topology;
     std::string errorMessage;
 
@@ -191,6 +200,8 @@ class INTELPCM_API PCM
     std::vector<CounterWidthExtender*> snb_energy_status;
     std::vector<CounterWidthExtender*> jkt_dram_energy_status;
 
+
+    bool disable_JKT_workaround;
 public:
     //! Mode of programming (parameter in the program() method)
     enum ProgramMode {
@@ -249,6 +260,26 @@ private:
 
     std::vector<uint32> socketRefCore;
 
+    bool canUsePerf;
+#ifdef PCM_USE_PERF
+    std::vector< std::vector<int> > perfEventHandle;
+    void readPerfData(uint32 core, std::vector<uint64> & data);
+
+    enum {
+        PERF_INST_RETIRED_ANY_POS = 0,
+        PERF_CPU_CLK_UNHALTED_THREAD_POS = 1,
+        PERF_CPU_CLK_UNHALTED_REF_POS = 2,
+        PERF_GEN_EVENT_0_POS = 3,
+        PERF_GEN_EVENT_1_POS = 4,
+        PERF_GEN_EVENT_2_POS = 5,
+        PERF_GEN_EVENT_3_POS = 6
+    };
+
+    enum {
+        PERF_GROUP_LEADER_COUNTER = PERF_INST_RETIRED_ANY_POS 
+    };
+#endif
+
     bool PMUinUse();
     void cleanupPMU();
     bool decrementInstanceSemaphore(); // returns true if it was the last instance
@@ -268,16 +299,9 @@ private:
     bool checkModel();
     void programBecktonUncore(int core);
     void programNehalemEPUncore(int core);
+    void enableJKTWorkaround(bool enable);
 
 public:
-
-	//GO:
-	uint64 getCorerunningPerf()
-	{
-		return this->core_running_perf;
-	}
-	//----------------------------------
-
     /*!
             \brief Returns PCM object
 
@@ -516,6 +540,8 @@ public:
     //! \return returns true in case of success
     static bool initWinRing0Lib();
 
+    inline void disableJKTWorkaround() { disable_JKT_workaround = true; }
+
     uint64 extractCoreGenCounterValue(uint64 val);
     uint64 extractCoreFixedCounterValue(uint64 val);
     uint64 extractUncoreGenCounterValue(uint64 val);
@@ -582,9 +608,6 @@ public:
     ~PCM();
 };
 
-
-
-
 //! \brief Basic core counter state
 //!
 //! Intended only for derivation, but not for the direct use
@@ -643,41 +666,6 @@ class BasicCounterState
     friend double getCoreC6Residency(const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
     friend double getCoreC7Residency(const CounterStateType & before, const CounterStateType & after);
-	//GO:
-	//General Custom get
-	template <class CounterStateType>
-    friend uint64 getCustom0(const CounterStateType & before, const CounterStateType & after);
-	template <class CounterStateType>
-    friend uint64 getCustom1(const CounterStateType & before, const CounterStateType & after);
-	template <class CounterStateType>
-    friend uint64 getCustom2(const CounterStateType & before, const CounterStateType & after);
-	template <class CounterStateType>
-    friend uint64 getCustom3(const CounterStateType & before, const CounterStateType & after);
-
-	template <class CounterStateType>
-    friend uint64 getCustom4(const CounterStateType & before, const CounterStateType & after);
-	template <class CounterStateType>
-    friend uint64 getCustom5(const CounterStateType & before, const CounterStateType & after);
-	template <class CounterStateType>
-    friend uint64 getCustom6(const CounterStateType & before, const CounterStateType & after);
-	template <class CounterStateType>
-    friend uint64 getCustom7(const CounterStateType & before, const CounterStateType & after);
-
-	//Double Flops
-	template <class CounterStateType>
-    friend uint64 getScalarDouble(const CounterStateType & before, const CounterStateType & after);
-	template <class CounterStateType>
-    friend uint64 getPackedDouble(const CounterStateType & before, const CounterStateType & after);
-	template <class CounterStateType>
-    friend uint64 getAVXDouble(const CounterStateType & before, const CounterStateType & after);
-	//Single Flops
-	template <class CounterStateType>
-    friend uint64 getScalarSingle(const CounterStateType & before, const CounterStateType & after);
-	template <class CounterStateType>
-    friend uint64 getPackedSingle(const CounterStateType & before, const CounterStateType & after);
-	template <class CounterStateType>
-    friend uint64 getAVXSingle(const CounterStateType & before, const CounterStateType & after);
-	//---
 protected:
     uint64 InstRetiredAny;
     uint64 CpuClkUnhaltedThread;
@@ -686,45 +674,20 @@ protected:
         uint64 L3Miss;
         uint64 Event0;
         uint64 ArchLLCMiss;
-
-		//GO:
-		uint64 Custom0;
-		uint64 Scalar_Double;
-		uint64 Scalar_Single;
-		//----
     };
     union {
         uint64 L3UnsharedHit;
         uint64 Event1;
         uint64 ArchLLCRef;
-
-		//GO:
-		uint64 Custom1;
-		uint64 Packed_Double;
-		uint64 Packed_Single;
-		//----
     };
     union {
-		uint64 Custom2;
         uint64 L2HitM;
         uint64 Event2;
-
-		//GO:
-		uint64 AVX_Double;
-		uint64 AVX_Single;
-		//----
     };
     union {
-		uint64 Custom3;
         uint64 L2Hit;
         uint64 Event3;
     };
-
-		uint64 Custom4;
-		uint64 Custom5;
-		uint64 Custom6;
-		uint64 Custom7;
-
     uint64 InvariantTSC; // invariant time stamp counter
     uint64 C3Residency;
     uint64 C6Residency;
@@ -938,7 +901,6 @@ double getDRAMConsumedJoules(const CounterStateType & before, const CounterState
 
    return double(getDRAMConsumedEnergy(before,after))*m->getJoulesPerEnergyUnit();
 }
-
 
 
 //! \brief Basic uncore counter state
@@ -1283,166 +1245,6 @@ double getActiveRelativeFrequency(const CounterStateType & before, const Counter
     return -1;
 }
 
-
-//--------------------------
-//GO:
-
-/*
-*/
-template <class CounterStateType>
-uint64 getCustom0(const CounterStateType & before, const CounterStateType & after) // 0.0 - 1.0
-{
-	if (after.Custom0 < before.Custom0) return 0;
-    uint64 counter = after.Custom0 - before.Custom0;
-	return counter;    
-}
-
-template <class CounterStateType>
-uint64 getCustom1(const CounterStateType & before, const CounterStateType & after) // 0.0 - 1.0
-{		
-	if (after.Custom1 < before.Custom1) return 0;
-    uint64 counter = after.Custom1 - before.Custom1;
-	return counter;    
-}
-
-template <class CounterStateType>
-uint64 getCustom2(const CounterStateType & before, const CounterStateType & after) // 0.0 - 1.0
-{
-	if (after.Custom2 < before.Custom2) return 0;
-    uint64 counter = after.Custom2 - before.Custom2;
-	return counter;    
-}
-
-template <class CounterStateType>
-uint64 getCustom3(const CounterStateType & before, const CounterStateType & after) // 0.0 - 1.0
-{   
-	if (after.Custom3 < before.Custom3) return 0;
-	uint64 counter = after.Custom3 - before.Custom3;	
-	return counter;    
-}
-
-
-template <class CounterStateType>
-uint64 getCustom4(const CounterStateType & before, const CounterStateType & after) // 0.0 - 1.0
-{ 
-	if (after.Custom4 < before.Custom4) return 0;
-    uint64 counter = after.Custom4 - before.Custom4;
-	return counter;    
-}
-
-template <class CounterStateType>
-uint64 getCustom5(const CounterStateType & before, const CounterStateType & after) // 0.0 - 1.0
-{ 
-	if (after.Custom5 < before.Custom5) return 0;
-    uint64 counter = after.Custom5 - before.Custom5;
-	return counter;    
-}
-
-template <class CounterStateType>
-uint64 getCustom6(const CounterStateType & before, const CounterStateType & after) // 0.0 - 1.0
-{ 
-	if (after.Custom6 < before.Custom6) return 0;
-    uint64 counter = after.Custom6 - before.Custom6;
-	return counter;    
-}
-
-template <class CounterStateType>
-uint64 getCustom7(const CounterStateType & before, const CounterStateType & after) // 0.0 - 1.0
-{ 
-	if (after.Custom7 < before.Custom7) return 0;
-    uint64 counter = after.Custom7 - before.Custom7;
-	return counter;    
-}
-
-
-
-/*
-*/
-template <class CounterStateType>
-uint64 getScalarDouble(const CounterStateType & before, const CounterStateType & after) // 0.0 - 1.0
-{
-    if (PCM::getInstance()->getCPUModel() == PCM::ATOM) return -1;
-    uint64 flops = after.Scalar_Double - before.Scalar_Double;
-    if (flops != 0)
-    {
-        return flops;
-    }
-    return -1;
-}
-
-
-/*
-*/
-template <class CounterStateType>
-uint64 getPackedDouble(const CounterStateType & before, const CounterStateType & after) // 0.0 - 1.0
-{
-    if (PCM::getInstance()->getCPUModel() == PCM::ATOM) return -1;
-    uint64 flops = after.Packed_Double - before.Packed_Double;
-    if (flops != 0)
-    {
-        return 2*flops;
-    }
-    return -1;
-}
-
-/*
-*/
-template <class CounterStateType>
-uint64 getAVXDouble(const CounterStateType & before, const CounterStateType & after) // 0.0 - 1.0
-{
-    if (PCM::getInstance()->getCPUModel() == PCM::ATOM) return -1;
-    uint64 flops = after.AVX_Double - before.AVX_Double;
-    if (flops != 0)
-    {
-        return 4*flops;
-    }
-    return -1;
-}
-
-
-template <class CounterStateType>
-uint64 getScalarSingle(const CounterStateType & before, const CounterStateType & after) // 0.0 - 1.0
-{
-    if (PCM::getInstance()->getCPUModel() == PCM::ATOM) return -1;
-    uint64 flops = after.Scalar_Double - before.Scalar_Double;
-    if (flops != 0)
-    {
-        return flops;
-    }
-    return -1;
-}
-
-
-/*
-*/
-template <class CounterStateType>
-uint64 getPackedSingle(const CounterStateType & before, const CounterStateType & after) // 0.0 - 1.0
-{
-    if (PCM::getInstance()->getCPUModel() == PCM::ATOM) return -1;
-    uint64 flops = after.Packed_Double - before.Packed_Double;
-    if (flops != 0)
-    {
-        return 4*flops;
-    }
-    return -1;
-}
-
-/*
-*/
-template <class CounterStateType>
-uint64 getAVXSingle(const CounterStateType & before, const CounterStateType & after) // 0.0 - 1.0
-{
-    if (PCM::getInstance()->getCPUModel() == PCM::ATOM) return -1;
-    uint64 flops = after.AVX_Double - before.AVX_Double;
-    if (flops != 0)
-    {
-        return 8*flops;
-    }
-    return -1;
-}
-
-//---------------------------------
-
 /*! \brief Estimates how many core cycles were potentially lost due to L3 cache misses.
 
     \param before CPU counter state before the experiment
@@ -1739,6 +1541,26 @@ template <class CounterStateType>
 inline double getCoreC0Residency(const CounterStateType & before, const CounterStateType & after)
 {
    return double(getRefCycles(before,after))/double(getInvariantTSC(before,after));
+}
+
+/*! \brief Computes residency in the C1 (active,non-halted) core state
+
+    \param before CPU counter state before the experiment
+    \param after CPU counter state after the experiment
+    \return residence ratio (0..1): 0 - 0%, 1.0 - 100%
+*/
+template <class CounterStateType>
+inline double getCoreC1Residency(const CounterStateType & before, const CounterStateType & after)
+{
+   double result = 1.0 - getCoreC0Residency(before,after) 
+                       - getCoreC3Residency(before,after)
+                       - getCoreC6Residency(before,after)
+                       - getCoreC7Residency(before,after);
+
+   if(result < 0.) result = 0.; // fix counter dissynchronization
+   else if(result > 1.) result = 1.; // fix counter dissynchronization
+   
+   return result;
 }
 
 /*! \brief Computes number of bytes read from DRAM memory controllers

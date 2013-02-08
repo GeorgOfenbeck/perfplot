@@ -22,7 +22,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 */
 
 // compile for Windows 7 or Windows Server 2008 R2 (processor group support needed for systems with high core count)
-// #define COMPILE_FOR_WINDOWS_7
+#define COMPILE_FOR_WINDOWS_7
 
 #include <iostream>
 #include <istream>
@@ -51,18 +51,14 @@ typedef signed int int32;
 #define IA32_PERFEVTSEL2_ADDR           (IA32_PERFEVTSEL0_ADDR + 2)
 #define IA32_PERFEVTSEL3_ADDR           (IA32_PERFEVTSEL0_ADDR + 3)
 
+#define PERF_MAX_COUNTERS               (7)
+
 #define IA32_DEBUGCTL                   (0x1D9)
 
 #define IA32_PMC0                       (0xC1)
 #define IA32_PMC1                       (0xC1 + 1)
 #define IA32_PMC2                       (0xC1 + 2)
 #define IA32_PMC3                       (0xC1 + 3)
-
-//GO - we gonna use all 8 counters (hyperthreading deactivated)
-#define IA32_PMC4                       (0xC1 + 4)
-#define IA32_PMC5                       (0xC1 + 5)
-#define IA32_PMC6                       (0xC1 + 6)
-#define IA32_PMC7                       (0xC1 + 7)
 
 /* From Table B-5. of the above mentioned document */
 #define PLATFORM_INFO_ADDR              (0xCE)
@@ -95,37 +91,11 @@ typedef signed int int32;
 #define MEM_LOAD_UOPS_LLC_HIT_RETIRED_XSNP_HITM_EVTNR (0xD2)
 #define MEM_LOAD_UOPS_LLC_HIT_RETIRED_XSNP_HITM_UMASK (0x04)
 
+#define MEM_LOAD_UOPS_LLC_HIT_RETIRED_XSNP_EVTNR (0xD2)
+#define MEM_LOAD_UOPS_LLC_HIT_RETIRED_XSNP_UMASK (0x07)
+
 #define MEM_LOAD_UOPS_RETIRED_L2_HIT_EVTNR (0xD1)
 #define MEM_LOAD_UOPS_RETIRED_L2_HIT_UMASK (0x02)
-
-//--------------------------------------------------------------
-//Add GO:
-#define FP_COMP_OPS_EXE_X87_EVTNR (0x10) //Counts number of X87 uops executed
-#define FP_COMP_OPS_EXE_X87_UMASK (0x01)
-
-#define FP_COMP_OPS_EXE_SSE_FP_PACKED_DOUBLE_EVTNR (0x10) 
-#define FP_COMP_OPS_EXE_SSE_FP_PACKED_DOUBLE_UMASK (0x10)
-
-#define FP_COMP_OPS_EXE_SSE_FP_SCALAR_SINGLE_EVTNR (0x10) 
-#define FP_COMP_OPS_EXE_SSE_FP_SCALAR_SINGLE_UMASK (0x20)
-
-#define FP_COMP_OPS_EXE_SSE_PACKED_SINGLE_EVTNR (0x10) 
-#define FP_COMP_OPS_EXE_SSE_PACKED_SINGLE_UMASK (0x40)
-
-#define FP_COMP_OPS_EXE_SSE_SCALAR_DOUBLE_EVTNR (0x10) 
-#define FP_COMP_OPS_EXE_SSE_SCALAR_DOUBLE_UMASK (0x80)
-
-#define SIMD_FP_256_PACKED_SINGLE_EVTNR (0x11) 
-#define SIMD_FP_256_PACKED_SINGLE_UMASK (0x01)
-
-#define SIMD_FP_256_PACKED_DOUBLE_EVTNR (0x11) 
-#define SIMD_FP_256_PACKED_DOUBLE_UMASK (0x02)
-
-
-#define UNC_L3_MISS_ANY_EVTNR (0x09)
-#define UNC_L3_MISS_ANY_UMASK (0x03)
-
-//--------------------------------------------------------------
 
 // architectural on-core events
 

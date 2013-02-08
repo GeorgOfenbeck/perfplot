@@ -286,7 +286,7 @@ void print_output(PCM * m,
         if (show_system_output)
         {
             cout << "\n" << " Instructions retired: " << unit_format(getInstructionsRetired(sstate1, sstate2)) << " ; Active cycles: " << unit_format(getCycles(sstate1, sstate2)) << " ; Time (TSC): " << unit_format(getInvariantTSC(cstates1[0], cstates2[0])) << "ticks ; C0 (active,non-halted) core residency: "<< (getCoreC0Residency(sstate1, sstate2)*100.)<<" %\n";
-	    cout << "\n" << " C3 core residency: "<< (getCoreC3Residency(sstate1, sstate2)*100.)<<" %; C6 core residency: "<< (getCoreC6Residency(sstate1, sstate2)*100.)<<" %; C7 core residency: "<< (getCoreC7Residency(sstate1, sstate2)*100.)<<" %\n";
+	    cout << "\n" << " C1 core residency: "<< (getCoreC1Residency(sstate1, sstate2)*100.)<<" %; C3 core residency: "<< (getCoreC3Residency(sstate1, sstate2)*100.)<<" %; C6 core residency: "<< (getCoreC6Residency(sstate1, sstate2)*100.)<<" %; C7 core residency: "<< (getCoreC7Residency(sstate1, sstate2)*100.)<<" %\n";
             cout << " C2 package residency: "<< (getPackageC2Residency(sstate1, sstate2)*100.)<<" %; C3 package residency: "<< (getPackageC3Residency(sstate1, sstate2)*100.)<<" %; C6 package residency: "<< (getPackageC6Residency(sstate1, sstate2)*100.)<<" %; C7 package residency: "<< (getPackageC7Residency(sstate1, sstate2)*100.)<<" %\n";
             cout << "\n" << " PHYSICAL CORE IPC                 : " << getCoreIPC(sstate1, sstate2) << " => corresponds to " << 100. * (getCoreIPC(sstate1, sstate2) / double(m->getMaxIPC())) << " % utilization for cores in active state";
             cout << "\n" << " Instructions per nominal CPU cycle: " << getTotalExecUsage(sstate1, sstate2) << " => corresponds to " << 100. * (getTotalExecUsage(sstate1, sstate2) / double(m->getMaxIPC())) << " % core utilization over time interval" << "\n";
@@ -877,6 +877,7 @@ int main(int argc, char * argv[])
     bool show_socket_output = true;
     bool show_system_output = true;
     bool csv_output = false;
+    bool disable_JKT_workaround = false; // as per http://software.intel.com/en-us/articles/performance-impact-when-sampling-certain-llc-events-on-snb-ep-with-vtune
 
 
     if (argc >= 2)
@@ -931,6 +932,10 @@ int main(int argc, char * argv[])
                 {
                     csv_output = true;
                 }
+                if (strcmp(argv[l], "--noJKTWA") == 0)
+                {
+                    disable_JKT_workaround = true;
+                }
            }
         }
 
@@ -980,17 +985,18 @@ int main(int argc, char * argv[])
         #endif
 
     PCM * m = PCM::getInstance();
+    if(disable_JKT_workaround) m->disableJKTWorkaround();
     PCM::ErrorCode status = m->program();
     switch (status)
     {
     case PCM::Success:
         break;
     case PCM::MSRAccessDenied:
-        cout << "Access to Intel(r) Performance Counter Monitor has denied (no MSR or PCI CFG space access)." << endl;
+        cerr << "Access to Intel(r) Performance Counter Monitor has denied (no MSR or PCI CFG space access)." << endl;
         return -1;
     case PCM::PMUBusy:
-        cout << "Access to Intel(r) Performance Counter Monitor has denied (Performance Monitoring Unit is occupied by other application). Try to stop the application that uses PMU." << endl;
-        cout << "Alternatively you can try to reset PMU configuration at your own risk. Try to reset? (y/n)" << endl;
+        cerr << "Access to Intel(r) Performance Counter Monitor has denied (Performance Monitoring Unit is occupied by other application). Try to stop the application that uses PMU." << endl;
+        cerr << "Alternatively you can try to reset PMU configuration at your own risk. Try to reset? (y/n)" << endl;
         char yn;
         std::cin >> yn;
         if ('y' == yn)
@@ -1000,7 +1006,7 @@ int main(int argc, char * argv[])
         }
         return -1;
     default:
-        cout << "Access to Intel(r) Performance Counter Monitor has denied (Unknown error)." << endl;
+        cerr << "Access to Intel(r) Performance Counter Monitor has denied (Unknown error)." << endl;
         return -1;
     }
 
