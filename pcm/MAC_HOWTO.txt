@@ -31,4 +31,5 @@ PCM Binary Compilation
 
 Once the driver and library have been built go to the root PCM directory (above MacMSRDriver) and execute "make".
 Now you can run ./pcm.x utility.
+See description of other built utilities in LINUX_HOWTO.txt
 

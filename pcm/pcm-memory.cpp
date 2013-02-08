@@ -299,6 +299,7 @@ int main(int argc, char * argv[])
 #endif
 
     PCM * m = PCM::getInstance();
+    m->disableJKTWorkaround();
     PCM::ErrorCode status = m->program();
     switch (status)
     {

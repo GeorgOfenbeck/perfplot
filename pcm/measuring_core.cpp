@@ -1,23 +1,3 @@
-/*
-Copyright (c) 2009-2012, Intel Corporation
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
-
-    * Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
-    * Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
-    * Neither the name of Intel Corporation nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*/
-// written by Roman Dementiev,
-//            Thomas Willhalm,
-//            Patrick Ungerer
-
-
-/*!     \file cpucounterstest.cpp
-        \brief Example of using CPU counters: implements a simple performance counter monitoring utility
-*/
 #define HACK_TO_REMOVE_DUPLICATE_ERROR 
 #include <iostream>
 #include <fstream>
@@ -40,6 +20,9 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include "cpucounters.h"
 #include "measuring_core.h"
 
+#include <algorithm>
+#include <climits>
+#include <vector>
 
 
 #define SIZE (10000000)
@@ -48,69 +31,6 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 using namespace std;
 
 
-
-template <class IntType>
-std::string unit_format(IntType n)
-{
-    char buffer[1024];
-    if (n <= 9999ULL)
-    {
-        sprintf(buffer, "%4d  ", int32(n));
-        return buffer;
-    }
-    if (n <= 9999999ULL)
-    {
-        sprintf(buffer, "%4d K", int32(n / 1000ULL));
-        return buffer;
-    }
-    if (n <= 9999999999ULL)
-    {
-        sprintf(buffer, "%4d M", int32(n / 1000000ULL));
-        return buffer;
-    }
-    if (n <= 9999999999999ULL)
-    {
-        sprintf(buffer, "%4d G", int32(n / 1000000000ULL));
-        return buffer;
-    }
-
-    sprintf(buffer, "%4d T", int32(n / (1000000000ULL * 1000ULL)));
-    return buffer;
-}
-
-
-template <class IntType>
-double float_format(IntType n)
-{
-	return double(n)/1024/1024;
-}
-
-std::string temp_format(int32 t)
-{
-    char buffer[1024];
-    if (t == PCM_INVALID_THERMAL_HEADROOM)
-        return "N/A";
-
-    sprintf(buffer, "%2d", t);
-    return buffer;
-}
-
-void print_help(char * prog_name)
-{
-        #ifdef _MSC_VER
-    cout << " Usage: pcm <delay>|\"external_program parameters\"|--help|--uninstallDriver|--installDriver <other options>" << endl;
-        #else
-    cout << " Usage: pcm <delay>|\"external_program parameters\"|--help <other options>" << endl;
-        #endif
-    cout << endl;
-    cout << " \n Other options:" << endl;
-    cout << " -nc or --nocores or /nc => hides core related output" << endl;
-    cout << " -ns or --nosockets or /ns => hides socket related output" << endl;
-    cout << " -nsys or --nosystem or /nsys => hides system related output" << endl;
-    cout << " -csv or /csv => print compact csv format" << endl;
-    cout << " Example:  pcm.x 1 -nc -ns " << endl;
-    cout << endl;
-}
 
 
 #ifdef _MSC_VER
@@ -141,16 +61,15 @@ SystemCounterState *sstate2;
 long cycles_a, cycles_b;
 
  ofstream flog;
+ ofstream f_error;
 
  std::streambuf *coutbuf;
+ std::streambuf *cerrtbuf;
 
-
-
- bool gflushData = false;
- bool gflushICache = false;
- bool gflushTLB = false;
 
  
+
+
  list<uint64> *plists0;
  list<uint64> *plists1;
  list<uint64> *plists2;
@@ -163,10 +82,12 @@ long cycles_a, cycles_b;
  list<uint64> *plist_refcycles;
  list<uint64> *plist_tsc;
 
+ list<uint64> *plist_nrruns;
  list<uint64> *plist_mcread;
  list<uint64> *plist_mcwrite;
 
 
+ ofstream * fplist_nrruns;
  ofstream * fplist0;
  ofstream * fplist1;
  ofstream * fplist2;
@@ -181,7 +102,11 @@ long cycles_a, cycles_b;
  ofstream * fplist_mcread;
  ofstream * fplist_mcwrite;
  
-
+// Dani start
+ vector<size_t> *runvec;
+ vector<double> *meancyclesvec;
+// vector<double> *sdcyclesvec;
+// Dani end
 
 int flushTLB()
 {
@@ -198,7 +123,7 @@ int flushICache()
 int flushCache()
 {
 	//GO: TODO - get LLC cache size from CPUID
-	long size = 14 * 1024 * 1024; //14 MB
+	long size = 50 * 1024 * 1024; //14 MB
 	double * buffer = (double *) malloc(size);
 	double result = 0;
 	for (long i = 0; i < size/sizeof(double); i=i+4)
@@ -215,18 +140,21 @@ int flushCache()
 
 
 
-int perfmon_init(int type, bool flushData = false, bool flushICache = false, bool flushTLB = false)
+int perfmon_init(long * custom_counters = NULL, long offcore_response0 = 0, long offcore_response1 = 0)
 {
-        gflushData = flushData;
-        gflushICache = flushICache;
-        gflushTLB = flushTLB;
-	
+    
 	flog.open("log.txt");	 
 	coutbuf = std::cout.rdbuf(); //save old buf
 	std::cout.rdbuf(flog.rdbuf());
+
+	    
+	f_error.open("error_stream.txt");	 
+	cerrtbuf = std::cerr.rdbuf(); //save old buf
+	std::cerr.rdbuf(f_error.rdbuf());
+
 	
 
-	cout << "Starting log.\n";  
+	cout << "Starting log - v2.35\n";
 	cout << endl;
 	cout << " Using: Intel(r) Performance Counter Monitor "<< INTEL_PCM_VERSION << endl;
 	cout << endl;
@@ -234,8 +162,7 @@ int perfmon_init(int type, bool flushData = false, bool flushICache = false, boo
 	cout << endl;
 
 
-	
-	    #ifdef _MSC_VER
+        #ifdef _MSC_VER
     // Increase the priority a bit to improve context switching delays on Windows
     SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL);
 
@@ -243,7 +170,7 @@ int perfmon_init(int type, bool flushData = false, bool flushICache = false, boo
     GetCurrentDirectory(1024, driverPath);
     wcscat(driverPath, L"\\msr.sys");
 
-    //SetConsoleCtrlHandler((PHANDLER_ROUTINE)cleanup, TRUE);
+    SetConsoleCtrlHandler((PHANDLER_ROUTINE)cleanup, TRUE);
         #else
     signal(SIGINT, cleanup);
     signal(SIGKILL, cleanup);
@@ -264,111 +191,26 @@ int perfmon_init(int type, bool flushData = false, bool flushICache = false, boo
     m = PCM::getInstance();
 
 	PCM::ErrorCode status;
-	switch (type)
+	
+	if (custom_counters == NULL)
 	{
-	case 0:
 		status = m->program();
-		break;
-
-	case 1:		
-		//GO: FLOP (Double) Events
-		{
-			
-			PCM::CustomCoreEventDescription events[8];	
-			events[0].event_number = FP_COMP_OPS_EXE_SSE_SCALAR_DOUBLE_EVTNR;
-			events[0].umask_value = FP_COMP_OPS_EXE_SSE_SCALAR_DOUBLE_UMASK;	
-
-			events[1].event_number = FP_COMP_OPS_EXE_SSE_FP_PACKED_DOUBLE_EVTNR;
-			events[1].umask_value = FP_COMP_OPS_EXE_SSE_FP_PACKED_DOUBLE_UMASK;
-
-			events[2].event_number = SIMD_FP_256_PACKED_DOUBLE_EVTNR;
-			events[2].umask_value = SIMD_FP_256_PACKED_DOUBLE_UMASK;
-
-			events[3].event_number = FP_COMP_OPS_EXE_SSE_FP_SCALAR_SINGLE_EVTNR;
-			events[3].umask_value = FP_COMP_OPS_EXE_SSE_FP_SCALAR_SINGLE_UMASK;	
-
-			events[4].event_number = FP_COMP_OPS_EXE_SSE_PACKED_SINGLE_EVTNR;
-			events[4].umask_value = FP_COMP_OPS_EXE_SSE_PACKED_SINGLE_UMASK;
-
-			events[5].event_number = SIMD_FP_256_PACKED_SINGLE_EVTNR;
-			events[5].umask_value = SIMD_FP_256_PACKED_SINGLE_UMASK;
-
-			events[6].event_number = UNC_L3_MISS_ANY_EVTNR;
-			events[6].umask_value =  UNC_L3_MISS_ANY_UMASK;
-
-			events[7].event_number = ARCH_LLC_MISS_EVTNR;
-			events[7].umask_value = ARCH_LLC_MISS_UMASK;
-			
-
-			status = m->program(PCM::CUSTOM_CORE_EVENTS,events);
-		}
-		break;
-/*	case 1:		
-		//GO: FLOP (Double) Events
-		{
-			
-			PCM::CustomCoreEventDescription events[4];	
-			events[0].event_number = FP_COMP_OPS_EXE_SSE_SCALAR_DOUBLE_EVTNR;
-			events[0].umask_value = FP_COMP_OPS_EXE_SSE_SCALAR_DOUBLE_UMASK;	
-
-			events[1].event_number = FP_COMP_OPS_EXE_SSE_FP_PACKED_DOUBLE_EVTNR;
-			events[1].umask_value = FP_COMP_OPS_EXE_SSE_FP_PACKED_DOUBLE_UMASK;
-
-			events[2].event_number = SIMD_FP_256_PACKED_DOUBLE_EVTNR;
-			events[2].umask_value = SIMD_FP_256_PACKED_DOUBLE_UMASK;
-
-			events[3].event_number = FP_COMP_OPS_EXE_SSE_FP_SCALAR_SINGLE_EVTNR; //event 3 needs to be set to something usefull
-			events[3].umask_value = FP_COMP_OPS_EXE_SSE_FP_SCALAR_SINGLE_UMASK;
-
-			status = m->program(PCM::CUSTOM_CORE_EVENTS,events);
-		}
-		break;*/
-	case 2: 
-		//GO: FLOP (Single) Events
-		{
-			PCM::CustomCoreEventDescription events[4];	
-			events[0].event_number = FP_COMP_OPS_EXE_SSE_FP_SCALAR_SINGLE_EVTNR;
-			events[0].umask_value = FP_COMP_OPS_EXE_SSE_FP_SCALAR_SINGLE_UMASK;	
-
-			events[1].event_number = FP_COMP_OPS_EXE_SSE_PACKED_SINGLE_EVTNR;
-			events[1].umask_value = FP_COMP_OPS_EXE_SSE_PACKED_SINGLE_UMASK;
-
-			events[2].event_number = SIMD_FP_256_PACKED_SINGLE_EVTNR;
-			events[2].umask_value = SIMD_FP_256_PACKED_SINGLE_UMASK;
-
-			events[3].event_number = FP_COMP_OPS_EXE_SSE_FP_PACKED_DOUBLE_EVTNR; //event 3 needs to be set to something usefull
-			events[3].umask_value = FP_COMP_OPS_EXE_SSE_FP_PACKED_DOUBLE_UMASK;
-
-			status = m->program(PCM::CUSTOM_CORE_EVENTS,events);
-		}
-		break;
-
-	case 3: 
-		//GO: FLOP (Single) Events
-		{
-			PCM::CustomCoreEventDescription events[4];	
-			events[0].event_number = ARCH_LLC_REFERENCE_EVTNR;
-			events[0].umask_value =  ARCH_LLC_REFERENCE_UMASK;
-
-			events[1].event_number = ARCH_LLC_MISS_EVTNR;
-			events[1].umask_value = ARCH_LLC_MISS_UMASK;
-
-			events[2].event_number = UNC_L3_MISS_ANY_EVTNR;
-			events[2].umask_value = UNC_L3_MISS_ANY_UMASK;
-
-			events[3].event_number = MEM_LOAD_RETIRED_L2_HIT_EVTNR;
-			events[3].umask_value = MEM_LOAD_RETIRED_L2_HIT_UMASK;
-
-			status = m->program(PCM::CUSTOM_CORE_EVENTS,events);
-		}
-		break;
-
-
-
-	default:
-		cout << "Unknown Measurement Type in call to perfmon_init" << endl;
-        return -1;
 	}
+	else
+	{
+		PCM::CustomCoreEventDescription events[4];	
+		for (int i = 0; i< 4; i++)
+		{
+			events[i].event_number = custom_counters[i*2];
+			events[i].umask_value = custom_counters[i*2+1];
+		}
+		status = m->program(PCM::CUSTOM_CORE_EVENTS,events);
+
+		g_offcore_response0 = offcore_response0;
+		g_offcore_response1 = offcore_response1;
+			
+	}
+
 
     
     switch (status)
@@ -419,6 +261,11 @@ int perfmon_init(int type, bool flushData = false, bool flushICache = false, boo
 	fnrcores << m->getNumCores();
 	fnrcores.close();
 
+	ofstream fnrsockets;
+	fnrsockets.open("NrSockets.txt");
+	fnrsockets << m->getNumSockets();
+	fnrsockets.close();
+
 
    uint32 nrcores = m->getNumCores();     
    
@@ -432,17 +279,22 @@ int perfmon_init(int type, bool flushData = false, bool flushICache = false, boo
    plists6 = new list<uint64>[nrcores];
    plists7 = new list<uint64>[nrcores];
 
-
+   
    plist_cycles = new list<uint64>[nrcores]; //saving rtdsc here
    plist_refcycles = new list<uint64>[nrcores]; //saving rtdsc here
    plist_tsc = new list<uint64>[nrcores]; //saving rtdsc here
 
-   plist_mcread = new list<uint64>[1]; //GO: fixme multi socket
+   plist_nrruns = new list<uint64>[1];
+   plist_mcread = new list<uint64>[1]; 
    plist_mcwrite = new list<uint64>[1];
 
-//	PCM::getInstance()->cleanup();
+
+   //Dani start
+   runvec = new vector<size_t>();
+   meancyclesvec = new vector<double>();
    
-   
+   //Dani end
+
 }
 
 void perfmon_start ()
@@ -453,11 +305,13 @@ void perfmon_start ()
 		ret = GetLastError() * 100;
 	DWORD cur_core =  GetCurrentProcessorNumber();	//GO TODO: this only works with windows!
 	long out = cur_core; */
+	
+	/*
 	ofstream fcorerunningperf;
 	fcorerunningperf.open("CorerunningPerf.txt");
 	fcorerunningperf << "0";
 	fcorerunningperf.close();
-	
+	*/
 
 	cstates1 = new  CoreCounterState[PCM::getInstance()->getNumCores()];
     cstates2 = new  CoreCounterState[PCM::getInstance()->getNumCores()];
@@ -470,13 +324,12 @@ void perfmon_start ()
     for (uint32 i = 0; i < m->getNumSockets(); ++i)
         sktstate1[i] = getSocketCounterState(i);
     for (uint32 i = 0; i < m->getNumCores(); ++i)
-        cstates1[i] = getCoreCounterState(i);
-
-	
+        cstates1[i] = getCoreCounterState(i);	
 }
 
 
-void perfmon_stop()
+
+void perfmon_stop(long nr_runs)
 {
 	*sstate2 = getSystemCounterState();
     for (uint32 i = 0; i < m->getNumSockets(); ++i)
@@ -484,29 +337,188 @@ void perfmon_stop()
     for (uint32 i = 0; i < m->getNumCores(); ++i)
         cstates2[i] = getCoreCounterState(i);
 
-	for (uint32 i = 0; i < m->getNumCores(); ++i)
+	for (uint32 i = 0; i < m->getNumCores(); ++i)		
 	{			
-		plists0[i].push_front(getCustom0(cstates1[i], cstates2[i]));
-		plists1[i].push_front(getCustom1(cstates1[i], cstates2[i]));
-		plists2[i].push_front(getCustom2(cstates1[i], cstates2[i]));
-		plists3[i].push_front(getCustom3(cstates1[i], cstates2[i]));
+
+		uint64 c0,c1,c2,c3;
+
+		c0 = getL3CacheMisses(cstates1[i], cstates2[i]);
+		c1 = getL3CacheHitsNoSnoop(cstates1[i], cstates2[i]);
+		c2 = getL3CacheHitsSnoop(cstates1[i], cstates2[i]);
+		c3 = getL2CacheHits(cstates1[i], cstates2[i]);
+
+		plists0[i].push_front(c0); //Counter0
+		plists1[i].push_front(c1); //Counter1
+		plists2[i].push_front(c2); //Counter2
+		plists3[i].push_front(c3); //Counter3
+
+		//this is a placeholder till all 8 counters are enabled again
+		plists4[i].push_front(c0); //Counter0
+		plists5[i].push_front(c1); //Counter1
+		plists6[i].push_front(c2); //Counter2
+		plists7[i].push_front(c3); //Counter3
+
+		/*
 		plists4[i].push_front(getCustom4(cstates1[i], cstates2[i]));
 		plists5[i].push_front(getCustom5(cstates1[i], cstates2[i]));
 		plists6[i].push_front(getCustom6(cstates1[i], cstates2[i]));
 		plists7[i].push_front(getCustom7(cstates1[i], cstates2[i]));
-
+        */
 		plist_cycles[i].push_front(getCycles(cstates1[i], cstates2[i]));
 		plist_refcycles[i].push_front(getRefCycles(cstates1[i], cstates2[i]));
 		plist_tsc[i].push_front(getInvariantTSC(cstates1[i], cstates2[i]));		
-	}			
 
-	plist_mcread[0].push_front(getBytesReadFromMC(sktstate1[0], sktstate2[0]));
-	plist_mcwrite[0].push_front(getBytesWrittenToMC(sktstate1[0], sktstate2[0]));
+		
+	}
+	
+	long sysRead, sysWrite;
+	sysRead = 0;
+	sysWrite = 0;
 
+	for (uint32 i = 0; i < m->getNumSockets(); ++i)
+	{
+		sysRead =+ getBytesReadFromMC(sktstate1[i], sktstate2[i]) ;
+		sysWrite =+ getBytesWrittenToMC(sktstate1[i], sktstate2[i]);
+	}
 
+	plist_mcread[0].push_front(sysRead);
+	plist_mcwrite[0].push_front(sysWrite);
+	plist_nrruns[0].push_front(nr_runs);	
+	
+	// Dani start
+	runvec->push_back(nr_runs);
+	// Dani end
 
 }
 
+
+//// Start Dani
+
+void perfmon_emptyLists(bool clearRuns)
+{
+	for (uint32 i = 0; i < m->getNumCores(); ++i)
+	{
+		plists0[i].clear();
+		plists1[i].clear();
+		plists2[i].clear();
+		plists3[i].clear();
+		plists4[i].clear();
+		plists5[i].clear();
+		plists6[i].clear();
+		plists7[i].clear();
+
+		plist_cycles[i].clear();
+		plist_refcycles[i].clear();
+		plist_tsc[i].clear();
+	}
+
+	plist_nrruns[0].clear();
+	plist_mcread[0].clear();
+	plist_mcwrite[0].clear();
+	
+	if(clearRuns) runvec->clear();
+ 
+}
+bool perfmon_testDerivative(size_t runs, double threshold, size_t points) {
+
+	// Using TSC
+	size_t n = plist_tsc[0].size();
+//	double sumcycle2 = 0;
+	double sumcycle = 0, cycles;
+
+	uint32 ncores = m->getNumCores();
+	list<uint64>::iterator* it = new list<uint64>::iterator[ncores];
+	for(uint32 c = 0; c < ncores; c++)
+		it[c] = plist_tsc[c].begin();
+
+	// Average, and sd is computed based on the max. TSC
+	for (size_t i = 0; i < n; ++i) {
+		uint64 maxtsc = *it[0];
+		for(uint32 c = 1; c < ncores; c++)
+			maxtsc = max(maxtsc, *it[c]);
+		cycles = double(maxtsc)/runs;
+//		sumcycle2 += cycles*cycles;
+		sumcycle += cycles;
+		for(uint32 c = 0; c < ncores; c++)
+			it[c]++;
+	}
+
+//	double s2 = (n*sumcycle2 - sumcycle*sumcycle)/(n*(n-1));
+	double m  = sumcycle/n;
+//	double sd = sqrt(s2);
+
+//	cout << endl << endl << "SD Test on Core " << 3 << ": " << endl;
+//	cout << "\tAverage cycles: " << m << endl;
+//	cout << "\tStandard deviation: " << sd << endl;
+//
+	meancyclesvec->push_back(m);
+//	sdcyclesvec->push_back(sd);
+
+	if (runvec->size() < points+2)
+		return false;
+
+	n = runvec->size();
+
+	bool condition = true;
+
+	while ((condition) && (points>0)) {
+		double d = ((*meancyclesvec)[n-points] - (*meancyclesvec)[n-points-2])/((*runvec)[n-points] - (*runvec)[n-points-2]);
+		condition = (fabs(d) <= threshold);
+		--points;
+	}
+//	cout << "Derivative value: " << d << endl;
+
+	return (condition || m >= 1e6);
+
+}
+
+//void perfmon_meanSingleRun() {
+//
+//	size_t n = plist_tsc[0].size();
+//	double sumcycle2 = 0, sumcycle = 0, cycles;
+//
+//	uint32 ncores = m->getNumCores();
+//	list<uint64>::iterator* it = new list<uint64>::iterator[ncores];
+//
+//	for(uint32 c = 0; c < ncores; c++)
+//		it[c] = plist_tsc[c].begin();
+//
+//	for (size_t i = 0; i < n; ++i) {
+//		uint64 maxtsc = *it[0];
+//		for(uint32 c = 1; c < ncores; c++)
+//			maxtsc = max(maxtsc, *it[c]);
+//		cycles = double(maxtsc);
+//		sumcycle2 += cycles*cycles;
+//		sumcycle += cycles;
+//		for(uint32 c = 0; c < ncores; c++)
+//			it[c]++;
+//	}
+//
+//	double s2 = (n*sumcycle2 - sumcycle*sumcycle)/(n*(n-1));
+//	double m  = sumcycle/n;
+//	double sd = sqrt(s2);
+//
+////	cout << endl << endl << "SD Test on Core " << 3 << ": " << endl;
+////	cout << "\tAverage cycles: " << m << endl;
+////	cout << "\tStandard deviation: " << sd << endl;
+////
+//	runvec->push_back(n);
+//	meancyclesvec->push_back(m);
+//	sdcyclesvec->push_back(sd);
+//
+//}
+
+void dumpMeans()
+{
+	ofstream f;
+	f.open("tsc_means.csv");
+	size_t n = runvec->size();
+	for (size_t i = 0; i < n; ++i)
+		f << (*runvec)[i] << "," << (*meancyclesvec)[i] << endl;
+//		f << (*runvec)[i] << "," << (*meancyclesvec)[i] << "," << (*sdcyclesvec)[i] << endl;
+	f.close();
+}
+// End Dani
 
 
 
@@ -530,6 +542,8 @@ void perfmon_end()
 
 	fplist_mcread = new ofstream[1];
 	fplist_mcwrite = new ofstream[1];
+
+	fplist_nrruns = new ofstream[1];
 
 	list<uint64>::iterator it;
 	for (uint32 i = 0; i < m->getNumCores(); ++i)
@@ -635,254 +649,27 @@ void perfmon_end()
 		fplist_mcwrite[0] << *it << " ";
 	fplist_mcwrite[0].close();
 	
+
+	stringstream ss_nrruns;
+	ss_nrruns << "nrruns.txt";
+	fplist_nrruns[0].open(ss_nrruns.str().c_str());  	
+	for (it =  plist_nrruns[0].begin(); it != plist_nrruns[0].end(); ++it)
+		fplist_nrruns[0] << *it << " ";
+	fplist_nrruns[0].close();
+
 	
 	PCM::getInstance()->cleanup();	
-    /*delete[] cstates1;
-    delete[] cstates2;
-    delete[] sktstate1;
-    delete[] sktstate2;
-	delete[] sstate1;
-	delete[] sstate2; */
-	flog.close();
-	std::cout.rdbuf(coutbuf);
-}
-
-int init()
-{
-	#ifdef PCM_FORCE_SILENT
-    null_stream nullStream1, nullStream2;
-    std::cout.rdbuf(&nullStream1);
-    std::cerr.rdbuf(&nullStream2);
-    #endif
-
-    cout << endl;
-    cout << " Intel(r) Performance Counter Monitor "<< INTEL_PCM_VERSION << endl;
-    cout << endl;
-    cout << " Copyright (c) 2009-2012 Intel Corporation" << endl;
-    cout << endl;
-
-
-
-	    #ifdef _MSC_VER
-    // Increase the priority a bit to improve context switching delays on Windows
-    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL);
-
-    TCHAR driverPath[1024];
-    GetCurrentDirectory(1024, driverPath);
-    wcscat(driverPath, L"\\msr.sys");
-
-    //SetConsoleCtrlHandler((PHANDLER_ROUTINE)cleanup, TRUE);
-        #else
-    signal(SIGINT, cleanup);
-    signal(SIGKILL, cleanup);
-    signal(SIGTERM, cleanup);
-        #endif
-
-        #ifdef _MSC_VER
-    // WARNING: This driver code (msr.sys) is only for testing purposes, not for production use
-    Driver drv;
-    // drv.stop();     // restart driver (usually not needed)
-    if (!drv.start(driverPath))
-    {
-		cout << "Cannot access CPU counters" << endl;
-		cout << "You must have signed msr.sys driver in your current directory and have administrator rights to run this program" << endl;
-    }
-        #endif
-
-    m = PCM::getInstance();
-    PCM::ErrorCode status = m->program();
-    switch (status)
-    {
-    case PCM::Success:
-        break;
-    case PCM::MSRAccessDenied:
-        cout << "Access to Intel(r) Performance Counter Monitor has denied (no MSR or PCI CFG space access)." << endl;
-        return -1;
-    case PCM::PMUBusy:
-        cout << "Access to Intel(r) Performance Counter Monitor has denied (Performance Monitoring Unit is occupied by other application). Try to stop the application that uses PMU." << endl;
-        cout << "Alternatively you can try to reset PMU configuration at your own risk. Try to reset? (y/n)" << endl;
-        char yn;
-        std::cin >> yn;
-        if ('y' == yn)
-        {
-            m->resetPMU();
-            cout << "PMU configuration has been reset. Try to rerun the program again." << endl;
-        }
-        return -1;
-    default:
-        cout << "Access to Intel(r) Performance Counter Monitor has denied (Unknown error)." << endl;
-        return -1;
-    }
-
-    cout << "\nDetected "<< m->getCPUBrandString() << " \"Intel(r) microarchitecture codename "<<m->getUArchCodename()<<"\""<<endl;
-//	PCM::getInstance()->cleanup();
-
-}
-
-
-	
-static char dummy;
-static int const CacheLineSize=64;
-
-
-void start ()
-{
-#ifdef FLUSH
-	cout << "Flushing Cache " <<endl;
-	size_t blockSize = 13 * (1<<20); //TODO: choose size according to LLC
-	char * buffer = (char *) malloc(blockSize);
-
-	// bring the whole buffer into memory
-	for (size_t i = 0; i < blockSize; i+=CacheLineSize) {
-		dummy += buffer[i];
-	}
-
-	free((void*) buffer);
-#endif 
-
-	//bring the whole buffer into memory
-
-
-	cstates1 = new  CoreCounterState[PCM::getInstance()->getNumCores()];
-    cstates2 = new  CoreCounterState[PCM::getInstance()->getNumCores()];
-    sktstate1 = new SocketCounterState[m->getNumSockets()];
-    sktstate2 = new SocketCounterState[m->getNumSockets()];    
-
-	sstate1 = new SystemCounterState();
-	sstate2 = new SystemCounterState();
-
-    const int cpu_model = m->getCPUModel();
-    *sstate1 = getSystemCounterState();
-    for (uint32 i = 0; i < m->getNumSockets(); ++i)
-        sktstate1[i] = getSocketCounterState(i);
-    for (uint32 i = 0; i < m->getNumCores(); ++i)
-        cstates1[i] = getCoreCounterState(i);
-}
-
-
-void stop_flop ()
-{
-	       *sstate2 = getSystemCounterState();
-        for (uint32 i = 0; i < m->getNumSockets(); ++i)
-            sktstate2[i] = getSocketCounterState(i);
-        for (uint32 i = 0; i < m->getNumCores(); ++i)
-            cstates2[i] = getCoreCounterState(i);
-
-			for (uint32 i = 0; i < m->getNumCores(); ++i)
-            {
-				  cout << " " << setw(3) << i << "   " << setw(2) << m->getSocketId(i) <<
-                    "     " << getExecUsage(cstates1[i], cstates2[i]) <<
-                    "   " << getIPC(cstates1[i], cstates2[i]) <<
-                    "   " << getRelativeFrequency(cstates1[i], cstates2[i]) <<
-                    "    " << getActiveRelativeFrequency(cstates1[i], cstates2[i]) <<
-					"    " << unit_format(getScalarDouble(cstates1[i], cstates2[i])) <<
-					"    " << unit_format(getPackedDouble(cstates1[i], cstates2[i])) <<
-					"    " << unit_format(getAVXDouble(cstates1[i], cstates2[i])) <<				                    
-                    "\n";
-			}
-}
-
-
-void stop ()
-{
-	//	TimeAfterSleep = m->getTickCount();
-        *sstate2 = getSystemCounterState();
-        for (uint32 i = 0; i < m->getNumSockets(); ++i)
-            sktstate2[i] = getSocketCounterState(i);
-        for (uint32 i = 0; i < m->getNumCores(); ++i)
-            cstates2[i] = getCoreCounterState(i);
-		
-		const int cpu_model = m->getCPUModel();
-		       // sanity checks
-        if (cpu_model == PCM::ATOM)
-        {
-            assert(getNumberOfCustomEvents(0, *sstate1, *sstate2) == getL2CacheMisses(*sstate1, *sstate2));
-            assert(getNumberOfCustomEvents(1, *sstate1, *sstate2) == getL2CacheMisses(*sstate1, *sstate2) + getL2CacheHits(*sstate1, *sstate2));
-        }
-        else
-        {
-            assert(getNumberOfCustomEvents(0, *sstate1, *sstate2) == getL3CacheMisses(*sstate1, *sstate2));
-            assert(getNumberOfCustomEvents(1, *sstate1, *sstate2) == getL3CacheHitsNoSnoop(*sstate1, *sstate2));
-            assert(getNumberOfCustomEvents(2, *sstate1, *sstate2) == getL3CacheHitsSnoop(*sstate1, *sstate2));
-            assert(getNumberOfCustomEvents(3, *sstate1, *sstate2) == getL2CacheHits(*sstate1, *sstate2));
-        }
-
-
-		
-            if(!(m->getNumSockets() == 1 && cpu_model==PCM::ATOM))
-            {
-				cout << " Core (SKT) | EXEC | IPC  | FREQ  | AFREQ | L3MISS | L2MISS | L3HIT | L2HIT | L3CLK | L2CLK  | READ  | WRITE | TEMP" << "\n" << "\n";
-				cout << "-------------------------------------------------------------------------------------------------------------------" << "\n";
-				for (uint32 i = 0; i < m->getNumCores(); ++i)
-            {
-                if (cpu_model != PCM::ATOM)
-                    cout << " " << setw(3) << i << "   " << setw(2) << m->getSocketId(i) <<
-                    "     " << getExecUsage(cstates1[i], cstates2[i]) <<
-                    "   " << getIPC(cstates1[i], cstates2[i]) <<
-                    "   " << getRelativeFrequency(cstates1[i], cstates2[i]) <<
-                    "    " << getActiveRelativeFrequency(cstates1[i], cstates2[i]) <<
-                    "    " << unit_format(getL3CacheMisses(cstates1[i], cstates2[i])) <<
-                    "   " << unit_format(getL2CacheMisses(cstates1[i], cstates2[i])) <<
-                    "    " << getL3CacheHitRatio(cstates1[i], cstates2[i]) <<
-                    "    " << getL2CacheHitRatio(cstates1[i], cstates2[i]) <<
-                    "    " << getCyclesLostDueL3CacheMisses(cstates1[i], cstates2[i]) <<
-                    "    " << getCyclesLostDueL2CacheMisses(cstates1[i], cstates2[i]) <<
-                    "     N/A     N/A" <<
-                    "     " << temp_format(cstates2[i].getThermalHeadroom()) <<
-                    "\n";
-                else
-                    cout << " " << setw(3) << i << "   " << setw(2) << m->getSocketId(i) <<
-                    "     " << getExecUsage(cstates1[i], cstates2[i]) <<
-                    "   " << getIPC(cstates1[i], cstates2[i]) <<
-                    "   " << getRelativeFrequency(cstates1[i], cstates2[i]) <<
-                    "   " << unit_format(getL2CacheMisses(cstates1[i], cstates2[i])) <<
-                    "    " << getL2CacheHitRatio(cstates1[i], cstates2[i]) <<
-                    "     " << temp_format(cstates2[i].getThermalHeadroom()) <<
-                    "\n";
-            }
-
-                cout << "-------------------------------------------------------------------------------------------------------------------" << "\n";
-                for (uint32 i = 0; i < m->getNumSockets(); ++i)
-                {
-                    cout << " SKT   " << setw(2) << i <<
-                    "     " << getExecUsage(sktstate1[i], sktstate2[i]) <<
-                    "   " << getIPC(sktstate1[i], sktstate2[i]) <<
-                    "   " << getRelativeFrequency(sktstate1[i], sktstate2[i]) <<
-                    "    " << getActiveRelativeFrequency(sktstate1[i], sktstate2[i]) <<
-                    "    " << unit_format(getL3CacheMisses(sktstate1[i], sktstate2[i])) <<
-                    "   " << unit_format(getL2CacheMisses(sktstate1[i], sktstate2[i])) <<
-                    "    " << getL3CacheHitRatio(sktstate1[i], sktstate2[i]) <<
-                    "    " << getL2CacheHitRatio(sktstate1[i], sktstate2[i]) <<
-                    "    " << getCyclesLostDueL3CacheMisses(sktstate1[i], sktstate2[i]) <<
-                    "    " << getCyclesLostDueL2CacheMisses(sktstate1[i], sktstate2[i]);
-                    if (!(m->memoryTrafficMetricsAvailable()))
-                       cout << "     N/A     N/A";
-                   else
-                       cout << "    " << getBytesReadFromMC(sktstate1[i], sktstate2[i]) / double(1024ULL * 1024ULL * 1024ULL) <<
-                               "    " << getBytesWrittenToMC(sktstate1[i], sktstate2[i]) / double(1024ULL * 1024ULL * 1024ULL);
-                    cout << "     " << temp_format(sktstate2[i].getThermalHeadroom()) << "\n";
-                }
-            }
-
-
-}
-
-
-void end()
-{
-	PCM::getInstance()->cleanup();
-	
-	
     delete[] cstates1;
     delete[] cstates2;
     delete[] sktstate1;
     delete[] sktstate2;
 	delete[] sstate1;
 	delete[] sstate2; 
+	flog.close();
+	f_error.close();
+	std::cout.rdbuf(coutbuf);
+	std::cerr.rdbuf(cerrtbuf);
 }
-
-
-
 
 
 

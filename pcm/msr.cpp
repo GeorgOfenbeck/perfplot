@@ -235,6 +235,11 @@ MsrHandle::MsrHandle(uint32 cpu) : fd(-1), cpu_id(cpu)
     char * path = new char[200];
     sprintf(path, "/dev/cpu/%d/msr", cpu);
     int handle = ::open(path, O_RDWR);
+    if(handle < 0)
+    { // try Android msr device path
+      sprintf(path, "/dev/msr%d", cpu);
+      handle = ::open(path, O_RDWR);
+    }
     delete[] path;
     if (handle < 0) throw std::exception();
     fd = handle;

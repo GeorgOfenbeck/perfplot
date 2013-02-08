@@ -206,6 +206,7 @@ int main(int argc, char * argv[])
     #endif
 
     PCM * m = PCM::getInstance();
+    m->disableJKTWorkaround();
 
     if(PCM::JAKETOWN != m->getCPUModel())
     {
