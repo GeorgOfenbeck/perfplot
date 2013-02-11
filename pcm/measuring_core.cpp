@@ -30,8 +30,8 @@
 
 using namespace std;
 
-long g_offcore_response0, g_offcore_response1;
 
+extern long g_offcore_response0, g_offcore_response1;
 
 #ifdef _MSC_VER
 BOOL cleanup(DWORD)
