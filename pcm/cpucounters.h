@@ -53,7 +53,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include <limits>
 
 
-long g_offcore_response0, g_offcore_response1;
+extern long g_offcore_response0, g_offcore_response1;
 
 class SystemCounterState;
 class SocketCounterState;
