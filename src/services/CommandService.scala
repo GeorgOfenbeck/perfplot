@@ -53,7 +53,7 @@ object CommandService {
   {
 
 
-
+    def getSCounter3():Array[Long] = SCounter3
 
     def toFlopSeries (name: String, sizes: List[Long], warmup : Int = 1) =
     {
@@ -130,8 +130,45 @@ object CommandService {
 
 
 
+    def customprint() =
+    {
 
+      def write( cnt: Array[Long]) =
+        cnt.slice(1,11).min
 
+      def read( cnt: Array[Long]) =
+        cnt.slice(11,21).min
+
+      println("--------------------------------------------------------------------------------------------------------")
+      println(
+        "%6s".format("Corenr:") +
+          "%12s".format("TSC") +
+          "%12s".format("LLC_MISS") +
+          "%12s".format("OFFC_R") +
+          "%12s".format("OFFC_R") +
+          "%12s".format("INST_R")
+      )
+      for (i <- 0 until nrcores)
+        println(
+          "%6d".format(i) +
+            "%12d".format(TSCCounter(i).slice(1,11).min) +
+            "%12d".format(Counter0(i).slice(1,11).min) +
+            "%12d".format(Counter1(i).slice(1,11).min) +
+            "%12d".format(Counter2(i).slice(1,11).min) +
+            "%12d".format(Counter3(i).slice(1,11).min)            
+        )
+
+      println(Counter3(0).slice(1,11).size+"----------------"+Counter3(0).slice(11,21).size)
+      for (i <- 0 until nrcores)
+        println(
+          "%6d".format(i) +
+            "%12d".format(TSCCounter(i).slice(11,21).min) +
+            "%12d".format(Counter0(i).slice(11,21).min) +
+            "%12d".format(Counter1(i).slice(11,21).min) +
+            "%12d".format(Counter2(i).slice(11,21).min) +
+            "%12d".format(Counter3(i).slice(11,21).min)
+        )
+    }
 
     def prettyprint () =
     {

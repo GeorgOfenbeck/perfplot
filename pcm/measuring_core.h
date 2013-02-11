@@ -3,7 +3,8 @@
 
 
 
-int perfmon_init(int type, bool flushData , bool flushICache , bool flushTLB );
+//int perfmon_init(long * custom_counters = NULL, long offcore_response0 = 0, long offcore_response1 = 0);
+int perfmon_init(long * custom_counters , long offcore_response0 , long offcore_response1 );
 void perfmon_start();
 void perfmon_stop(long runs=1);
 void perfmon_end();
