@@ -1,6 +1,7 @@
 #ifndef MEASURING_CORE_HEADER
 #define MEASURING_CORE_HEADER
 
+#include "cpuid_info.h"
 
 
 //int perfmon_init(long * custom_counters = NULL, long offcore_response0 = 0, long offcore_response1 = 0);
@@ -17,9 +18,16 @@ void perfmon_emptyLists(bool clearRuns=true);
 void dumpMeans();
 // End Dani
 
-int flushTLB();
-int flushICache();
-int flushCache();
+void flushITLB();
+void flushDTLB();
+void flushICache();
+void flushDCache();
 
+// Vicky --- Functions for getting cache parameters with CPUID
+
+
+
+cpuid_cache_descriptor_t getTLBinfo(cpuid_leaf2_qualifier_t cacheType);
+unsigned long getLLCSize();
 
 #endif
