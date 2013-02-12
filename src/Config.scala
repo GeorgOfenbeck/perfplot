@@ -14,6 +14,7 @@ object Config {
   val use_gcc = false;
   val debug = true;
   val home = System.getProperty( "user.home" )
+  val pwd = System.getProperty( "user.dir" )
 
   val gnuplot = if (isWin) "C:\\Program Files (x86)\\gnuplot\\bin\\gnuplot.exe" else "gnuplot"
 
@@ -25,7 +26,7 @@ object Config {
   def MeasuringCore: File = if (isWin)
                          new File("C:\\Users\\ofgeorg\\IdeaProjects\\perfplot\\pcm\\","MeasuringCore.lib")
                       else
-                         new File(home + "/perfplot/pcm/MeasuringCore.lib")
+                         new File(pwd + File.separator + "pcm" + File.separator + "MeasuringCore.lib")
 
 
   def default_flags = flag_c99 + flag_optimization + flag_hw
