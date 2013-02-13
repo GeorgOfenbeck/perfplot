@@ -41,7 +41,7 @@
 using namespace std;
 
 
-
+extern long g_offcore_response0, g_offcore_response1;
 
 #ifdef _MSC_VER
 BOOL cleanup(DWORD)
@@ -252,7 +252,7 @@ void flushDCache()
 
 
 
-int perfmon_init(long * custom_counters = NULL, long offcore_response0 = 0, long offcore_response1 = 0)
+int perfmon_init(long * custom_counters, long offcore_response0, long offcore_response1)
 {
     
 	flog.open("log.txt");	 
