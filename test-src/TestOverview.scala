@@ -1,4 +1,4 @@
-/*
+
 /**
  * Georg Ofenbeck
  First created:
@@ -8,13 +8,59 @@
 
 import org.scalatest.Suite
 
-import roofline.plot._
-import roofline.quantities._
-import roofline.services._
+import perfplot.Config
+import perfplot.plot._
+import perfplot.quantities._
+import perfplot.services._
+import perfplot.Config._
+
 
 import services._
 import java.io._
 import scala.io._
+
+
+
+def Counters2CCode(counters: Array[HWCounters.Counter]): (String,String) =
+{
+  var offcore_0: Long = 0
+  var offcore_1: Long = 0
+
+  var counter_string = "long counters["+counters.size+"];\n"
+  for (i <- 0 until counters.size)
+  {
+    counter_string = counter_string + "counters["+ i*2 +"] = " + counters(i).getEventNr + ";\n"
+    counter_string = counter_string + "counters["+ i*2 + 1 +"] = " + counters(i).getUmask + ";\n"
+    if (counters(i).getEventNr == 183) //Offcore response
+      if (offcore_0 == 0)
+        offcore_0 = counters(i).CommenttoLong
+      else
+      if (offcore_1 == 0)
+        offcore_1 = counters(i).CommenttoLong
+      else
+        assert("Trying to program more then 2 offcore response events")
+  }
+
+  (counter_string,"init_measurment(counters,"+offcore_0+","+offcore_1+");")
+}
+
+
+def fft_MKL (sourcefile: PrintStream,sizes: List[Long], counters: Array[HWCounters.Counter]) =
+{
+  sourcefile.println(Config.MeasuringCoreH)
+  sourcefile.println("#include <mkl.h>")
+  sourcefile.println("#include <iostream>")
+
+  Counters2CCode(counters)
+
+
+
+
+
+}
+
+
+
 
 
 class TestOverview extends Suite{
@@ -790,9 +836,9 @@ class TestOverview extends Suite{
     val mcwrite = getFile(temp.getPath + File.separator + "MC_write.txt").split(" ").map( x => x.toLong ) // /1024/1024)
 
 
-    import roofline.plot._
-    import roofline.services._
-    import roofline.quantities._
+    import perfplot.plot._
+    import perfplot.services._
+    import perfplot.quantities._
 
 
     println("-------------")

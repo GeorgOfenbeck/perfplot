@@ -8,15 +8,15 @@
 
 import org.scalatest.Suite
 
-import roofline.plot._
-import roofline.services._
+import perfplot.plot._
+import perfplot.services._
 
 class TestPlotting extends Suite{
 
 
   def test_RooflinePlot()
   {
-    import roofline.quantities._
+    import perfplot.quantities._
     val myplot = new RooflinePlot(
       List(
         ("first",Performance(Flops(8),Cycles(1))),
@@ -68,7 +68,7 @@ class TestPlotting extends Suite{
 
   def test_PerformancePlot()
   {
-    import roofline.quantities._
+    import perfplot.quantities._
     val myplot = new PerformancePlot(List(),List(
           ("first",Performance(flops(8),Cycles(1))),
           ("second",Performance(flops(2),Cycles(1)))

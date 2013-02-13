@@ -9,10 +9,10 @@
 import HWCounters.JakeTown
 import org.scalatest.Suite
 
-import roofline._
-import roofline.plot._
-import roofline.quantities._
-import roofline.services._
+import perfplot._
+import perfplot.plot._
+import perfplot.quantities._
+import perfplot.services._
 
 
 import java.io._
