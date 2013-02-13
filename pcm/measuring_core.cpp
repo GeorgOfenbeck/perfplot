@@ -587,41 +587,15 @@ bool perfmon_testDerivative(size_t runs, double threshold, size_t points) {
 
 }
 
-//void perfmon_meanSingleRun() {
-//
-//	size_t n = plist_tsc[0].size();
-//	double sumcycle2 = 0, sumcycle = 0, cycles;
-//
-//	uint32 ncores = m->getNumCores();
-//	list<uint64>::iterator* it = new list<uint64>::iterator[ncores];
-//
-//	for(uint32 c = 0; c < ncores; c++)
-//		it[c] = plist_tsc[c].begin();
-//
-//	for (size_t i = 0; i < n; ++i) {
-//		uint64 maxtsc = *it[0];
-//		for(uint32 c = 1; c < ncores; c++)
-//			maxtsc = max(maxtsc, *it[c]);
-//		cycles = double(maxtsc);
-//		sumcycle2 += cycles*cycles;
-//		sumcycle += cycles;
-//		for(uint32 c = 0; c < ncores; c++)
-//			it[c]++;
-//	}
-//
-//	double s2 = (n*sumcycle2 - sumcycle*sumcycle)/(n*(n-1));
-//	double m  = sumcycle/n;
-//	double sd = sqrt(s2);
-//
-////	cout << endl << endl << "SD Test on Core " << 3 << ": " << endl;
-////	cout << "\tAverage cycles: " << m << endl;
-////	cout << "\tStandard deviation: " << sd << endl;
-////
-//	runvec->push_back(n);
-//	meancyclesvec->push_back(m);
-//	sdcyclesvec->push_back(sd);
-//
-//}
+unsigned long getNumberOfShifts(unsigned long size, unsigned long initialGuess) {
+	unsigned long value = initialGuess;
+	unsigned long llcSize = getLLCSize();
+	if (size*value > 2*llcSize) {
+		while((size*value > 2*llcSize) && (value > 2))
+			--value;
+	}
+	return value;
+}
 
 void dumpMeans()
 {
