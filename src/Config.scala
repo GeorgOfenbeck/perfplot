@@ -25,7 +25,7 @@ object Config {
   def MeasuringCore: File = if (isWin)
                          new File("C:\\Users\\ofgeorg\\IdeaProjects\\perfplot\\pcm\\","MeasuringCore.lib")
                       else
-                         new File(home + "/perfplot/pcm/MeasuringCore.lib")
+                         new File("/home/ofgeorg/perfplot/pcm/MeasuringCore.lib")
 
 
   def default_flags = flag_c99 + flag_optimization + flag_hw
