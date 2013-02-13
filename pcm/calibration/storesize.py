@@ -1,10 +1,13 @@
 import sys
 import os.path
-import csv 
+import csv
+import shlex
+import subprocess
 
 if __name__ == "__main__":
     
     serie = sys.argv[2]
+    size = sys.argv[1]
     
     flopfile = open("flop_"+serie+".txt", 'a')
     tscfile = open("tsc_"+serie+".txt", 'a')
@@ -14,7 +17,7 @@ if __name__ == "__main__":
         sizefile.write(" " + sys.argv[1])
     else:
         sizefile = open("size_"+serie+".txt", 'w')
-        sizefile.write(sys.argv[1])
+        sizefile.write(size)
     sizefile.close()
     
     runsfile = open("nrruns.txt", 'r')
@@ -48,3 +51,18 @@ if __name__ == "__main__":
     cumflopSSEfile.close()
     cumflopAVXfile.close()
     cumtscfile.close()
+    
+    foldername = serie + "-" + size
+    if not os.path.exists(foldername):
+        os.mkdir(foldername)
+    
+    mv = "mv"
+    print "* Storing dump files into " + foldername 
+    args = shlex.split(mv + " nrruns.txt " + foldername + "/nrruns.txt")
+    subprocess.call(args)
+    for i in range(3):
+        filename = "Custom_ev" + str(i) + "_core3.txt"
+        args = shlex.split(mv + " " + filename + " " + foldername + "/" + filename)
+        subprocess.call(args)
+    args = shlex.split(mv + " TSC_core_3.txt " + foldername + "/TSC_core_3.txt")
+    subprocess.call(args)

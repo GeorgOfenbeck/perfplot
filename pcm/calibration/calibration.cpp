@@ -9,6 +9,7 @@
 #include <fstream>
 #include <cstdlib>
 #include <ctime>
+#include <cmath>
 #include <x86intrin.h>
 #include <mkl_cblas.h>
 
@@ -19,89 +20,9 @@
 using namespace std;
 
 #define REP 10
-#define THRESHOLD 0.0005
+#define THRESHOLD 0.5
 
 long events[] = {	/* double Scalar */ 0x10, 0x80, /* double packed */ 0x10, 0x10, /*double AVX*/ 0x11, 0x02, ARCH_LLC_MISS_EVTNR, ARCH_LLC_MISS_UMASK };
-
-int main_mine() {
-//int main() {
-
-	srand(time(NULL));
-	ofstream devnull("/dev/null");
-
-	size_t n = 128;
-	double * x = (double*)malloc(n*sizeof(double)), dest;
-	for(size_t j = 0; j < n; j++) x[j] = rand()/(double)RAND_MAX;
-
-	perfmon_init(events);
-
-	size_t runs = 16;
-	for(; runs <= (1 << 20); runs *= 2){
-//		for(int r = 0; r < 2; r++) {
-		perfmon_start();
-		for(int i = 0; i < runs; i++)
-			reduction_K4_L4(x, &dest, n);
-		perfmon_stop();
-//		}
-		devnull << dest;
-
-		if(perfmon_testDerivative(runs, THRESHOLD))
-			break;
-		perfmon_emptyLists();
-		dumpMeans();
-	}
-
-	cout << "\n\nUsing threshold " << THRESHOLD << " value for RUNS: " << runs << endl;
-
-	perfmon_emptyLists();
-	dumpMeans();
-
-	for(int r = 0; r < REP; r++) {
-		perfmon_start();
-		for(int i = 0; i < runs; i++)
-			reduction_K4_L4(x, &dest, n);
-		perfmon_stop();
-	}
-	devnull << dest;
-
-
-	perfmon_end();
-
-
-	return EXIT_SUCCESS;
-}
-
-int main_varyingRep() {
-//int main() {
-
-	ofstream devnull("/dev/null");
-
-	size_t n = 100000;
-	double * x = new double[n], dest;
-	for(size_t j = 0; j < n; j++) x[j] = 1.;
-
-	perfmon_init(events);
-
-	for(size_t rep=2; rep < REP; rep++) {
-		for(size_t r = 0; r < rep; r++) {
-			perfmon_start();
-			for(int i = 0; i < 32768; i++)
-				reduction_K4_L4(x, &dest, n);
-			perfmon_stop();
-		}
-		devnull << dest;
-
-		perfmon_testDerivative(32768, THRESHOLD);
-//		perfmon_meanSingleRun();
-		dumpMeans();
-		perfmon_emptyLists();
-	}
-
-	perfmon_end();
-
-
-	return EXIT_SUCCESS;
-}
 
 void _printM(double const * m, size_t const row, size_t const col, string title, ostream& stream)
 {
@@ -162,141 +83,126 @@ void _destroy(double * m)
 
 //#define COLD
 
-void reduction(size_t n) {
-
-	ofstream devnull("/dev/null");
-
-	double * x, dest;
-	_buildRandInit(&x, n, 1, 4*1024);
-//	double * x = (double *)_mm_malloc(n*sizeof(double), 4*1024), dest;
-//	for(size_t j = 0; j < n; j++) x[j] = rand()/(double)RAND_MAX;
-
-	size_t runs = 16;
-	for(; runs <= (1 << 20); runs *= 2){
-
-		perfmon_start();
-		for(int i = 0; i < runs; i++)
-			reduction_K4_L4(x, &dest, n);
-		perfmon_stop(runs);
-
-		_printM(&dest, 1, 1, "", devnull);
-
-		if(perfmon_testDerivative(runs, THRESHOLD))
-			break;
-		perfmon_emptyLists(false); //don't clear the vector of runs
-		dumpMeans();
-	}
-
-#ifdef COLD
-	_destroy(x);
-#endif
-
-	cout << "\n\nUsing threshold " << THRESHOLD << " value for RUNS: " << runs << endl;
-
-	dumpMeans();
-	perfmon_emptyLists();
-
-#ifdef COLD
-	size_t factor = runs;
-	if (n*REP*runs*sizeof(double) > 20*(1<<20)) {
-		while((n*REP*factor*sizeof(double) > 20*(1<<20)) && (factor > 2))
-			--factor;
-	}
-
-	_buildRandInit(&x, n, 1, 4*1024, REP*factor);
-//	x = (double *)_mm_malloc(n*REP*factor*sizeof(double), 4*1024);
-//	for(size_t j = 0; j < n*REP*factor; j++) x[j] = rand()/(double)RAND_MAX;
-
-	size_t idx = 0, maxidx = n*REP*factor;
-#endif
-
-	for(int r = 0; r < REP; r++) {
-		perfmon_start();
-		for(int i = 0; i < runs; i++) {
-
-#ifdef COLD
-			reduction_K4_L4(x+idx, &dest, n);
-			idx+=n; if (idx >= maxidx) idx = 0;
-#else
-			reduction_K4_L4(x, &dest, n);
-#endif
-		}
-		perfmon_stop(runs);
-	}
-
-	_printM(&dest, 1, 1, "", devnull);
-
-	_destroy(x);
-}
-
-void mmm(size_t n) {
-
-	ofstream devnull("/dev/null");
-	double * A, * B, * C;
-
-	_buildRandInit(&A, n, n, 4*1024);
-	_buildRandInit(&B, n, n, 4*1024);
-	_buildRandInit(&C, n, n, 4*1024);
-
-	size_t runs = 2;
-	for(; runs <= (1 << 20); runs *= 2){
-
-		perfmon_start();
-		for(int i = 0; i < runs; i++)
-			cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, n, n, n, 1., A, n, B, n, 0., C, n);
-		perfmon_stop(runs);
-
-		_printM(C, n, n, "", devnull);
-
-		if(perfmon_testDerivative(runs, THRESHOLD))
-			break;
-		perfmon_emptyLists(false); //don't clear the vector of runs
-		dumpMeans();
-	}
-
-#ifdef COLD
-	_destroy(A); _destroy(B); _destroy(C);
-#endif
-
-	cout << "\n\nUsing threshold " << THRESHOLD << " value for RUNS: " << runs << endl;
-
-	dumpMeans();
-	perfmon_emptyLists();
-
-#ifdef COLD
-	size_t factor = runs;
-	size_t n2 = n*n;
-
-	if (n2*REP*runs*sizeof(double) > 20*(1<<20)) {
-		while((n2*REP*factor*sizeof(double) > 20*(1<<20)) && (factor > 2))
-			--factor;
-	}
-
-	_buildRandInit(&A, n, n, 4*1024, REP*factor);
-	_buildRandInit(&B, n, n, 4*1024, REP*factor);
-	_buildRandInit(&C, n, n, 4*1024, REP*factor);
-
-	size_t idx = 0, maxidx = n2*REP*factor;
-#endif
-
-	for(int r = 0; r < REP; r++) {
-		perfmon_start();
-		for(int i = 0; i < runs; i++) {
-
-#ifdef COLD
-			cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, n, n, n, 1., A+idx, n, B+idx, n, 0., C+idx, n);
-			idx+=n2; if (idx >= maxidx) idx = 0;
-#else
-			cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, n, n, n, 1., A, n, B, n, 0., C, n);
-#endif
-		}
-		perfmon_stop(runs);
-		_printM(C, n, n, "", devnull);
-	}
-
-
-	_destroy(A); _destroy(B); _destroy(C);
-}
+//void reduction(size_t n) {
+//
+//	ofstream devnull("/dev/null");
+//
+//	double * x, dest;
+//	_buildRandInit(&x, n, 1, 4*1024);
+////	double * x = (double *)_mm_malloc(n*sizeof(double), 4*1024), dest;
+////	for(size_t j = 0; j < n; j++) x[j] = rand()/(double)RAND_MAX;
+//
+//	size_t runs = 16;
+//	for(; runs <= (1 << 20); runs *= 2){
+//
+//		perfmon_start();
+//		for(int i = 0; i < runs; i++)
+//			reduction_K4_L4(x, &dest, n);
+//		perfmon_stop(runs);
+//
+//		_printM(&dest, 1, 1, "", devnull);
+//
+//		if(perfmon_testDerivative(runs, THRESHOLD))
+//			break;
+//		perfmon_emptyLists(false); //don't clear the vector of runs
+//	}
+//
+//#ifdef COLD
+//	_destroy(x);
+//#endif
+//
+//	cout << "\n\nUsing threshold " << THRESHOLD << " value for RUNS: " << runs << endl;
+//
+//	perfmon_emptyLists();
+//
+//#ifdef COLD
+//	size_t factor = getNumberOfShifts(n*sizeof(double), runs*REP);
+//
+//	_buildRandInit(&x, n, 1, 4*1024, factor);
+//
+//	size_t idx = 0, maxidx = n*factor;
+//#endif
+//
+//	for(int r = 0; r < REP; r++) {
+//		perfmon_start();
+//		for(int i = 0; i < runs; i++) {
+//
+//#ifdef COLD
+//			reduction_K4_L4(x+idx, &dest, n);
+//			idx+=n; if (idx >= maxidx) idx = 0;
+//#else
+//			reduction_K4_L4(x, &dest, n);
+//#endif
+//		}
+//		perfmon_stop(runs);
+//	}
+//
+//	_printM(&dest, 1, 1, "", devnull);
+//
+//	_destroy(x);
+//}
+//
+//void mmm(size_t n) {
+//
+//	ofstream devnull("/dev/null");
+//	double * A, * B, * C;
+//
+//	_buildRandInit(&A, n, n, 4*1024);
+//	_buildRandInit(&B, n, n, 4*1024);
+//	_buildRandInit(&C, n, n, 4*1024);
+//
+//	size_t runs = 2;
+//	for(; runs <= (1 << 20); runs *= 2){
+//
+//		perfmon_start();
+//		for(int i = 0; i < runs; i++)
+//			cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, n, n, n, 1., A, n, B, n, 0., C, n);
+//		perfmon_stop(runs);
+//
+//		_printM(C, n, n, "", devnull);
+//
+//		if(perfmon_testDerivative(runs, THRESHOLD))
+//			break;
+//		perfmon_emptyLists(false); //don't clear the vector of runs
+//	}
+//
+//#ifdef COLD
+//	_destroy(A); _destroy(B); _destroy(C);
+//#endif
+//
+//	cout << "\n\nUsing threshold " << THRESHOLD << " value for RUNS: " << runs << endl;
+//
+//	perfmon_emptyLists();
+//
+//#ifdef COLD
+//	size_t n2 = n*n;
+//	size_t factor = getNumberOfShifts(3*n2*sizeof(double), runs*REP);
+//
+//	_buildRandInit(&A, n, n, 4*1024, factor);
+//	_buildRandInit(&B, n, n, 4*1024, factor);
+//	_buildRandInit(&C, n, n, 4*1024, factor);
+//
+//	size_t idx = 0, maxidx = n2*factor;
+//#endif
+//
+//	for(int r = 0; r < REP; r++) {
+//		perfmon_start();
+//		for(int i = 0; i < runs; i++) {
+//
+//#ifdef COLD
+//			cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, n, n, n, 1., A+idx, n, B+idx, n, 0., C+idx, n);
+//			idx+=n2; if (idx >= maxidx) idx = 0;
+//#else
+//			cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, n, n, n, 1., A, n, B, n, 0., C, n);
+//#endif
+//		}
+//		perfmon_stop(runs);
+//		_printM(C, n, n, "", devnull);
+//	}
+//
+//
+//	_destroy(A); _destroy(B); _destroy(C);
+//}
 
 void mvm(size_t n) {
 
@@ -308,7 +214,8 @@ void mvm(size_t n) {
 	_buildRandInit(&y, n, 1, 4*1024);
 
 	size_t runs = 2;
-	for(; runs <= (1 << 20); runs *= 2){
+	double d;
+	for(; runs <= (1 << 20); ){
 
 		perfmon_start();
 		for(int i = 0; i < runs; i++)
@@ -317,36 +224,35 @@ void mvm(size_t n) {
 
 		_printM(y, n, 1, "", devnull);
 
-		if(perfmon_testDerivative(runs, THRESHOLD))
+		if(perfmon_testDerivative(runs, THRESHOLD, 1e7, 30./REP, &d))
 			break;
-		perfmon_emptyLists(false); //don't clear the vector of runs
 		dumpMeans();
+		perfmon_emptyLists(false); //don't clear the vector of runs
+		cout << "Runs = " << runs << " d = " << d << endl;
+		if ((runs <= 16) || (fabs(d) > 1. )) runs *= 2;
+		else runs += 10;
 	}
 
 #ifdef COLD
 	_destroy(A); _destroy(x); _destroy(y);
 #endif
 
+	cout << "Out - Runs = " << runs << " d = " << d << endl;
 	cout << "\n\nUsing threshold " << THRESHOLD << " value for RUNS: " << runs << endl;
 
 	dumpMeans();
 	perfmon_emptyLists();
 
 #ifdef COLD
-	size_t factor = runs;
 	size_t n2 = n*n;
+	size_t factor = getNumberOfShifts((n2+2*n)*sizeof(double), runs*REP);
 
-	if (n2*REP*runs*sizeof(double) > 20*(1<<20)) {
-		while((n2*REP*factor*sizeof(double) > 20*(1<<20)) && (factor > 2))
-			--factor;
-	}
+	_buildRandInit(&A, n, n, 4*1024, factor);
+	_buildRandInit(&x, n, 1, 4*1024, factor);
+	_buildRandInit(&y, n, 1, 4*1024, factor);
 
-	_buildRandInit(&A, n, n, 4*1024, REP*factor);
-	_buildRandInit(&x, n, 1, 4*1024, REP*factor);
-	_buildRandInit(&y, n, 1, 4*1024, REP*factor);
-
-	size_t m_idx = 0, m_maxidx = n2*REP*factor;
-	size_t v_idx = 0, v_maxidx = n*REP*factor;
+	size_t m_idx = 0, m_maxidx = n2*factor;
+	size_t v_idx = 0, v_maxidx = n*factor;
 #endif
 
 	for(int r = 0; r < REP; r++) {
@@ -369,71 +275,64 @@ void mvm(size_t n) {
 	_destroy(A); _destroy(x); _destroy(y);
 }
 
-void daxpy(size_t n) {
-
-	ofstream devnull("/dev/null");
-	double alpha = 1.1, * x, * y;
-
-	_buildRandInit(&x, n, 1, 4*1024);
-	_buildRandInit(&y, n, 1, 4*1024);
-
-	size_t runs = 2;
-	for(; runs <= (1 << 20); runs *= 2){
-
-		perfmon_start();
-		for(int i = 0; i < runs; i++)
-			cblas_daxpy(n, alpha, x, 1, y, 1);
-		perfmon_stop(runs);
-
-		_printM(y, n, 1, "", devnull);
-
-		if(perfmon_testDerivative(runs, THRESHOLD))
-			break;
-		perfmon_emptyLists(false); //don't clear the vector of runs
-		dumpMeans();
-	}
-
-#ifdef COLD
-	_destroy(x); _destroy(y);
-#endif
-
-	cout << "\n\nUsing threshold " << THRESHOLD << " value for RUNS: " << runs << endl;
-
-	dumpMeans();
-	perfmon_emptyLists();
-
-#ifdef COLD
-	size_t factor = runs;
-
-	if (n*REP*runs*sizeof(double) > 20*(1<<20)) {
-		while((n*REP*factor*sizeof(double) > 20*(1<<20)) && (factor > 2))
-			--factor;
-	}
-
-	_buildRandInit(&x, n, 1, 4*1024, REP*factor);
-	_buildRandInit(&y, n, 1, 4*1024, REP*factor);
-
-	size_t idx = 0, maxidx = n*REP*factor;
-#endif
-
-	for(int r = 0; r < REP; r++) {
-		perfmon_start();
-		for(int i = 0; i < runs; i++) {
-
-#ifdef COLD
-			cblas_daxpy(n, alpha, x+idx, 1, y+idx, 1);
-			idx+=n;  if (idx >= maxidx) idx = 0;
-#else
-			cblas_daxpy(n, alpha, x, 1, y, 1);
-#endif
-		}
-		perfmon_stop(runs);
-		_printM(y, n, 1, "", devnull);
-	}
-
-
-	_destroy(x); _destroy(y);
-}
+//void daxpy(size_t n) {
+//
+//	ofstream devnull("/dev/null");
+//	double alpha = 1.1, * x, * y;
+//
+//	_buildRandInit(&x, n, 1, 4*1024);
+//	_buildRandInit(&y, n, 1, 4*1024);
+//
+//	size_t runs = 2;
+//	for(; runs <= (1 << 20); runs *= 2){
+//
+//		perfmon_start();
+//		for(int i = 0; i < runs; i++)
+//			cblas_daxpy(n, alpha, x, 1, y, 1);
+//		perfmon_stop(runs);
+//
+//		_printM(y, n, 1, "", devnull);
+//
+//		if(perfmon_testDerivative(runs, THRESHOLD))
+//			break;
+//		perfmon_emptyLists(false); //don't clear the vector of runs
+//	}
+//
+//#ifdef COLD
+//	_destroy(x); _destroy(y);
+//#endif
+//
+//	cout << "\n\nUsing threshold " << THRESHOLD << " value for RUNS: " << runs << endl;
+//
+//	perfmon_emptyLists();
+//
+//#ifdef COLD
+//	size_t factor = getNumberOfShifts(2*n*sizeof(double), runs*REP);
+//
+//	_buildRandInit(&x, n, 1, 4*1024, factor);
+//	_buildRandInit(&y, n, 1, 4*1024, factor);
+//
+//	size_t idx = 0, maxidx = n*factor;
+//#endif
+//
+//	for(int r = 0; r < REP; r++) {
+//		perfmon_start();
+//		for(int i = 0; i < runs; i++) {
+//
+//#ifdef COLD
+//			cblas_daxpy(n, alpha, x+idx, 1, y+idx, 1);
+//			idx+=n;  if (idx >= maxidx) idx = 0;
+//#else
+//			cblas_daxpy(n, alpha, x, 1, y, 1);
+//#endif
+//		}
+//		perfmon_stop(runs);
+//		_printM(y, n, 1, "", devnull);
+//	}
+//
+//
+//	_destroy(x); _destroy(y);
+//}
 
 int main(int argc, char** argv) {
 
