@@ -19,8 +19,8 @@
 
 using namespace std;
 
-#define REP 10
-#define THRESHOLD 0.5
+#define REP 2
+#define THRESHOLD 0.0005
 
 long events[] = {	/* double Scalar */ 0x10, 0x80, /* double packed */ 0x10, 0x10, /*double AVX*/ 0x11, 0x02, ARCH_LLC_MISS_EVTNR, ARCH_LLC_MISS_UMASK };
 
@@ -141,68 +141,78 @@ void _destroy(double * m)
 //
 //	_destroy(x);
 //}
-//
-//void mmm(size_t n) {
-//
-//	ofstream devnull("/dev/null");
-//	double * A, * B, * C;
-//
-//	_buildRandInit(&A, n, n, 4*1024);
-//	_buildRandInit(&B, n, n, 4*1024);
-//	_buildRandInit(&C, n, n, 4*1024);
-//
-//	size_t runs = 2;
-//	for(; runs <= (1 << 20); runs *= 2){
-//
-//		perfmon_start();
-//		for(int i = 0; i < runs; i++)
-//			cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, n, n, n, 1., A, n, B, n, 0., C, n);
-//		perfmon_stop(runs);
-//
-//		_printM(C, n, n, "", devnull);
-//
-//		if(perfmon_testDerivative(runs, THRESHOLD))
-//			break;
-//		perfmon_emptyLists(false); //don't clear the vector of runs
-//	}
-//
-//#ifdef COLD
-//	_destroy(A); _destroy(B); _destroy(C);
-//#endif
-//
-//	cout << "\n\nUsing threshold " << THRESHOLD << " value for RUNS: " << runs << endl;
-//
-//	perfmon_emptyLists();
-//
-//#ifdef COLD
-//	size_t n2 = n*n;
-//	size_t factor = getNumberOfShifts(3*n2*sizeof(double), runs*REP);
-//
-//	_buildRandInit(&A, n, n, 4*1024, factor);
-//	_buildRandInit(&B, n, n, 4*1024, factor);
-//	_buildRandInit(&C, n, n, 4*1024, factor);
-//
-//	size_t idx = 0, maxidx = n2*factor;
-//#endif
-//
-//	for(int r = 0; r < REP; r++) {
-//		perfmon_start();
-//		for(int i = 0; i < runs; i++) {
-//
-//#ifdef COLD
-//			cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, n, n, n, 1., A+idx, n, B+idx, n, 0., C+idx, n);
-//			idx+=n2; if (idx >= maxidx) idx = 0;
-//#else
-//			cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, n, n, n, 1., A, n, B, n, 0., C, n);
-//#endif
-//		}
-//		perfmon_stop(runs);
-//		_printM(C, n, n, "", devnull);
-//	}
-//
-//
-//	_destroy(A); _destroy(B); _destroy(C);
-//}
+
+void mmm(size_t n) {
+
+	ofstream devnull("/dev/null");
+	double * A, * B, * C;
+
+	_buildRandInit(&A, n, n, 4*1024);
+	_buildRandInit(&B, n, n, 4*1024);
+	_buildRandInit(&C, n, n, 4*1024);
+
+	size_t runs = 1;
+	double slope = THRESHOLD, max_slope = 1000*THRESHOLD;
+	double d;
+	for(size_t count = 0; runs <= (1 << 20); count++){
+
+		measurement_start();
+		for(int i = 0; i < runs; i++)
+			cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, n, n, n, 1., A, n, B, n, 0., C, n);
+		measurement_stop(runs);
+
+		_printM(C, n, n, "", devnull);
+
+		if(measurement_testDerivative(runs, slope, 1e7, 10, &d))
+			break;
+		measurement_emptyLists(false); //don't clear the vector of runs
+
+		if (count >= 2) {
+			cout << "Runs = " << runs << " d = " << d << endl;
+
+			if (runs <= (1 << 10)) runs *= 2;
+			else if ((fabs(d) <= max_slope) && (slope*10 <= max_slope)) slope *= 10;
+			else runs += 10*count;
+		}
+	}
+
+#ifdef COLD
+	_destroy(A); _destroy(B); _destroy(C);
+#endif
+
+	cout << "\n\nUsing threshold " << THRESHOLD << " value for RUNS: " << runs << endl;
+
+	measurement_emptyLists();
+
+#ifdef COLD
+	size_t n2 = n*n;
+	size_t factor = measurement_getNumberOfShifts(3*n2*sizeof(double), runs*REP);
+
+	_buildRandInit(&A, n, n, 4*1024, factor);
+	_buildRandInit(&B, n, n, 4*1024, factor);
+	_buildRandInit(&C, n, n, 4*1024, factor);
+
+	size_t idx = 0, maxidx = n2*factor;
+#endif
+
+	for(int r = 0; r < REP; r++) {
+		measurement_start();
+		for(int i = 0; i < runs; i++) {
+
+#ifdef COLD
+			cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, n, n, n, 1., A+idx, n, B+idx, n, 0., C+idx, n);
+			idx+=n2; if (idx >= maxidx) idx = 0;
+#else
+			cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, n, n, n, 1., A, n, B, n, 0., C, n);
+#endif
+		}
+		measurement_stop(runs);
+		_printM(C, n, n, "", devnull);
+	}
+
+
+	_destroy(A); _destroy(B); _destroy(C);
+}
 
 void mvm(size_t n) {
 
@@ -213,24 +223,31 @@ void mvm(size_t n) {
 	_buildRandInit(&x, n, 1, 4*1024);
 	_buildRandInit(&y, n, 1, 4*1024);
 
-	size_t runs = 2;
+	size_t runs = 1;
+	double slope = THRESHOLD, max_slope = 1000*THRESHOLD;
 	double d;
-	for(; runs <= (1 << 20); ){
 
-		perfmon_start();
+	for(size_t count = 0; runs <= (1 << 20); count++){
+
+		measurement_start();
 		for(int i = 0; i < runs; i++)
 			cblas_dgemv(CblasRowMajor, CblasNoTrans, n, n, alpha, A, n, x, 1, 0., y, 1);
-		perfmon_stop(runs);
+		measurement_stop(runs);
 
 		_printM(y, n, 1, "", devnull);
 
-		if(perfmon_testDerivative(runs, THRESHOLD, 1e7, 30./REP, &d))
+		if(measurement_testDerivative(runs, slope, 1e7, 10, &d))
 			break;
 		dumpMeans();
-		perfmon_emptyLists(false); //don't clear the vector of runs
-		cout << "Runs = " << runs << " d = " << d << endl;
-		if ((runs <= 16) || (fabs(d) > 1. )) runs *= 2;
-		else runs += 10;
+		measurement_emptyLists(false); //don't clear the vector of runs
+
+		if (count >= 2) {
+			cout << "Runs = " << runs << " d = " << d << endl;
+
+			if (runs <= (1 << 10)) runs *= 2;
+			else if ((fabs(d) <= max_slope) && (slope*10 <= max_slope)) slope *= 10;
+			else runs += 10*count;
+		}
 	}
 
 #ifdef COLD
@@ -238,14 +255,14 @@ void mvm(size_t n) {
 #endif
 
 	cout << "Out - Runs = " << runs << " d = " << d << endl;
-	cout << "\n\nUsing threshold " << THRESHOLD << " value for RUNS: " << runs << endl;
+	cout << "\n\nUsing threshold " << alpha << " value for RUNS: " << runs << endl;
 
 	dumpMeans();
-	perfmon_emptyLists();
+	measurement_emptyLists();
 
 #ifdef COLD
 	size_t n2 = n*n;
-	size_t factor = getNumberOfShifts((n2+2*n)*sizeof(double), runs*REP);
+	size_t factor = measurement_getNumberOfShifts((n2+2*n)*sizeof(double), runs*REP);
 
 	_buildRandInit(&A, n, n, 4*1024, factor);
 	_buildRandInit(&x, n, 1, 4*1024, factor);
@@ -256,7 +273,7 @@ void mvm(size_t n) {
 #endif
 
 	for(int r = 0; r < REP; r++) {
-		perfmon_start();
+		measurement_start();
 		for(int i = 0; i < runs; i++) {
 
 #ifdef COLD
@@ -267,7 +284,7 @@ void mvm(size_t n) {
 			cblas_dgemv(CblasRowMajor, CblasNoTrans, n, n, alpha, A, n, x, 1, 0., y, 1);
 #endif
 		}
-		perfmon_stop(runs);
+		measurement_stop(runs);
 		_printM(y, n, 1, "", devnull);
 	}
 
@@ -337,16 +354,16 @@ void mvm(size_t n) {
 int main(int argc, char** argv) {
 
 	srand(time(NULL));
-	perfmon_init(events);
+	measurement_init(events);
 
 	size_t n = strtoul(argv[1], NULL, 0);
 
 //	reduction(n);
-//	mmm(n);
-	mvm(n);
+	mmm(n);
+//	mvm(n);
 //	daxpy(n);
 
-	perfmon_end();
+	measurement_end();
 
 	return EXIT_SUCCESS;
 }
