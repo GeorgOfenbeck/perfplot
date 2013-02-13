@@ -528,15 +528,18 @@ void perfmon_emptyLists(bool clearRuns)
 	plist_mcread[0].clear();
 	plist_mcwrite[0].clear();
 	
-	if(clearRuns) runvec->clear();
+	if(clearRuns) {
+		runvec->clear();
+		meancyclesvec->clear();
+	}
  
 }
-bool perfmon_testDerivative(size_t runs, double threshold, size_t points) {
+bool perfmon_testDerivative(size_t runs, double alpha_threshold, double avg_threshold, double time_threshold, double *d, size_t points) {
 
 	// Using TSC
 	size_t n = plist_tsc[0].size();
 //	double sumcycle2 = 0;
-	double sumcycle = 0, cycles;
+	double cumcycles = 0, sumcycle = 0, cycles, c_threshold = time_threshold*m->getNominalFrequency();
 
 	uint32 ncores = m->getNumCores();
 	list<uint64>::iterator* it = new list<uint64>::iterator[ncores];
@@ -548,6 +551,7 @@ bool perfmon_testDerivative(size_t runs, double threshold, size_t points) {
 		uint64 maxtsc = *it[0];
 		for(uint32 c = 1; c < ncores; c++)
 			maxtsc = max(maxtsc, *it[c]);
+		cumcycles += maxtsc;
 		cycles = double(maxtsc)/runs;
 //		sumcycle2 += cycles*cycles;
 		sumcycle += cycles;
@@ -556,14 +560,14 @@ bool perfmon_testDerivative(size_t runs, double threshold, size_t points) {
 	}
 
 //	double s2 = (n*sumcycle2 - sumcycle*sumcycle)/(n*(n-1));
-	double m  = sumcycle/n;
+	double avg  = sumcycle/n;
 //	double sd = sqrt(s2);
 
 //	cout << endl << endl << "SD Test on Core " << 3 << ": " << endl;
 //	cout << "\tAverage cycles: " << m << endl;
 //	cout << "\tStandard deviation: " << sd << endl;
 //
-	meancyclesvec->push_back(m);
+	meancyclesvec->push_back(avg);
 //	sdcyclesvec->push_back(sd);
 
 	if (runvec->size() < points+2)
@@ -572,15 +576,18 @@ bool perfmon_testDerivative(size_t runs, double threshold, size_t points) {
 	n = runvec->size();
 
 	bool condition = true;
-
+	size_t nump = points;
 	while ((condition) && (points>0)) {
-		double d = ((*meancyclesvec)[n-points] - (*meancyclesvec)[n-points-2])/((*runvec)[n-points] - (*runvec)[n-points-2]);
-		condition = (fabs(d) <= threshold);
+		d[nump-points] = ((*meancyclesvec)[n-points] - (*meancyclesvec)[n-points-2])/((*runvec)[n-points] - (*runvec)[n-points-2]);
+		condition = (fabs(d[nump-points]) <= alpha_threshold);
 		--points;
 	}
-//	cout << "Derivative value: " << d << endl;
 
-	return (condition || m > 1e6);
+	cout << "With C_THRESH = " << c_threshold << " Sum. Cycles = " << cumcycles << endl;
+	cout << "condition = " << condition << endl;
+	cout << "AVG_THRESH = " << avg_threshold << " Avg. = " << avg << endl;
+
+	return (condition || avg > avg_threshold || cumcycles > c_threshold);
 //	return (condition || m > 1e7);
 //	return (condition || m > 1e7 || sumcycle > 1e7);
 //	return (condition || sumcycle > 1e7);
