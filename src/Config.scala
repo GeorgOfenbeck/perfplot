@@ -43,8 +43,10 @@ object Config {
   def flag_novec = if (isWin) " /Qno-simd /Qno-vec" else " -no-simd -no-vec"
 
 
-  val MeasuringCoreH = "#ifndef MEASURING_CORE_HEADER\n#define MEASURING_CORE_HEADER\n\n#include \"cpuid_info.h\"\n\n\n//int measurement_init(int type, bool flushData , bool flushICache , bool flushTLB );\nint measurement_init(long * custom_counters = NULL, long offcore_response0 = 0, long offcore_response1 = 0);\nvoid measurement_start();\nvoid measurement_stop(long runs=1);\nvoid measurement_end();\n// Start Dani\n//bool measurement_customTest(size_t runs, size_t vlen);\nbool measurement_testDerivative(size_t runs, double threshold, size_t points=1);\n//void measurement_meanSingleRun();\n//bool measurement_testSD(size_t runs);\nvoid measurement_emptyLists(bool clearRuns=true);\nvoid dumpMeans();\n\nunsigned long getNumberOfShifts(unsigned long size, unsigned long initialGuess);\n// End Dani\n\nvoid flushITLB();\nvoid flushDTLB();\nvoid flushICache();\nvoid flushDCache();\n\n// Vicky --- Functions for getting cache parameters with CPUID\n\n\n\ncpuid_cache_descriptor_t getTLBinfo(cpuid_leaf2_qualifier_t cacheType);\nunsigned long getLLCSize();\n\n#endif"
+  val MeasuringCoreH = "#ifndef MEASURING_CORE_HEADER\n#define MEASURING_CORE_HEADER\n\n\n\n\n//int measurement_init(int type, bool flushData , bool flushICache , bool flushTLB );\nint measurement_init(long * custom_counters = NULL, long offcore_response0 = 0, long offcore_response1 = 0);\nvoid measurement_start();\nvoid measurement_stop(long runs=1);\nvoid measurement_end();\n// Start Dani\n//bool measurement_customTest(size_t runs, size_t vlen);\nbool measurement_testDerivative(size_t runs, double threshold, size_t points=1);\n//void measurement_meanSingleRun();\n//bool measurement_testSD(size_t runs);\nvoid measurement_emptyLists(bool clearRuns=true);\nvoid dumpMeans();\n\nunsigned long measurement_getNumberOfShifts(unsigned long size, unsigned long initialGuess);\n// End Dani\n\nvoid flushITLB();\nvoid flushDTLB();\nvoid flushICache();\nvoid flushDCache();\n\n#endif"
 
 
 }
+
+
 

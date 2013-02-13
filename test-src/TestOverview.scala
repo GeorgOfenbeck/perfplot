@@ -6,6 +6,7 @@
  * Time: 10:12 
  */
 
+import HWCounters.Counter
 import org.scalatest.Suite
 
 import perfplot.Config
@@ -15,33 +16,34 @@ import perfplot.services._
 import perfplot.Config._
 
 
-import services._
+
 import java.io._
 import scala.io._
 
 
+class TestOverview extends Suite{
 
 def Counters2CCode(counters: Array[HWCounters.Counter]): (String,String) =
 {
-  var offcore_0: Long = 0
-  var offcore_1: Long = 0
+  var offcore_0: String = "0"
+  var offcore_1: String = "0"
 
-  var counter_string = "long counters["+counters.size+"];\n"
+  var counter_string = "long counters["+counters.size*2+"];\n"
   for (i <- 0 until counters.size)
   {
     counter_string = counter_string + "counters["+ i*2 +"] = " + counters(i).getEventNr + ";\n"
-    counter_string = counter_string + "counters["+ i*2 + 1 +"] = " + counters(i).getUmask + ";\n"
+    counter_string = counter_string + "counters["+ (i*2 + 1) +"] = " + counters(i).getUmask + ";\n"
     if (counters(i).getEventNr == 183) //Offcore response
-      if (offcore_0 == 0)
-        offcore_0 = counters(i).CommenttoLong
+      if (offcore_0 == "0")
+        offcore_0 = counters(i).Comment
       else
-      if (offcore_1 == 0)
-        offcore_1 = counters(i).CommenttoLong
+      if (offcore_1 == "0")
+        offcore_1 = counters(i).Comment
       else
-        assert("Trying to program more then 2 offcore response events")
+        assert(false, "Trying to program more then 2 offcore response events")
   }
 
-  (counter_string,"init_measurment(counters,"+offcore_0+","+offcore_1+");")
+  (counter_string,"measurement_init(counters,"+offcore_0+","+offcore_1+");")
 }
 
 
@@ -66,43 +68,86 @@ def fft_MKL (sourcefile: PrintStream,sizes: List[Long], counters: Array[HWCounte
 {
 
   val prec = if (double_precision) "double" else "float"
-  sourcefile.println(Config.MeasuringCoreH)
+
   sourcefile.println("#include <mkl.h>")
   sourcefile.println("#include <iostream>")
+  sourcefile.println(Config.MeasuringCoreH)
   sourcefile.println("#define page 4096")
   val (counterstring, initstring ) = Counters2CCode(counters)
-  sourcefile.println(counterstring)
+
   sourcefile.println("int main () { ")
+  sourcefile.println(counterstring)
   sourcefile.println(initstring)
 
   for (size <- sizes)
   {
+    sourcefile.println("{")
     sourcefile.println("DFTI_DESCRIPTOR_HANDLE mklDescriptor;")
     sourcefile.println("MKL_LONG status;")
     val dfti_prec = if (double_precision) "DFTI_DOUBLE" else "DFTI_SINGLE"
-    sourcefile.println("status = DftiCreateDescriptor( &mklDescriptor, + " + dfti_prec+ ",DFTI_COMPLEX, 1,"+ size + ");")
-
+    sourcefile.println("status = DftiCreateDescriptor( &mklDescriptor, " + dfti_prec+ ",DFTI_COMPLEX, 1,"+ size + ");")
+    sourcefile.println("if (status != 0) {\n    return -1;\n\t}\n\n\tstatus = DftiCommitDescriptor(mklDescriptor);\n\tif (status != 0) {\n\t\treturn -1;\n\t}")
 
     //Tune the number of runs
     sourcefile.println(prec + " * tuning_buffer = (" + prec + "*) _mm_malloc(" + 2*size + "* sizeof(" + prec + "),page);" )
-    tuneNrRuns(sourcefile,"status = DftiComputeForward(mklDescriptor, tuning_buffer);\n\tif (status != 0) {\n\t\treturn -1;\n\t}", "std::cout << tunning_buffer[0];" )
+    tuneNrRuns(sourcefile,"status = DftiComputeForward(mklDescriptor, tuning_buffer);\n\tif (status != 0) {\n\t\treturn -1;\n\t}", "std::cout << tuning_buffer[0];" )
     sourcefile.println("_mm_free(tuning_buffer);")
 
 
     //find out the number of shifts required
-    sourcefile.println("long numberofshifts = measurement_getNumberOfShifts(" + 2*size + "* sizeof(" + prec + "),runs*"+Config.repeats+");")
+    sourcefile.println("long numberofshifts =  measurement_getNumberOfShifts(" + 2*size + "* sizeof(" + prec + "),runs*"+Config.repeats+");")
 
 
+    //allocate the buffers
+    sourcefile.println( prec + " ** bench_buffer = (" + prec + "**) _mm_malloc(numberofshifts*sizeof(" + prec + "*),page);" )
+    sourcefile.println( "if (!bench_buffer) {\n      std::cout << \"malloc failed\";\n      measurement_end();\n      return ;} ")
+    sourcefile.println("for(int i = 0; i < numberofshifts; i++){")
+    sourcefile.println("bench_buffer[i] = (" + prec + "*) _mm_malloc(" + 2*size + "* sizeof(" + prec + "),page);" )
+    sourcefile.println( "if (!bench_buffer[i]) {\n      std::cout << \"malloc failed\";\n      measurement_end();\n      return ;} ")
+    sourcefile.println("}")
+
+    //run it
+    sourcefile.println("for(int r = 0; r < " + Config.repeats + "; r++){")
+      sourcefile.println("measurement_start();")
+      sourcefile.println("for(int i = 0; i < runs; i++){")
+      sourcefile.println("status = DftiComputeForward(mklDescriptor, bench_buffer[i%numberofshifts]);\n\tif (status != 0) {\n\t\treturn -1;\n\t}")
+      sourcefile.println( "measurement_stop(runs);")
+    sourcefile.println( "} }")
+
+
+    //deallocate the buffers
+    sourcefile.println("for(int i = 0; i < numberofshifts; i++)")
+    sourcefile.println("_mm_free(bench_buffer[i]);")
+    sourcefile.println("_mm_free(bench_buffer);")
+    sourcefile.println("status = DftiFreeDescriptor(&mklDescriptor);")
+    sourcefile.println("}")
   }
 
+  sourcefile.println("measurement_end();")
+  sourcefile.println("}")
+}
+
+
+  def test () =
+  {
+    val sizes =  (for (i<-2 until 3) yield Math.pow(2,i).toLong).toList
+
+    val counters = Array(
+      Counter("11H","01H","SIMD_FP_256.PACKED_SINGLE","Counts 256-bit packed single-precision floating- point instructions.",""),
+      Counter("10H","10H","FP_COMP_OPS_EXE.SSE_FP_P ACKED_DOUBLE","Counts number of SSE* double precision FP packed uops executed.",""),
+      Counter("10H","80H","FP_COMP_OPS_EXE.SSE_SCAL AR_DOUBLE","Counts number of SSE* double precision FP scalar uops executed.",""),
+      Counter("11H","02H","SIMD_FP_256.PACKED_DOUBL E","Counts 256-bit packed double-precision floating- point instructions.","")
+    )
+
+    def fft(sourcefile: PrintStream) = fft_MKL (sourcefile: PrintStream,sizes, counters)
+    val fft_res = CommandService.fromScratch("intel_fft", fft, Config.flag_c99 + Config.flag_optimization + Config.flag_hw + Config.flag_novec + Config.flag_mkl_seq )
+  }
 
 
 }
 
 
-
-
-
+/*
 class TestOverview extends Suite{
 
 
@@ -147,20 +192,20 @@ class TestOverview extends Suite{
     temp.mkdir()
     val cmdbat = new PrintStream(temp.getPath + File.separator +  filename + ".cpp")
 
-    cmdbat.println("  \n\n#include \"mkl_dfti.h\" \n#include <mkl.h>\n#include <iostream>\n#include \"immintrin.h\" \n#ifndef MEASURING_CORE_HEADER\n#define MEASURING_CORE_HEADER\n\n\n\nint perfmon_init(int type, bool flushData , bool flushICache , bool flushTLB );\nvoid perfmon_start();\nvoid perfmon_stop();\nvoid perfmon_end();\n\n#endif\n\n#include <immintrin.h>\n\n\n")
-    cmdbat.println("\nvoid flushCache()\n{\n const int page = 1024*4;\n long size = 28 * 1024 * 1024;\n double* buffer = (double*) _mm_malloc( size, page );\n if (!buffer) {\n      std::cout << \"malloc failed\";\n      perfmon_end();\n      return ;\n    }\n double result = 0; \n for (long i = 0; i < size/sizeof(double); i= i+4)\n  buffer[i] = 1.2;\n for (long i = 0; i < size/sizeof(double); i= i+4)\n   result = buffer[i] + result;   \n std::cout << \"res\" << result << \"\\n\";\n _mm_free(buffer);     \n    \n}")
+    cmdbat.println("  \n\n#include \"mkl_dfti.h\" \n#include <mkl.h>\n#include <iostream>\n#include \"immintrin.h\" \n#ifndef MEASURING_CORE_HEADER\n#define MEASURING_CORE_HEADER\n\n\n\nint measurement_init(int type, bool flushData , bool flushICache , bool flushTLB );\nvoid measurement_start();\nvoid measurement_stop();\nvoid measurement_end();\n\n#endif\n\n#include <immintrin.h>\n\n\n")
+    cmdbat.println("\nvoid flushCache()\n{\n const int page = 1024*4;\n long size = 28 * 1024 * 1024;\n double* buffer = (double*) _mm_malloc( size, page );\n if (!buffer) {\n      std::cout << \"malloc failed\";\n      measurement_end();\n      return ;\n    }\n double result = 0; \n for (long i = 0; i < size/sizeof(double); i= i+4)\n  buffer[i] = 1.2;\n for (long i = 0; i < size/sizeof(double); i= i+4)\n   result = buffer[i] + result;   \n std::cout << \"res\" << result << \"\\n\";\n _mm_free(buffer);     \n    \n}")
     cmdbat.println("\nvoid flushCacheLine(void *p){\n  __asm__ __volatile__ (\"clflush %0\" :: \"m\" (*(char*)p));\n}\n\n\ndouble * a, *b, *c;\ndouble alpha;\n\n\n\nint main () {\n\n  ");
-    cmdbat.println("perfmon_init(1,false,false,false);\n\tdouble  *complexData;\n\tDFTI_DESCRIPTOR_HANDLE mklDescriptor;\n  const int page = 1024*4;\n  int mem = 256*512; //128 MB\n  \n  \n  \n")
+    cmdbat.println("measurement_init(1,false,false,false);\n\tdouble  *complexData;\n\tDFTI_DESCRIPTOR_HANDLE mklDescriptor;\n  const int page = 1024*4;\n  int mem = 256*512; //128 MB\n  \n  \n  \n")
     //cmdbat.println("for (long vectorSize = 500; vectorSize <= 10000 * 1000; vectorSize *= 2)")
     cmdbat.println("for (int vectorSize = "+ start + "; vectorSize <= "+ maxsize + "; vectorSize = vectorSize *2) ")
     //cmdbat.println("long vectorSize = 500;")
     cmdbat.println("\n  {  MKL_LONG status;\n\n\tstatus = DftiCreateDescriptor( &mklDescriptor, DFTI_DOUBLE,\n\t\t\tDFTI_REAL, 1, vectorSize);\n\tif (status != 0) {\n    return -1;\n\t}\n\n\tstatus = DftiCommitDescriptor(mklDescriptor);\n\tif (status != 0) {\n\t\treturn -1;\n\t}")
-    cmdbat.println("double alpha = 1.1; double beta = 1.2;  \n    complexData = (double *)  _mm_malloc( 2*vectorSize*sizeof(double), page );\n    if (!complexData) {\n      std::cout << \"malloc failed\";\n      perfmon_end();\n      return -1;\n    }\n    ");
+    cmdbat.println("double alpha = 1.1; double beta = 1.2;  \n    complexData = (double *)  _mm_malloc( 2*vectorSize*sizeof(double), page );\n    if (!complexData) {\n      std::cout << \"malloc failed\";\n      measurement_end();\n      return -1;\n    }\n    ");
     cmdbat.println("for (long j = 0; j < "+ repeats + "; j++)\n  {\n")
-    //cmdbat.println("double result = 0;perfmon_start();    \n\n    for(long i = 0; i< vectorSize; i=i+1)    \n      result += x[i]; perfmon_stop();\n\n\t\t\tstd::cout << result;")
-    cmdbat.println("perfmon_start();\n     \n\t")
-    cmdbat.println("status = DftiComputeForward(mklDescriptor, complexData);\n\tif (status != 0) {\n\t\treturn -1;\n\t}  \n     perfmon_stop();\n\n ")
-    cmdbat.println(" }\n   _mm_free(complexData);       \n  }\n  perfmon_end();\n  \n  \n}")
+    //cmdbat.println("double result = 0;measurement_start();    \n\n    for(long i = 0; i< vectorSize; i=i+1)    \n      result += x[i]; measurement_stop();\n\n\t\t\tstd::cout << result;")
+    cmdbat.println("measurement_start();\n     \n\t")
+    cmdbat.println("status = DftiComputeForward(mklDescriptor, complexData);\n\tif (status != 0) {\n\t\treturn -1;\n\t}  \n     measurement_stop();\n\n ")
+    cmdbat.println(" }\n   _mm_free(complexData);       \n  }\n  measurement_end();\n  \n  \n}")
     cmdbat.close()
 
     CompileService.compile(temp.getPath +File.separator + filename)
@@ -312,19 +357,19 @@ class TestOverview extends Suite{
     temp.mkdir()
     val cmdbat = new PrintStream(temp.getPath + File.separator +  filename + ".cpp")
 
-    cmdbat.println(" \n#include <mkl.h>\n#include <iostream>\n#include \"immintrin.h\" \n#ifndef MEASURING_CORE_HEADER\n#define MEASURING_CORE_HEADER\n\n\n\nint perfmon_init(int type, bool flushData , bool flushICache , bool flushTLB );\nvoid perfmon_start();\nvoid perfmon_stop();\nvoid perfmon_end();\n\n#endif\n\n#include <immintrin.h>\n\n\n")
-    cmdbat.println("\nvoid flushCache()\n{\n const int page = 1024*4;\n long size = 28 * 1024 * 1024;\n double* buffer = (double*) _mm_malloc( size, page );\n if (!buffer) {\n      std::cout << \"malloc failed\";\n      perfmon_end();\n      return ;\n    }\n double result = 0; \n for (long i = 0; i < size/sizeof(double); i= i+4)\n  buffer[i] = 1.2;\n for (long i = 0; i < size/sizeof(double); i= i+4)\n   result = buffer[i] + result;   \n std::cout << \"res\" << result << \"\\n\";\n _mm_free(buffer);     \n    \n}")
+    cmdbat.println(" \n#include <mkl.h>\n#include <iostream>\n#include \"immintrin.h\" \n#ifndef MEASURING_CORE_HEADER\n#define MEASURING_CORE_HEADER\n\n\n\nint measurement_init(int type, bool flushData , bool flushICache , bool flushTLB );\nvoid measurement_start();\nvoid measurement_stop();\nvoid measurement_end();\n\n#endif\n\n#include <immintrin.h>\n\n\n")
+    cmdbat.println("\nvoid flushCache()\n{\n const int page = 1024*4;\n long size = 28 * 1024 * 1024;\n double* buffer = (double*) _mm_malloc( size, page );\n if (!buffer) {\n      std::cout << \"malloc failed\";\n      measurement_end();\n      return ;\n    }\n double result = 0; \n for (long i = 0; i < size/sizeof(double); i= i+4)\n  buffer[i] = 1.2;\n for (long i = 0; i < size/sizeof(double); i= i+4)\n   result = buffer[i] + result;   \n std::cout << \"res\" << result << \"\\n\";\n _mm_free(buffer);     \n    \n}")
     cmdbat.println("\nvoid flushCacheLine(void *p){\n  __asm__ __volatile__ (\"clflush %0\" :: \"m\" (*(char*)p));\n}\n\n\ndouble * a, *b, *c;\ndouble alpha;\n\n\n\nint main () {\n\n  ");
-    cmdbat.println("perfmon_init(1,false,false,false);\n\n  const int page = 1024*4;\n  int mem = 256*512; //128 MB\n  \n  \n  \n")
+    cmdbat.println("measurement_init(1,false,false,false);\n\n  const int page = 1024*4;\n  int mem = 256*512; //128 MB\n  \n  \n  \n")
     //cmdbat.println("for (long vectorSize = 500; vectorSize <= 10000 * 1000; vectorSize *= 2)")
     cmdbat.println("for (int vectorSize = "+ start + "; vectorSize <= "+ maxsize + "; vectorSize = vectorSize + " + increase + ")")
     //cmdbat.println("long vectorSize = 500;")
-    cmdbat.println("\n  {double alpha = 1.1; double beta = 1.2;  \n    a = (double*)  _mm_malloc( vectorSize*vectorSize*sizeof(double), page );\n    if (!a) {\n      std::cout << \"malloc failed\";\n      perfmon_end();\n      return -1;\n    }\n    b = (double*)  _mm_malloc( vectorSize*sizeof(double), page );\n    if (!b) {\n      std::cout << \"malloc failed\";\n      perfmon_end();\n      return -1;\n    }\n  c = (double*)  _mm_malloc( vectorSize*vectorSize*sizeof(double), page );\n    if (!c) {\n      std::cout << \"malloc failed\";\n      perfmon_end();\n      return -1;\n    }\n // initialize factors\n\talpha=1.1;\n\n\n\n  ");
+    cmdbat.println("\n  {double alpha = 1.1; double beta = 1.2;  \n    a = (double*)  _mm_malloc( vectorSize*vectorSize*sizeof(double), page );\n    if (!a) {\n      std::cout << \"malloc failed\";\n      measurement_end();\n      return -1;\n    }\n    b = (double*)  _mm_malloc( vectorSize*sizeof(double), page );\n    if (!b) {\n      std::cout << \"malloc failed\";\n      measurement_end();\n      return -1;\n    }\n  c = (double*)  _mm_malloc( vectorSize*vectorSize*sizeof(double), page );\n    if (!c) {\n      std::cout << \"malloc failed\";\n      measurement_end();\n      return -1;\n    }\n // initialize factors\n\talpha=1.1;\n\n\n\n  ");
     cmdbat.println("for (long j = 0; j < "+ repeats + "; j++)\n  {\n")
-    //cmdbat.println("double result = 0;perfmon_start();    \n\n    for(long i = 0; i< vectorSize; i=i+1)    \n      result += x[i]; perfmon_stop();\n\n\t\t\tstd::cout << result;")
-    cmdbat.println("       \t\tstd::cout << j << \" j \\n\";\n for (long i=0; i<vectorSize*vectorSize; i+=1){\n        a[i]=1.2;\n        \n } for (long i=0; i<vectorSize; i+=1){\n        b[i]=1.2;\n        \n }    for (long i=0; i<vectorSize*vectorSize; i+=4){\n            flushCacheLine(&(a[i])); \n        \n }  for (long i=0; i<vectorSize; i+=4){\n            flushCacheLine(&(b[i])); \n        \n } //flushCache();\n      ;  \nperfmon_start();\n     \tint size = vectorSize;\n\t")
-    cmdbat.println("cblas_dgemv(CblasRowMajor, CblasNoTrans, size, size, alpha, a, size, b, 1,\n\t\t\tbeta, c, 1);      \n     perfmon_stop();\n\n ")
-    cmdbat.println(" }\n   _mm_free(a);\n   _mm_free(b);_mm_free(c);          \n  }\n  perfmon_end();\n  \n  \n}")
+    //cmdbat.println("double result = 0;measurement_start();    \n\n    for(long i = 0; i< vectorSize; i=i+1)    \n      result += x[i]; measurement_stop();\n\n\t\t\tstd::cout << result;")
+    cmdbat.println("       \t\tstd::cout << j << \" j \\n\";\n for (long i=0; i<vectorSize*vectorSize; i+=1){\n        a[i]=1.2;\n        \n } for (long i=0; i<vectorSize; i+=1){\n        b[i]=1.2;\n        \n }    for (long i=0; i<vectorSize*vectorSize; i+=4){\n            flushCacheLine(&(a[i])); \n        \n }  for (long i=0; i<vectorSize; i+=4){\n            flushCacheLine(&(b[i])); \n        \n } //flushCache();\n      ;  \nmeasurement_start();\n     \tint size = vectorSize;\n\t")
+    cmdbat.println("cblas_dgemv(CblasRowMajor, CblasNoTrans, size, size, alpha, a, size, b, 1,\n\t\t\tbeta, c, 1);      \n     measurement_stop();\n\n ")
+    cmdbat.println(" }\n   _mm_free(a);\n   _mm_free(b);_mm_free(c);          \n  }\n  measurement_end();\n  \n  \n}")
     cmdbat.close()
 
     CompileService.compile(temp.getPath +File.separator + filename)
@@ -478,18 +523,18 @@ class TestOverview extends Suite{
       temp.mkdir()
       val cmdbat = new PrintStream(temp.getPath + File.separator +  filename + ".cpp")
 
-      cmdbat.println(" \n#include <mkl.h>\n#include <iostream>\n#include \"immintrin.h\" \n#ifndef MEASURING_CORE_HEADER\n#define MEASURING_CORE_HEADER\n\n\n\nint perfmon_init(int type, bool flushData , bool flushICache , bool flushTLB );\nvoid perfmon_start();\nvoid perfmon_stop();\nvoid perfmon_end();\n\n#endif\n\n#include <immintrin.h>\n\n\n")
-      cmdbat.println("\nvoid flushCache()\n{\n const int page = 1024*4;\n long size = 28 * 1024 * 1024;\n double* buffer = (double*) _mm_malloc( size, page );\n if (!buffer) {\n      std::cout << \"malloc failed\";\n      perfmon_end();\n      return ;\n    }\n double result = 0; \n for (long i = 0; i < size/sizeof(double); i= i+4)\n  buffer[i] = 1.2;\n for (long i = 0; i < size/sizeof(double); i= i+4)\n   result = buffer[i] + result;   \n std::cout << \"res\" << result << \"\\n\";\n _mm_free(buffer);     \n    \n}")
+      cmdbat.println(" \n#include <mkl.h>\n#include <iostream>\n#include \"immintrin.h\" \n#ifndef MEASURING_CORE_HEADER\n#define MEASURING_CORE_HEADER\n\n\n\nint measurement_init(int type, bool flushData , bool flushICache , bool flushTLB );\nvoid measurement_start();\nvoid measurement_stop();\nvoid measurement_end();\n\n#endif\n\n#include <immintrin.h>\n\n\n")
+      cmdbat.println("\nvoid flushCache()\n{\n const int page = 1024*4;\n long size = 28 * 1024 * 1024;\n double* buffer = (double*) _mm_malloc( size, page );\n if (!buffer) {\n      std::cout << \"malloc failed\";\n      measurement_end();\n      return ;\n    }\n double result = 0; \n for (long i = 0; i < size/sizeof(double); i= i+4)\n  buffer[i] = 1.2;\n for (long i = 0; i < size/sizeof(double); i= i+4)\n   result = buffer[i] + result;   \n std::cout << \"res\" << result << \"\\n\";\n _mm_free(buffer);     \n    \n}")
       cmdbat.println("\nvoid flushCacheLine(void *p){\n  __asm__ __volatile__ (\"clflush %0\" :: \"m\" (*(char*)p));\n}\n\n\ndouble * a, *b, *c;\ndouble alpha;\n\n\n\nint main () {\n\n  ");
-      cmdbat.println("perfmon_init(1,false,false,false);\n\n  const int page = 1024*4;\n  int mem = 256*512; //128 MB\n  \n  \n  \n")
+      cmdbat.println("measurement_init(1,false,false,false);\n\n  const int page = 1024*4;\n  int mem = 256*512; //128 MB\n  \n  \n  \n")
       //cmdbat.println("for (long vectorSize = 500; vectorSize <= 10000 * 1000; vectorSize *= 2)")
       cmdbat.println("for (int vectorSize = "+ start + "; vectorSize <= "+ maxsize + "; vectorSize = vectorSize + " + increase + ")")
       //cmdbat.println("long vectorSize = 500;")
-      cmdbat.println("\n  {int check = 65; int size = vectorSize; std::cout  << size << \" vec \\n\" ;std::cout  << check << \" vecfa \\n\" ;\n   \n    a = (double*)  _mm_malloc( vectorSize*vectorSize*sizeof(double), page );\n    if (!a) {\n      std::cout << \"malloc failed\";\n      perfmon_end();\n      return -1;\n    }\n    b = (double*)  _mm_malloc( vectorSize*vectorSize*sizeof(double), page );\n    if (!b) {\n      std::cout << \"malloc failed\";\n      perfmon_end();\n      return -1;\n    }\n  c = (double*)  _mm_malloc( vectorSize*vectorSize*sizeof(double), page );\n    if (!c) {\n      std::cout << \"malloc failed\";\n      perfmon_end();\n      return -1;\n    }\n // initialize factors\n\talpha=1.1;\n\n\n\n  ");
+      cmdbat.println("\n  {int check = 65; int size = vectorSize; std::cout  << size << \" vec \\n\" ;std::cout  << check << \" vecfa \\n\" ;\n   \n    a = (double*)  _mm_malloc( vectorSize*vectorSize*sizeof(double), page );\n    if (!a) {\n      std::cout << \"malloc failed\";\n      measurement_end();\n      return -1;\n    }\n    b = (double*)  _mm_malloc( vectorSize*vectorSize*sizeof(double), page );\n    if (!b) {\n      std::cout << \"malloc failed\";\n      measurement_end();\n      return -1;\n    }\n  c = (double*)  _mm_malloc( vectorSize*vectorSize*sizeof(double), page );\n    if (!c) {\n      std::cout << \"malloc failed\";\n      measurement_end();\n      return -1;\n    }\n // initialize factors\n\talpha=1.1;\n\n\n\n  ");
       cmdbat.println("for (long j = 0; j < "+ repeats + "; j++)\n  {\n")
-      //cmdbat.println("double result = 0;perfmon_start();    \n\n    for(long i = 0; i< vectorSize; i=i+1)    \n      result += x[i]; perfmon_stop();\n\n\t\t\tstd::cout << result;")
-      cmdbat.println("       \t\tstd::cout << j << \" j \\n\";\n for (long i=0; i<vectorSize*vectorSize; i+=4){\n        a[i]=1.2;\n        b[i]=1.3;\n         flushCacheLine(&(a[i]));  flushCacheLine(&(b[i])); \n      } //flushCache();\n      ;  \nperfmon_start();\n     \tint size = vectorSize;\n\tcblas_dgemm(\n\t\t\tCblasRowMajor,\n\t\t\tCblasNoTrans, CblasNoTrans,\n\t\t\tsize, size, size,\n\t\t\t1,\n\t\t\ta, size,\n\t\t\tb, size,\n\t\t\t1,\n\t\t\tc, size);       \n     perfmon_stop();\n\n ")
-      cmdbat.println(" }\n   _mm_free(a);\n   _mm_free(b);_mm_free(c);          \n  }\n  perfmon_end();\n  \n  \n}")
+      //cmdbat.println("double result = 0;measurement_start();    \n\n    for(long i = 0; i< vectorSize; i=i+1)    \n      result += x[i]; measurement_stop();\n\n\t\t\tstd::cout << result;")
+      cmdbat.println("       \t\tstd::cout << j << \" j \\n\";\n for (long i=0; i<vectorSize*vectorSize; i+=4){\n        a[i]=1.2;\n        b[i]=1.3;\n         flushCacheLine(&(a[i]));  flushCacheLine(&(b[i])); \n      } //flushCache();\n      ;  \nmeasurement_start();\n     \tint size = vectorSize;\n\tcblas_dgemm(\n\t\t\tCblasRowMajor,\n\t\t\tCblasNoTrans, CblasNoTrans,\n\t\t\tsize, size, size,\n\t\t\t1,\n\t\t\ta, size,\n\t\t\tb, size,\n\t\t\t1,\n\t\t\tc, size);       \n     measurement_stop();\n\n ")
+      cmdbat.println(" }\n   _mm_free(a);\n   _mm_free(b);_mm_free(c);          \n  }\n  measurement_end();\n  \n  \n}")
       cmdbat.close()
 
       CompileService.compile(temp.getPath +File.separator + filename)
@@ -638,18 +683,18 @@ class TestOverview extends Suite{
     temp.mkdir()
     val cmdbat = new PrintStream(temp.getPath + File.separator +  filename + ".cpp")
 
-    cmdbat.println(" \n#include <mkl.h>\n#include <iostream>\n#include \"immintrin.h\" \n#ifndef MEASURING_CORE_HEADER\n#define MEASURING_CORE_HEADER\n\n\n\nint perfmon_init(int type, bool flushData , bool flushICache , bool flushTLB );\nvoid perfmon_start();\nvoid perfmon_stop();\nvoid perfmon_end();\n\n#endif\n\n#include <immintrin.h>\n\n\n")
-    cmdbat.println("\nvoid flushCache()\n{\n const int page = 1024*4;\n long size = 28 * 1024 * 1024;\n double* buffer = (double*) _mm_malloc( size, page );\n if (!buffer) {\n      std::cout << \"malloc failed\";\n      perfmon_end();\n      return ;\n    }\n double result = 0; \n for (long i = 0; i < size/sizeof(double); i= i+4)\n  buffer[i] = 1.2;\n for (long i = 0; i < size/sizeof(double); i= i+4)\n   result = buffer[i] + result;   \n std::cout << \"res\" << result << \"\\n\";\n _mm_free(buffer);     \n    \n}")
+    cmdbat.println(" \n#include <mkl.h>\n#include <iostream>\n#include \"immintrin.h\" \n#ifndef MEASURING_CORE_HEADER\n#define MEASURING_CORE_HEADER\n\n\n\nint measurement_init(int type, bool flushData , bool flushICache , bool flushTLB );\nvoid measurement_start();\nvoid measurement_stop();\nvoid measurement_end();\n\n#endif\n\n#include <immintrin.h>\n\n\n")
+    cmdbat.println("\nvoid flushCache()\n{\n const int page = 1024*4;\n long size = 28 * 1024 * 1024;\n double* buffer = (double*) _mm_malloc( size, page );\n if (!buffer) {\n      std::cout << \"malloc failed\";\n      measurement_end();\n      return ;\n    }\n double result = 0; \n for (long i = 0; i < size/sizeof(double); i= i+4)\n  buffer[i] = 1.2;\n for (long i = 0; i < size/sizeof(double); i= i+4)\n   result = buffer[i] + result;   \n std::cout << \"res\" << result << \"\\n\";\n _mm_free(buffer);     \n    \n}")
     cmdbat.println("\nvoid flushCacheLine(void *p){\n  __asm__ __volatile__ (\"clflush %0\" :: \"m\" (*(char*)p));\n}\n\n\ndouble * x, *y;\ndouble alpha;\n\n\n\nint main () {\n\n  ");
-    cmdbat.println("perfmon_init(1,false,false,false);\n\n  const int page = 1024*4;\n  int mem = 256*512; //128 MB\n  \n  \n  \n")
+    cmdbat.println("measurement_init(1,false,false,false);\n\n  const int page = 1024*4;\n  int mem = 256*512; //128 MB\n  \n  \n  \n")
     //cmdbat.println("for (long vectorSize = 500; vectorSize <= 10000 * 1000; vectorSize *= 2)")
     cmdbat.println("for (long vectorSize = " + startsize + " ; vectorSize <= "+ maxsize + "; vectorSize *= 2)")
     //cmdbat.println("long vectorSize = 500;")
-    cmdbat.println("\n  {   \n    x = (double*)  _mm_malloc( vectorSize*sizeof(double), page );\n    if (!x) {\n      std::cout << \"malloc failed\";\n      perfmon_end();\n      return -1;\n    }\n    y = (double*)  _mm_malloc( vectorSize*sizeof(double), page );\n    if (!x) {\n      std::cout << \"malloc failed\";\n      perfmon_end();\n      return -1;\n    }\n  // initialize factors\n\talpha=1.1;\n\n\n\n  ");
+    cmdbat.println("\n  {   \n    x = (double*)  _mm_malloc( vectorSize*sizeof(double), page );\n    if (!x) {\n      std::cout << \"malloc failed\";\n      measurement_end();\n      return -1;\n    }\n    y = (double*)  _mm_malloc( vectorSize*sizeof(double), page );\n    if (!x) {\n      std::cout << \"malloc failed\";\n      measurement_end();\n      return -1;\n    }\n  // initialize factors\n\talpha=1.1;\n\n\n\n  ");
     cmdbat.println("for (long j = 0; j < "+ repeats + "; j++)\n  {\n")
-    //cmdbat.println("double result = 0;perfmon_start();    \n\n    for(long i = 0; i< vectorSize; i=i+1)    \n      result += x[i]; perfmon_stop();\n\n\t\t\tstd::cout << result;")
-    cmdbat.println("       \tfor (long i=0; i<vectorSize; i++){\n        x[i]=1.2;\n        y[i]=1.3;}\n for (long i=0; i<vectorSize; i=i+4) {        flushCacheLine(&(x[i]));  flushCacheLine(&(y[i]));\n      } //flushCache();\n Sleep(1);      ;perfmon_start();\n     cblas_daxpy( vectorSize, alpha, x, 1, y, 1);          \n     perfmon_stop();\n\n ")
-    cmdbat.println(" }\n   _mm_free(x);\n   _mm_free(y);          \n  }\n  perfmon_end();\n  \n  \n}")
+    //cmdbat.println("double result = 0;measurement_start();    \n\n    for(long i = 0; i< vectorSize; i=i+1)    \n      result += x[i]; measurement_stop();\n\n\t\t\tstd::cout << result;")
+    cmdbat.println("       \tfor (long i=0; i<vectorSize; i++){\n        x[i]=1.2;\n        y[i]=1.3;}\n for (long i=0; i<vectorSize; i=i+4) {        flushCacheLine(&(x[i]));  flushCacheLine(&(y[i]));\n      } //flushCache();\n Sleep(1);      ;measurement_start();\n     cblas_daxpy( vectorSize, alpha, x, 1, y, 1);          \n     measurement_stop();\n\n ")
+    cmdbat.println(" }\n   _mm_free(x);\n   _mm_free(y);          \n  }\n  measurement_end();\n  \n  \n}")
     cmdbat.close()
 
     CompileService.compile(temp.getPath +File.separator + filename)
@@ -813,7 +858,7 @@ class TestOverview extends Suite{
     temp.delete()
     temp.mkdir()
     val cmdbat = new PrintStream(temp.getPath + File.separator +  filename + ".cpp")
-    cmdbat.println("#include <iostream>\n#include \"immintrin.h\" \n#ifndef MEASURING_CORE_HEADER\n#define MEASURING_CORE_HEADER\n\n\n\nint perfmon_init(int type, bool flushData , bool flushICache , bool flushTLB );\nvoid perfmon_start();\nvoid perfmon_stop();\nvoid perfmon_end();\n\n#endif\n\n#include <immintrin.h>\n\n\nvoid flushCacheLine(void *p){\n  __asm__ __volatile__ (\"clflush %0\" :: \"m\" (*(char*)p));\n}\nint main () {\nstd::cout << \"malloc test\"; \nperfmon_init(3,false,false,false);\n \nstd::cout << \"malloc test2\"; \n\n    double * buffer;\n    \n    const int page = 1024*4;\n    const int mem = 256*512; //128 MB\n buffer = (double*)  _mm_malloc( mem*page, page );\n  if (!buffer) {\n    std::cout << \"malloc failed\";\n\nperfmon_end();\nreturn -1;\n  }\n   std::cout << \"malloc worked\"; \n\nfor(long i = 0; i< mem*page/sizeof(double); i++)    \n      buffer[i] = i%2;    \n \nfor(long i = 0; i< mem*page/sizeof(double); i++)\n      flushCacheLine(&(buffer[i]));\nperfmon_start(); perfmon_stop();\n\nperfmon_start();\n    for(long i = 0; i< mem*page/sizeof(double); i=i+1)    \n      buffer[i] = 1.0;\n\nperfmon_stop();\n\t\t\t\nperfmon_start();\nfor(long i = 0; i< mem*page/sizeof(double); i= i+1)\n      flushCacheLine(&(buffer[i]));\nperfmon_stop();\n\t\t\t\ndouble result = 0;perfmon_start();    \n\n    for(long i = 0; i< mem*page/sizeof(double); i=i+1)    \n      result += buffer[i]; perfmon_stop();\n\n\t\t\tstd::cout << result;\nstd::cout << \"\\n\" << (mem/sizeof(double)) << \"\\n\";\nfor(long i = 0; i< mem*page/sizeof(double); i++)\n      flushCacheLine(&(buffer[i]));\nlong size = mem*page/sizeof(double);\nperfmon_start();    \n\n    for(long i = 0; i< size; i=i+1)    \n      buffer[(size/2 + i)%(size)] = buffer[i]; perfmon_stop();\n\n\t\t\tstd::cout << result;\nfor(long i = 0; i< mem*page/sizeof(double); i++)\n      flushCacheLine(&(buffer[i]));\nperfmon_start();    \n\n    for(long i = 0; i< size; i=i+1)    \n      buffer[i] = buffer[i]-1; perfmon_stop();\n\n\t\t\tstd::cout << result;\nfor(long i = 0; i< mem*page/sizeof(double); i++)\n      flushCacheLine(&(buffer[i]));\ndouble vec_res[4];\n __m256d a,b ; b= _mm256_set1_pd( 1.1 ); perfmon_start();    \n\n    for(long i = 0; i< mem*page/sizeof(double); i=i+4)    \n      {a = _mm256_load_pd (&(buffer[i])); /*b = _mm256_add_pd ( a, b);*/} perfmon_stop(); _mm256_storeu_pd (vec_res,a); \n\n\t\t\tstd::cout << vec_res[0];\n __m256d avx_res = _mm256_set1_pd( 1.1 ); perfmon_start();    \n\n    for(long i = 0; i< mem*page/sizeof(double); i=i+4)    \n      _mm256_stream_pd(&(buffer[i]),avx_res); perfmon_stop();\n\n\t\t\tstd::cout << result;\nperfmon_start(); perfmon_stop();\nperfmon_start(); perfmon_stop();\nperfmon_end();\n_mm_free (buffer);\n    return 0;\n  }")
+    cmdbat.println("#include <iostream>\n#include \"immintrin.h\" \n#ifndef MEASURING_CORE_HEADER\n#define MEASURING_CORE_HEADER\n\n\n\nint measurement_init(int type, bool flushData , bool flushICache , bool flushTLB );\nvoid measurement_start();\nvoid measurement_stop();\nvoid measurement_end();\n\n#endif\n\n#include <immintrin.h>\n\n\nvoid flushCacheLine(void *p){\n  __asm__ __volatile__ (\"clflush %0\" :: \"m\" (*(char*)p));\n}\nint main () {\nstd::cout << \"malloc test\"; \nmeasurement_init(3,false,false,false);\n \nstd::cout << \"malloc test2\"; \n\n    double * buffer;\n    \n    const int page = 1024*4;\n    const int mem = 256*512; //128 MB\n buffer = (double*)  _mm_malloc( mem*page, page );\n  if (!buffer) {\n    std::cout << \"malloc failed\";\n\nmeasurement_end();\nreturn -1;\n  }\n   std::cout << \"malloc worked\"; \n\nfor(long i = 0; i< mem*page/sizeof(double); i++)    \n      buffer[i] = i%2;    \n \nfor(long i = 0; i< mem*page/sizeof(double); i++)\n      flushCacheLine(&(buffer[i]));\nmeasurement_start(); measurement_stop();\n\nmeasurement_start();\n    for(long i = 0; i< mem*page/sizeof(double); i=i+1)    \n      buffer[i] = 1.0;\n\nmeasurement_stop();\n\t\t\t\nmeasurement_start();\nfor(long i = 0; i< mem*page/sizeof(double); i= i+1)\n      flushCacheLine(&(buffer[i]));\nmeasurement_stop();\n\t\t\t\ndouble result = 0;measurement_start();    \n\n    for(long i = 0; i< mem*page/sizeof(double); i=i+1)    \n      result += buffer[i]; measurement_stop();\n\n\t\t\tstd::cout << result;\nstd::cout << \"\\n\" << (mem/sizeof(double)) << \"\\n\";\nfor(long i = 0; i< mem*page/sizeof(double); i++)\n      flushCacheLine(&(buffer[i]));\nlong size = mem*page/sizeof(double);\nmeasurement_start();    \n\n    for(long i = 0; i< size; i=i+1)    \n      buffer[(size/2 + i)%(size)] = buffer[i]; measurement_stop();\n\n\t\t\tstd::cout << result;\nfor(long i = 0; i< mem*page/sizeof(double); i++)\n      flushCacheLine(&(buffer[i]));\nmeasurement_start();    \n\n    for(long i = 0; i< size; i=i+1)    \n      buffer[i] = buffer[i]-1; measurement_stop();\n\n\t\t\tstd::cout << result;\nfor(long i = 0; i< mem*page/sizeof(double); i++)\n      flushCacheLine(&(buffer[i]));\ndouble vec_res[4];\n __m256d a,b ; b= _mm256_set1_pd( 1.1 ); measurement_start();    \n\n    for(long i = 0; i< mem*page/sizeof(double); i=i+4)    \n      {a = _mm256_load_pd (&(buffer[i])); /*b = _mm256_add_pd ( a, b);*/} measurement_stop(); _mm256_storeu_pd (vec_res,a); \n\n\t\t\tstd::cout << vec_res[0];\n __m256d avx_res = _mm256_set1_pd( 1.1 ); measurement_start();    \n\n    for(long i = 0; i< mem*page/sizeof(double); i=i+4)    \n      _mm256_stream_pd(&(buffer[i]),avx_res); measurement_stop();\n\n\t\t\tstd::cout << result;\nmeasurement_start(); measurement_stop();\nmeasurement_start(); measurement_stop();\nmeasurement_end();\n_mm_free (buffer);\n    return 0;\n  }")
     cmdbat.close()
     CompileService.compile(temp.getPath +File.separator + filename)
     System.out.println("working here:")
