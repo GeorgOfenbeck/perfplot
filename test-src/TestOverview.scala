@@ -45,15 +45,55 @@ def Counters2CCode(counters: Array[HWCounters.Counter]): (String,String) =
 }
 
 
-def fft_MKL (sourcefile: PrintStream,sizes: List[Long], counters: Array[HWCounters.Counter]) =
+def tuneNrRuns(sourcefile : PrintStream, kernel: String, printsomething: String) =
 {
+  sourcefile.println("long runs = 16;")
+  sourcefile.println("for(; runs <= (1 << 20); runs *= 2){")
+  sourcefile.println("measurement_start();")
+  sourcefile.println("for(int i = 0; i < runs; i++)")
+  sourcefile.println(kernel)
+  sourcefile.println("measurement_stop(runs);")
+  sourcefile.println(printsomething) //this is just to avoid deadcode eliminiation
+  sourcefile.println("if(measurement_testDerivative(runs, " + Config.testDerivate_Threshold + "))")
+  sourcefile.println("break;")
+  sourcefile.println("measurement_emptyLists(true);} //don't clear the vector of runs")
+  sourcefile.println("measurement_emptyLists();") //duplicated cause of the break
+}
+
+
+
+def fft_MKL (sourcefile: PrintStream,sizes: List[Long], counters: Array[HWCounters.Counter], double_precision: Boolean = true, warmData: Boolean = false) =
+{
+
+  val prec = if (double_precision) "double" else "float"
   sourcefile.println(Config.MeasuringCoreH)
   sourcefile.println("#include <mkl.h>")
   sourcefile.println("#include <iostream>")
+  sourcefile.println("#define page 4096")
+  val (counterstring, initstring ) = Counters2CCode(counters)
+  sourcefile.println(counterstring)
+  sourcefile.println("int main () { ")
+  sourcefile.println(initstring)
 
-  Counters2CCode(counters)
+  for (size <- sizes)
+  {
+    sourcefile.println("DFTI_DESCRIPTOR_HANDLE mklDescriptor;")
+    sourcefile.println("MKL_LONG status;")
+    val dfti_prec = if (double_precision) "DFTI_DOUBLE" else "DFTI_SINGLE"
+    sourcefile.println("status = DftiCreateDescriptor( &mklDescriptor, + " + dfti_prec+ ",DFTI_COMPLEX, 1,"+ size + ");")
 
 
+    //Tune the number of runs
+    sourcefile.println(prec + " * tuning_buffer = (" + prec + "*) _mm_malloc(" + 2*size + "* sizeof(" + prec + "),page);" )
+    tuneNrRuns(sourcefile,"status = DftiComputeForward(mklDescriptor, tuning_buffer);\n\tif (status != 0) {\n\t\treturn -1;\n\t}", "std::cout << tunning_buffer[0];" )
+    sourcefile.println("_mm_free(tuning_buffer);")
+
+
+    //find out the number of shifts required
+    sourcefile.println("long numberofshifts = measurement_getNumberOfShifts(" + 2*size + "* sizeof(" + prec + "),runs*"+Config.repeats+");")
+
+
+  }
 
 
 

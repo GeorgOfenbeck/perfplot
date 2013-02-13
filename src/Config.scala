@@ -23,6 +23,10 @@ object Config {
   //win_icc is working with a hack atm - look into CompileService!
   val win_icc = new File("C:\\Program Files (x86)\\Intel\\Composer XE 2013\\bin\\intel64","icl.exe")
 
+
+  val testDerivate_Threshold =  0.0005
+  val repeats = 2
+
   def MeasuringCore: File = if (isWin)
                          new File("C:\\Users\\ofgeorg\\IdeaProjects\\perfplot\\pcm\\","MeasuringCore.lib")
                       else

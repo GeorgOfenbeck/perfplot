@@ -17,7 +17,7 @@ bool measurement_testDerivative(size_t runs, double threshold, size_t points=1);
 void measurement_emptyLists(bool clearRuns=true);
 void dumpMeans();
 
-unsigned long getNumberOfShifts(unsigned long size, unsigned long initialGuess);
+unsigned long measurement_getNumberOfShifts(unsigned long size, unsigned long initialGuess);
 // End Dani
 
 void flushITLB();

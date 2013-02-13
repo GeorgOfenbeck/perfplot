@@ -587,10 +587,12 @@ bool measurement_testDerivative(size_t runs, double threshold, size_t points) {
 
 }
 
-unsigned long getNumberOfShifts(unsigned long size, unsigned long initialGuess) {
+unsigned long measurement_getNumberOfShifts(unsigned long size, unsigned long initialGuess) {
+	
+	
 	unsigned long value = initialGuess;
 	unsigned long llcSize = getLLCSize();
-	if (size*value > 2*llcSize) {
+	if (size*value > 2*llcSize) { //GO: 2DO - binary search - calculate with page aligned!
 		while((size*value > 2*llcSize) && (value > 2))
 			--value;
 	}
