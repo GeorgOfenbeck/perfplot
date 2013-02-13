@@ -16,6 +16,8 @@ bool perfmon_testDerivative(size_t runs, double threshold, size_t points=1);
 //bool perfmon_testSD(size_t runs);
 void perfmon_emptyLists(bool clearRuns=true);
 void dumpMeans();
+
+unsigned long getNumberOfShifts(unsigned long size, unsigned long initialGuess);
 // End Dani
 
 void flushITLB();
