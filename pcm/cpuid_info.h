@@ -9,6 +9,7 @@
 #ifndef CPUID_INFO_HEADER
 #define CPUID_INFO_HEADER
 
+#include <stdint.h>
 /*
  * These multipliers are used to encode 1*K .. 64*M in a 16 bit size field
  */

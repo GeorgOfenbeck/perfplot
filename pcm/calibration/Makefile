@@ -17,7 +17,7 @@ LIB= -lpthread
 endif
 
 calibration: ../cpucounters.o ../msr.o ../pci.o ../measuring_core.o
-	 $(CC) $(OPT) ../msr.o ../pci.o ../cpucounters.o ../measuring_core.o calibration.cpp -o calibration $(LIB) 
+	 $(CC) $(CPPFLAGS) $(OPT) ../msr.o ../pci.o ../cpucounters.o ../measuring_core.o calibration.cpp -o calibration $(LIB) 
 
 clean:
 	rm -rf calibration
