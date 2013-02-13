@@ -316,13 +316,13 @@ void reduction_K6_L6(double * v, double * dest, long int n) {
 
 }
 
-void mmm_triple(double const * A, double const * B, double * C, unsigned M, unsigned K, unsigned N)
+void mmm_triple(double const * A, double const * B, double * C, unsigned sizeM, unsigned sizeK, unsigned sizeN)
 {
-	for(unsigned i = 0; i < M; i++)
-		for (unsigned j = 0; j < N; ++j) {
+	for(unsigned i = 0; i < sizeM; i++)
+		for (unsigned j = 0; j < sizeN; ++j) {
 			*C = 0.;
-			for (unsigned k = 0; k < K; ++k) {
-				C[i*N+j] += A[i*K+k]*B[k*N+j];
+			for (unsigned k = 0; k < sizeK; ++k) {
+				C[i*sizeN+j] += A[i*sizeK+k]*B[k*sizeN+j];
 			}
 		}
 }

@@ -128,23 +128,23 @@ void _zeros(double * m, size_t row, size_t col)
   for (size_t i = 0; i < row*col; ++i)  m[i] = 0.;
 }
 
-void _tempBuild(double ** A, double ** B, double ** C, size_t M, size_t K, size_t N, size_t fA=1, size_t fB=1, size_t fC=1)
+//void _tempBuild(double ** A, double ** B, double ** C, size_t M, size_t K, size_t N, size_t fA=1, size_t fB=1, size_t fC=1)
+//{
+//  *A = (double *)_mm_malloc(M*K*fA*sizeof(double), 4*1024);
+//  *B = (double *)_mm_malloc(K*N*fB*sizeof(double), 4*1024);
+//  *C = (double *)_mm_malloc(M*N*fC*sizeof(double), 4*1024);
+//
+//  _rands(*A, M, K);
+//  _rands(*B, K, N);
+//  _rands(*C, M, N);
+//
+//}
+
+void _buildRandInit(double ** m, size_t rows, size_t cols, size_t alignment, size_t factorM=1)
 {
-  *A = (double *)_mm_malloc(M*K*fA*sizeof(double), 4*1024);
-  *B = (double *)_mm_malloc(K*N*fB*sizeof(double), 4*1024);
-  *C = (double *)_mm_malloc(M*N*fC*sizeof(double), 4*1024);
+  *m = (double *)_mm_malloc(rows*cols*factorM*sizeof(double), alignment);
 
-  _rands(*A, M, K);
-  _rands(*B, K, N);
-  _rands(*C, M, N);
-
-}
-
-void _buildRandInit(double ** M, size_t m, size_t n, size_t alignment, size_t factorM=1)
-{
-  *M = (double *)_mm_malloc(m*n*factorM*sizeof(double), alignment);
-
-  _rands(*M, m, n);
+  _rands(*m, rows, cols);
 
 }
 
@@ -155,9 +155,9 @@ void _tempDestroy(double * A, double * B, double * C)
   _mm_free(C);
 }
 
-void _destroy(double * M)
+void _destroy(double * m)
 {
-  _mm_free(M);
+  _mm_free(m);
 }
 
 //#define COLD
