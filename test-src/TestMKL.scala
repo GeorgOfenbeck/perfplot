@@ -1,10 +1,10 @@
 import org.scalatest.Suite
-import roofline.Config
+import perfplot.Config
 import java.io._
 import java.io.PrintStream
-import roofline.plot.{PerformancePlot, OpsPlot}
-import roofline.quantities.{Cycles, Flops, Performance}
-import roofline.services.{PlotService, CommandService}
+import perfplot.plot.{PerformancePlot, OpsPlot}
+import perfplot.quantities.{Cycles, Flops, Performance}
+import perfplot.services.{PlotService, CommandService}
 
 
 class TestMKL extends Suite {

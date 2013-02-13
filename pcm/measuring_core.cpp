@@ -252,7 +252,7 @@ void flushDCache()
 
 
 
-int perfmon_init(long * custom_counters, long offcore_response0, long offcore_response1)
+int measurement_init(long * custom_counters, long offcore_response0, long offcore_response1)
 {
     
 	flog.open("log.txt");	 
@@ -409,7 +409,7 @@ int perfmon_init(long * custom_counters, long offcore_response0, long offcore_re
 
 }
 
-void perfmon_start ()
+void measurement_start ()
 {
 
 	/*long ret = SetThreadIdealProcessor(GetCurrentThread(),0);
@@ -441,7 +441,7 @@ void perfmon_start ()
 
 
 
-void perfmon_stop(long nr_runs)
+void measurement_stop(long nr_runs)
 {
 	*sstate2 = getSystemCounterState();
     for (uint32 i = 0; i < m->getNumSockets(); ++i)
@@ -506,7 +506,7 @@ void perfmon_stop(long nr_runs)
 
 //// Start Dani
 
-void perfmon_emptyLists(bool clearRuns)
+void measurement_emptyLists(bool clearRuns)
 {
 	for (uint32 i = 0; i < m->getNumCores(); ++i)
 	{
@@ -534,7 +534,7 @@ void perfmon_emptyLists(bool clearRuns)
 	}
  
 }
-bool perfmon_testDerivative(size_t runs, double alpha_threshold, double avg_threshold, double time_threshold, double *d, size_t points) {
+bool measurement_testDerivative(size_t runs, double alpha_threshold, double avg_threshold, double time_threshold, double *d, size_t points) {
 
 	// Using TSC
 	size_t n = plist_tsc[0].size();
@@ -594,10 +594,12 @@ bool perfmon_testDerivative(size_t runs, double alpha_threshold, double avg_thre
 
 }
 
-unsigned long getNumberOfShifts(unsigned long size, unsigned long initialGuess) {
+unsigned long measurement_getNumberOfShifts(unsigned long size, unsigned long initialGuess) {
+	
+	
 	unsigned long value = initialGuess;
 	unsigned long llcSize = getLLCSize();
-	if (size*value > 2*llcSize) {
+	if (size*value > 2*llcSize) { //GO: 2DO - binary search - calculate with page aligned!
 		while((size*value > 2*llcSize) && (value > 2))
 			--value;
 	}
@@ -619,7 +621,7 @@ void dumpMeans()
 
 
 
-void perfmon_end()
+void measurement_end()
 {
 	char tstring[100];
 	uint32 nrcores = m->getNumCores();        	

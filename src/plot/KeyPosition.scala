@@ -5,7 +5,7 @@
  * Time: 16:10 
  */
 
-package roofline
+package perfplot
 package plot
 
 object KeyPosition extends Enumeration {

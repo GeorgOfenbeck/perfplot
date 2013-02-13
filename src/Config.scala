@@ -1,4 +1,4 @@
-package roofline
+package perfplot
 
 import java.io.File
 
@@ -23,6 +23,10 @@ object Config {
   //win_icc is working with a hack atm - look into CompileService!
   val win_icc = new File("C:\\Program Files (x86)\\Intel\\Composer XE 2013\\bin\\intel64","icl.exe")
 
+
+  val testDerivate_Threshold =  0.0005
+  val repeats = 2
+
   def MeasuringCore: File = if (isWin)
                          new File("C:\\Users\\ofgeorg\\IdeaProjects\\perfplot\\pcm\\","MeasuringCore.lib")
                       else
@@ -39,8 +43,10 @@ object Config {
   def flag_novec = if (isWin) " /Qno-simd /Qno-vec" else " -no-simd -no-vec"
 
 
-  val MeasuringCoreH = "#include <cstdio>\n#ifndef MEASURING_CORE_HEADER\n#define MEASURING_CORE_HEADER\n\n\n\n//int perfmon_init(long * custom_counters = NULL, long offcore_response0 = 0, long offcore_response1 = 0);\nint perfmon_init(long * custom_counters , long offcore_response0 , long offcore_response1 );\nvoid perfmon_start();\nvoid perfmon_stop(long runs=1);\nvoid perfmon_end();\n// Start Dani\n//bool perfmon_customTest(size_t runs, size_t vlen);\nbool perfmon_testDerivative(size_t runs, double threshold, size_t points=1);\n//void perfmon_meanSingleRun();\n//bool perfmon_testSD(size_t runs);\nvoid perfmon_emptyLists(bool clearRuns=true);\nvoid dumpMeans();\n// End Dani\n\nint flushTLB();\nint flushICache();\nint flushCache();\n\n\n#endif"
+  val MeasuringCoreH = "#ifndef MEASURING_CORE_HEADER\n#define MEASURING_CORE_HEADER\n\n\n\n\n//int measurement_init(int type, bool flushData , bool flushICache , bool flushTLB );\nint measurement_init(long * custom_counters = NULL, long offcore_response0 = 0, long offcore_response1 = 0);\nvoid measurement_start();\nvoid measurement_stop(long runs=1);\nvoid measurement_end();\n// Start Dani\n//bool measurement_customTest(size_t runs, size_t vlen);\nbool measurement_testDerivative(size_t runs, double threshold, size_t points=1);\n//void measurement_meanSingleRun();\n//bool measurement_testSD(size_t runs);\nvoid measurement_emptyLists(bool clearRuns=true);\nvoid dumpMeans();\n\nunsigned long measurement_getNumberOfShifts(unsigned long size, unsigned long initialGuess);\n// End Dani\n\nvoid flushITLB();\nvoid flushDTLB();\nvoid flushICache();\nvoid flushDCache();\n\n#endif"
 
 
 }
+
+
 

@@ -4,12 +4,12 @@
  * Date: 17/12/12
  * Time: 09:59
  */
-package roofline
+package perfplot
 package services
 
 
 import java.io.PrintStream
-import roofline.plot._
+import perfplot.plot._
 
 class PlotService {
 

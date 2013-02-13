@@ -4,7 +4,7 @@
  * Date: 14/12/12
  * Time: 16:02 
  */
-package roofline
+package perfplot
 package plot
 
 abstract class Plot2D extends Plot{

@@ -1,12 +1,12 @@
 import java.io.PrintStream
 import org.scalatest.Suite
 
-import roofline._
-import roofline.services._
-import roofline.plot._
+import perfplot._
+import perfplot.services._
+import perfplot.plot._
 import java.io._
 import scala.io._
-import roofline.quantities._
+import perfplot.quantities._
 
 
 class TestTLB extends Suite {

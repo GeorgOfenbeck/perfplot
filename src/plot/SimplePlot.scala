@@ -5,7 +5,7 @@
  * Time: 16:19 
  */
 
-package roofline
+package perfplot
 package plot
 
 class SimplePlot extends Plot2D{
