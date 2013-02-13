@@ -140,7 +140,7 @@ int flushCache()
 
 
 
-int perfmon_init(long * custom_counters = NULL, long offcore_response0 = 0, long offcore_response1 = 0)
+int perfmon_init(long * custom_counters, long offcore_response0, long offcore_response1)
 {
     
 	flog.open("log.txt");	 
@@ -468,7 +468,10 @@ bool perfmon_testDerivative(size_t runs, double threshold, size_t points) {
 	}
 //	cout << "Derivative value: " << d << endl;
 
-	return (condition || m >= 1e6);
+	return (condition || m > 1e6);
+//	return (condition || m > 1e7);
+//	return (condition || m > 1e7 || sumcycle > 1e7);
+//	return (condition || sumcycle > 1e7);
 
 }
 
@@ -602,7 +605,6 @@ void perfmon_end()
 			fplist_tsc[i] << *it << " ";
 		fplist_tsc[i].close();
 		
-
 		stringstream ss7;
 		ss7 << "Custom_ev4_core" << i << ".txt";
 		fplist4[i].open(ss7.str().c_str());
@@ -663,8 +665,8 @@ void perfmon_end()
     delete[] cstates2;
     delete[] sktstate1;
     delete[] sktstate2;
-	delete[] sstate1;
-	delete[] sstate2; 
+	delete sstate1;
+	delete sstate2;
 	flog.close();
 	f_error.close();
 	std::cout.rdbuf(coutbuf);
