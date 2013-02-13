@@ -19,6 +19,7 @@
 #include <assert.h>
 #include "cpucounters.h"
 #include "measuring_core.h"
+#include "dummyFunction.h"
 
 #include <algorithm>
 #include <climits>
@@ -27,6 +28,15 @@
 
 #define SIZE (10000000)
 #define DELAY 1 // in seconds
+
+
+
+//Vicky - Auxiliary functions for execuitng CPUID
+#define __WORDSIZE 64
+#define cpuid(aid,bid, cid, did) __asm__( "cpuid" : "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx) : "a"(aid), "b"(bid), "c"(cid), "d"(did))
+#define b(val, base, end) ((val << (__WORDSIZE-end-1)) >> (__WORDSIZE-end+base-1))
+#define max(a,b) ((a) > (b) ? (a) : (b))
+// End of auxiliary functions
 
 using namespace std;
 
@@ -67,9 +77,6 @@ long cycles_a, cycles_b;
  std::streambuf *cerrtbuf;
 
 
- 
-
-
  list<uint64> *plists0;
  list<uint64> *plists1;
  list<uint64> *plists2;
@@ -108,39 +115,144 @@ long cycles_a, cycles_b;
 // vector<double> *sdcyclesvec;
 // Dani end
 
-int flushTLB()
-{
-	
+
+//Vicky - get LLC cache size from CPUID
+unsigned long getLLCSize(){
+  unsigned long LLCsize , cacheLevel, associativity, nSets, nPartitions, lineSize;
+  unsigned long eax, ebx, ecx, edx;
+  int cacheInstance = -1;
+  do{
+    cacheInstance++;
+    cpuid(4,0,cacheInstance,0);
+    cacheLevel = b(eax, 5, 7);
+  }while(cacheLevel != 0);
+  // cacheInstance-1 is the LLC
+  cpuid(4,0,cacheInstance-1,0);
+  associativity = b(ebx, 22, 31)+1;
+  nSets = b(ecx, 0, 31)+1;
+  nPartitions = b(ebx, 12, 21)+1;
+  lineSize = b(ebx, 0, 11)+1;
+  LLCsize = associativity*nSets*nPartitions*lineSize;
+  return LLCsize;
+}
+ // End of obtaining LLC cache size from CPUID
+
+
+
+//Vicky - get TLB cache size info from CPUID
+
+
+cpuid_cache_descriptor_t getTLBinfo(cpuid_leaf2_qualifier_t cacheType){
+  
+  unsigned long eax, ebx, ecx, edx;
+  cpuid_cache_descriptor_t tlb_info;
+  tlb_info.size = 0;
+  tlb_info.entries = 0;
+  cpuid(2,0,0,0);
+  
+  unsigned long cachesInfo[]={b(eax, 0, 7),
+          b(eax, 8, 15),
+          b(eax, 16, 23),
+          b(eax, 24, 31),
+          b(ebx, 0, 7),
+          b(ebx, 8, 15),
+          b(ebx, 16, 23),
+          b(ebx, 24, 31),
+          b(ecx, 0, 7),
+          b(ecx, 8, 15),
+          b(ecx, 16, 23),
+          b(ecx, 24, 31),
+          b(edx, 0, 7),
+          b(edx, 8, 15),
+          b(edx, 16, 23),
+    b(edx, 24, 31)};
+ 
+     
+    for (unsigned int i = 0; i< 16; i++) {
+      if (cachesInfo[i]!= 0) {
+        for (unsigned int j=0; j< sizeof(intel_cpuid_leaf2_descriptor_table) / sizeof(cpuid_cache_descriptor_t) ;j++ ) {
+       cpuid_cache_descriptor_t desc = intel_cpuid_leaf2_descriptor_table[j];
+          if (desc.value == cachesInfo[i]) {
+            // Entry found
+              if (desc.type == TLB && desc.level == cacheType) {
+                // From all the TLBs, take the number of entries of the larger one ("last-level")
+                if ( desc.entries > tlb_info.entries)
+                  tlb_info = desc;
+            }
+          }
+        }
+      }
+    }
+  return tlb_info;
 }
 
 
-int flushICache()
-{
+// For flushing instruction caches, it is useless to calculate the cache
+// size because the dummy code that is going to be run is created
+// at compilation time... We just make it large enough to flush the
+// caches, regardless their sizes
 
+void flushITLB()
+{
+	dummyFunction();
+  
 }
 
 
-int flushCache()
+
+void flushDTLB()
 {
-	//GO: TODO - get LLC cache size from CPUID
-	long size = 50 * 1024 * 1024; //14 MB
+  cpuid_cache_descriptor_t tlb_info = getTLBinfo(DATA);
+//  cout << "DTLB entries " << tlb_info.entries << endl;
+ // cout << "DTLB page size " << tlb_info.size << " (B)\n";
+  
+	long size = tlb_info.entries*tlb_info.size*2;
 	double * buffer = (double *) malloc(size);
 	double result = 0;
-	for (long i = 0; i < size/sizeof(double); i=i+4)
+  
+	for (unsigned long i = 0; i < size/sizeof(double); i=i+tlb_info.size)
 	{
 		result += buffer[i];
 	}
-	for (long i = 0; i < size/sizeof(double); i=i+4)
+	for (unsigned long i = 0; i < size/sizeof(double); i=i+tlb_info.size)
 	{
 		result += buffer[i];
 	}
 	free(buffer);
-	std::cout << "flushed cache"<< result << endl;
+  
 }
 
 
 
-int perfmon_init(long * custom_counters, long offcore_response0, long offcore_response1)
+
+void flushICache()
+{
+  dummyFunction();
+}
+
+
+void flushDCache()
+{
+  
+  unsigned long LLCsize = getLLCSize();
+	long size = LLCsize*2; 
+	double * buffer = (double *) malloc(size);
+	double result = 0;
+	for (unsigned long i = 0; i < size/sizeof(double); i=i+1)
+	{
+		result += buffer[i];
+	}
+	for (unsigned long i = 0; i < size/sizeof(double); i=i+1)
+	{
+		result += buffer[i];
+	}
+	free(buffer);
+	std::cout << "flushed cache "<< result << endl;
+}
+
+
+
+int perfmon_init(long * custom_counters = NULL, long offcore_response0 = 0, long offcore_response1 = 0)
 {
     
 	flog.open("log.txt");	 

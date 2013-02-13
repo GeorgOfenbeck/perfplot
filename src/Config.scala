@@ -14,6 +14,7 @@ object Config {
   val use_gcc = false;
   val debug = true;
   val home = System.getProperty( "user.home" )
+  val pwd = System.getProperty( "user.dir" )
 
   val gnuplot = if (isWin) "C:\\Program Files (x86)\\gnuplot\\bin\\gnuplot.exe" else "gnuplot"
 
@@ -25,7 +26,7 @@ object Config {
   def MeasuringCore: File = if (isWin)
                          new File("C:\\Users\\ofgeorg\\IdeaProjects\\perfplot\\pcm\\","MeasuringCore.lib")
                       else
-                         new File(home + "/perfplot/pcm/MeasuringCore.lib")
+                         new File(pwd + File.separator + "pcm" + File.separator + "MeasuringCore.lib")
 
 
   def default_flags = flag_c99 + flag_optimization + flag_hw
@@ -38,7 +39,7 @@ object Config {
   def flag_novec = if (isWin) " /Qno-simd /Qno-vec" else " -no-simd -no-vec"
 
 
-  val MeasuringCoreH = "#ifndef MEASURING_CORE_HEADER\n#define MEASURING_CORE_HEADER\n\n\n\nint perfmon_init(int type, bool flushData , bool flushICache , bool flushTLB );\nvoid perfmon_start();\nvoid perfmon_stop();\nvoid perfmon_end();int flushTLB();\n  int flushICache();\n  int flushCache();\n\n#endif"
+  val MeasuringCoreH = "#include <cstdio>\n#ifndef MEASURING_CORE_HEADER\n#define MEASURING_CORE_HEADER\n\n\n\n//int perfmon_init(long * custom_counters = NULL, long offcore_response0 = 0, long offcore_response1 = 0);\nint perfmon_init(long * custom_counters , long offcore_response0 , long offcore_response1 );\nvoid perfmon_start();\nvoid perfmon_stop(long runs=1);\nvoid perfmon_end();\n// Start Dani\n//bool perfmon_customTest(size_t runs, size_t vlen);\nbool perfmon_testDerivative(size_t runs, double threshold, size_t points=1);\n//void perfmon_meanSingleRun();\n//bool perfmon_testSD(size_t runs);\nvoid perfmon_emptyLists(bool clearRuns=true);\nvoid dumpMeans();\n// End Dani\n\nint flushTLB();\nint flushICache();\nint flushCache();\n\n\n#endif"
 
 
 }

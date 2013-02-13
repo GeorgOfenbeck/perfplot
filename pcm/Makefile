@@ -3,7 +3,7 @@
 # written by Roman Dementiev
 #
 
-all: pcm-power.x pcm.x pcm-sensor.x pcm-msr.x pcm-memory.x
+all: pcm-power.x pcm.x pcm-sensor.x pcm-msr.x pcm-memory.x MeasuringCore.lib
 
 CC=g++ -Wall
 OPT= -g -O3 
@@ -47,6 +47,9 @@ msrtest.x: msrtest.cpp msr.o cpucounters.o cpucounters.h  msr.h  types.h
 cpucounterstest.o: cpucounterstest.cpp cpucounters.h pci.h msr.h  types.h
 	$(CC) $(OPT) -c cpucounterstest.cpp
 
+measuring_core.o: measuring_core.cpp cpucounters.h measuring_core.h cpuid_info.h dummyFunction.h
+	$(CC) $(OPT) -fasm-blocks -c measuring_core.cpp
+
 pcm-power.o: pcm-power.cpp msr.h types.h pci.h cpucounters.h
 	$(CC) $(OPT) -c pcm-power.cpp
 
@@ -72,7 +75,9 @@ pcm-sensor.o: pcm-sensor.cpp cpucounters.h cpuasynchcounter.h msr.h  types.h
 
 pcm-sensor.x: msr.o cpucounters.o pcm-sensor.o pci.o
 	$(CC) $(OPT) msr.o pci.o cpucounters.o pcm-sensor.o -o pcm-sensor.x $(LIB)
-
+#.lib to make it easier to handle Win
+MeasuringCore.lib: cpucounters.o msr.o pci.o measuring_core.o
+	ar -cvq MeasuringCore.lib msr.o pci.o cpucounters.o measuring_core.o 
 nice:
 	uncrustify --replace -c ~/uncrustify.cfg *.cpp *.h WinMSRDriver/Win7/*.h WinMSRDriver/Win7/*.c WinMSRDriver/WinXP/*.h WinMSRDriver/WinXP/*.c  PCM_Win/*.h PCM_Win/*.cpp  
 

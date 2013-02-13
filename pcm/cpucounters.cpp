@@ -29,7 +29,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #else
 #include "cpucounters.h"
 
-long g_offcore_response0, g_offcore_response1;
+
 
 #endif
 #include "msr.h"
@@ -78,6 +78,9 @@ int convertUnknownToInt(size_t size, char* value);
 #define PCM_INSTANCE_LOCK_SEMAPHORE_NAME "Intel(r) PCM inst lock"
 #define PCM_NUM_INSTANCES_SEMAPHORE_NAME "Num Intel(r) PCM insts"
 #endif
+
+
+long g_offcore_response0, g_offcore_response1;
 
 #ifdef _MSC_VER
 
