@@ -180,7 +180,7 @@ void mmm(size_t n) {
 	_destroy(A); _destroy(B); _destroy(C);
 #endif
 
-	cout << "\n\nUsing threshold " << THRESHOLD << " value for RUNS: " << runs << endl;
+	cout << "\n\nUsing threshold " << slope << " value for RUNS: " << runs << endl;
 
 	measurement_emptyLists();
 
@@ -255,7 +255,7 @@ void mvm(size_t n) {
 #endif
 
 	cout << "Out - Runs = " << runs << " d = " << d << endl;
-	cout << "\n\nUsing threshold " << alpha << " value for RUNS: " << runs << endl;
+	cout << "\n\nUsing threshold " << slope << " value for RUNS: " << runs << endl;
 
 	dumpMeans();
 	measurement_emptyLists();
