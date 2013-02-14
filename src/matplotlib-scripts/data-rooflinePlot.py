@@ -11,6 +11,9 @@ import random
 from matplotlib.font_manager import FontProperties
 import matplotlib.pyplot as plt
 import matplotlib.lines as lns
+from scipy import stats
+
+
 
    
 background_color = '#eeeeee' 
@@ -42,6 +45,8 @@ OUTPUT_FILE="data-rooflinePlot.pdf"
 TITLE="TITLE"
 X_LABEL="Operational Intensity [Flop/Byte]"
 Y_LABEL="Performance [Flop/Cycle]"
+series = ['MMM', 'MKL']
+colors=[ '#000066','#336600','#CC0033' ,'#FFFF00', 'black' ]
 
 fig = plt.figure()
 # Returns the Axes instance
@@ -89,47 +94,92 @@ if LOG_X:
 #yticks(ylocs, new_ylabels)
 
 
-x, y ,xerr_low, xerr_high, yerr_low, yerr_high  = loadtxt('data-roofline.dat',unpack=True)
-#xerr_low, xerr_high, yerr_low, yerr_high = loadtxt('error.dat',unpack=True)
-xerr_low = x - xerr_low
-xerr_high = xerr_high - x
-yerr_low = y - yerr_low
-yerr_high = yerr_high - y
 
-#ax.errorbar(x, y, yerr=[yerr_low, yerr_high], xerr=[xerr_low, xerr_high], marker='.',
-#           color='r',
-#           ecolor='r')
-          # label="series 1",
-          # linestyle='-')
-
-#ax.plot(x, y,
-#           color='r',
-#           label="series 1",
-#           linestyle='-')
-
-
+# Load the data 
 
 pp = []
-colors = ['r', 'b', 'g']
-#for i in len(x):
-p =ax.plot(x, y, '-', color='%s' % colors[0],label="series 1")
-pp.append(p[0])
-ax.errorbar(x, y, yerr=[yerr_low, yerr_high], xerr=[xerr_low, xerr_high], color='%s' % colors[0])  
+ss=[]
+for serie,i in zip(series,range(len(series))):
+	
+	nCycles = []
+    	file_in = open('tsc_'+serie+'.txt','r')
+    	lines = file_in.readlines()
+    	for line in lines:
+        	split_line = line.rstrip('\n').split(' ')
+        	nCycles.append(split_line)
+
+    	file_in.close()
+
+	nFLOPS = []
+    	file_in = open('flop_'+serie+'.txt','r')
+    	lines = file_in.readlines()
+    	for line in lines:
+            	split_line = line.rstrip('\n').split(' ')
+            	nFLOPS.append(split_line)
+
+    	file_in.close()
+	
+	bytesTransferred = []
+        file_in = open('bytes_transferred_'+serie+'.txt','r')
+        lines = file_in.readlines()
+        for line in lines:
+                split_line = line.rstrip('\n').split(' ')
+                bytesTransferred.append(split_line)
+
+        file_in.close()
+
+    	yData =[]
+    	for f,c in zip(nFLOPS,nCycles):
+        	yData.append([float(vf)/float(vc) for vf, vc in zip(f,c) if vf != '' and vc != ''])
+
+	xData =[]
+    	for f,b in zip(nFLOPS,bytesTransferred):
+        	xData.append([float(vf)/float(vb) for vf, vb in zip(f,b) if vf != '' and vb != ''])
+
+	x=[]
+	xerr_low=[]
+	xerr_high = []
+	yerr_high = []
+	y = []
+	yerr_low = []
+
+	for xDataItem in xData:
+		x.append(stats.scoreatpercentile(xDataItem, 50))
+		xerr_low.append(stats.scoreatpercentile(xDataItem, 25))
+		xerr_high.append(stats.scoreatpercentile(xDataItem, 75))	
+	
+	for yDataItem in yData:
+		y.append(stats.scoreatpercentile(yDataItem, 50))
+		yerr_low.append(stats.scoreatpercentile(yDataItem, 25))
+		yerr_high.append(stats.scoreatpercentile(yDataItem, 75)) 
+
+	xerr_low = [a - b for a, b in zip(x, xerr_low)] 
+	xerr_high = [a - b for a, b in zip(xerr_high, x)]
+	yerr_low = [a - b for a, b in zip(y, yerr_low)]
+	yerr_high = [a - b for a, b in zip(yerr_high, y)]
 
 
-ax.legend(pp,numpoints=1, loc='best',fontsize =6,frameon = False )
+
+	p, =ax.plot(x, y, '-', color=colors[i],label=serie)
+	pp.append(p)
+	ss.append(serie);
+	ax.errorbar(x, y, yerr=[yerr_low, yerr_high], xerr=[xerr_low, xerr_high], color=colors[i])  
+
+
+#print pp
+ax.legend(pp,ss, numpoints=1, loc='best',fontsize =6,frameon = False )
 
 
 
 #Anotate 
 # TODO: make it if anotate
-ax.annotate('Variant 0',
-         xy=(x[0], y[0]), xycoords='data',
-         xytext=(+3, +1), textcoords='offset points', fontsize=8)
+#ax.annotate('Variant 0',
+#         xy=(x[0], y[0]), xycoords='data',
+#         xytext=(+3, +1), textcoords='offset points', fontsize=8)
 
-ax.annotate('Variant 1',
-         xy=(x[1],y[1]), xycoords='data',
-         xytext=(+3, +1), textcoords='offset points', fontsize=8)
+#ax.annotate('Variant 1',
+#         xy=(x[1],y[1]), xycoords='data',
+#         xytext=(+3, +1), textcoords='offset points', fontsize=8)
 
 
 
