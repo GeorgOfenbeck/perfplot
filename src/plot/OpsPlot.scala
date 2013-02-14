@@ -1,7 +1,7 @@
-package roofline
+package perfplot
 package plot
 
-import roofline.quantities._
+import perfplot.quantities._
 /**
  * Georg Ofenbeck
  First created:

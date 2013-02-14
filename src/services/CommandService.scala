@@ -1,4 +1,4 @@
-package roofline
+package perfplot
 package services
 
 /**
@@ -11,9 +11,9 @@ package services
 import java.io._
 import java.security.MessageDigest
 import java.security.DigestInputStream
-import roofline.Config
-import roofline.plot._
-import roofline.quantities._
+import perfplot.Config
+import perfplot.plot._
+import perfplot.quantities._
 
 
 object CommandService {

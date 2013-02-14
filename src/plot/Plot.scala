@@ -5,7 +5,7 @@
  * Time: 15:55 
  */
 
-package roofline
+package perfplot
 package plot
 
 

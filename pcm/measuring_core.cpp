@@ -252,7 +252,7 @@ void flushDCache()
 
 
 
-int perfmon_init(long * custom_counters, long offcore_response0, long offcore_response1)
+int measurement_init(long * custom_counters, long offcore_response0, long offcore_response1)
 {
     
 	flog.open("log.txt");	 
@@ -409,7 +409,7 @@ int perfmon_init(long * custom_counters, long offcore_response0, long offcore_re
 
 }
 
-void perfmon_start ()
+void measurement_start ()
 {
 
 	/*long ret = SetThreadIdealProcessor(GetCurrentThread(),0);
@@ -441,7 +441,7 @@ void perfmon_start ()
 
 
 
-void perfmon_stop(long nr_runs)
+void measurement_stop(long nr_runs)
 {
 	*sstate2 = getSystemCounterState();
     for (uint32 i = 0; i < m->getNumSockets(); ++i)
@@ -506,7 +506,7 @@ void perfmon_stop(long nr_runs)
 
 //// Start Dani
 
-void perfmon_emptyLists(bool clearRuns)
+void measurement_emptyLists(bool clearRuns)
 {
 	for (uint32 i = 0; i < m->getNumCores(); ++i)
 	{
@@ -528,15 +528,18 @@ void perfmon_emptyLists(bool clearRuns)
 	plist_mcread[0].clear();
 	plist_mcwrite[0].clear();
 	
-	if(clearRuns) runvec->clear();
+	if(clearRuns) {
+		runvec->clear();
+		meancyclesvec->clear();
+	}
  
 }
-bool perfmon_testDerivative(size_t runs, double threshold, size_t points) {
+bool measurement_testDerivative(size_t runs, double alpha_threshold, double avg_threshold, double time_threshold, double *d, size_t points) {
 
 	// Using TSC
 	size_t n = plist_tsc[0].size();
 //	double sumcycle2 = 0;
-	double sumcycle = 0, cycles;
+	double cumcycles = 0, sumcycle = 0, cycles, c_threshold = time_threshold*m->getNominalFrequency();
 
 	uint32 ncores = m->getNumCores();
 	list<uint64>::iterator* it = new list<uint64>::iterator[ncores];
@@ -548,6 +551,7 @@ bool perfmon_testDerivative(size_t runs, double threshold, size_t points) {
 		uint64 maxtsc = *it[0];
 		for(uint32 c = 1; c < ncores; c++)
 			maxtsc = max(maxtsc, *it[c]);
+		cumcycles += maxtsc;
 		cycles = double(maxtsc)/runs;
 //		sumcycle2 += cycles*cycles;
 		sumcycle += cycles;
@@ -556,14 +560,14 @@ bool perfmon_testDerivative(size_t runs, double threshold, size_t points) {
 	}
 
 //	double s2 = (n*sumcycle2 - sumcycle*sumcycle)/(n*(n-1));
-	double m  = sumcycle/n;
+	double avg  = sumcycle/n;
 //	double sd = sqrt(s2);
 
 //	cout << endl << endl << "SD Test on Core " << 3 << ": " << endl;
 //	cout << "\tAverage cycles: " << m << endl;
 //	cout << "\tStandard deviation: " << sd << endl;
 //
-	meancyclesvec->push_back(m);
+	meancyclesvec->push_back(avg);
 //	sdcyclesvec->push_back(sd);
 
 	if (runvec->size() < points+2)
@@ -572,56 +576,35 @@ bool perfmon_testDerivative(size_t runs, double threshold, size_t points) {
 	n = runvec->size();
 
 	bool condition = true;
-
+	size_t nump = points;
 	while ((condition) && (points>0)) {
-		double d = ((*meancyclesvec)[n-points] - (*meancyclesvec)[n-points-2])/((*runvec)[n-points] - (*runvec)[n-points-2]);
-		condition = (fabs(d) <= threshold);
+		d[nump-points] = ((*meancyclesvec)[n-points] - (*meancyclesvec)[n-points-2])/((*runvec)[n-points] - (*runvec)[n-points-2]);
+		condition = (fabs(d[nump-points]) <= alpha_threshold);
 		--points;
 	}
-//	cout << "Derivative value: " << d << endl;
 
-	return (condition || m > 1e6);
+	cout << "With C_THRESH = " << c_threshold << " Sum. Cycles = " << cumcycles << endl;
+	cout << "condition = " << condition << endl;
+	cout << "AVG_THRESH = " << avg_threshold << " Avg. = " << avg << endl;
+
+	return (condition || avg > avg_threshold || cumcycles > c_threshold);
 //	return (condition || m > 1e7);
 //	return (condition || m > 1e7 || sumcycle > 1e7);
 //	return (condition || sumcycle > 1e7);
 
 }
 
-//void perfmon_meanSingleRun() {
-//
-//	size_t n = plist_tsc[0].size();
-//	double sumcycle2 = 0, sumcycle = 0, cycles;
-//
-//	uint32 ncores = m->getNumCores();
-//	list<uint64>::iterator* it = new list<uint64>::iterator[ncores];
-//
-//	for(uint32 c = 0; c < ncores; c++)
-//		it[c] = plist_tsc[c].begin();
-//
-//	for (size_t i = 0; i < n; ++i) {
-//		uint64 maxtsc = *it[0];
-//		for(uint32 c = 1; c < ncores; c++)
-//			maxtsc = max(maxtsc, *it[c]);
-//		cycles = double(maxtsc);
-//		sumcycle2 += cycles*cycles;
-//		sumcycle += cycles;
-//		for(uint32 c = 0; c < ncores; c++)
-//			it[c]++;
-//	}
-//
-//	double s2 = (n*sumcycle2 - sumcycle*sumcycle)/(n*(n-1));
-//	double m  = sumcycle/n;
-//	double sd = sqrt(s2);
-//
-////	cout << endl << endl << "SD Test on Core " << 3 << ": " << endl;
-////	cout << "\tAverage cycles: " << m << endl;
-////	cout << "\tStandard deviation: " << sd << endl;
-////
-//	runvec->push_back(n);
-//	meancyclesvec->push_back(m);
-//	sdcyclesvec->push_back(sd);
-//
-//}
+unsigned long measurement_getNumberOfShifts(unsigned long size, unsigned long initialGuess) {
+	
+	
+	unsigned long value = initialGuess;
+	unsigned long llcSize = getLLCSize();
+	if (size*value > 2*llcSize) { //GO: 2DO - binary search - calculate with page aligned!
+		while((size*value > 2*llcSize) && (value > 2))
+			--value;
+	}
+	return value;
+}
 
 void dumpMeans()
 {
@@ -638,7 +621,7 @@ void dumpMeans()
 
 
 
-void perfmon_end()
+void measurement_end()
 {
 	char tstring[100];
 	uint32 nrcores = m->getNumCores();        	

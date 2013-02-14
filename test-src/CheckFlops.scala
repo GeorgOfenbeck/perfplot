@@ -8,8 +8,8 @@
  */
 import java.io.PrintStream
 import org.scalatest.Suite
-import roofline._
-import roofline.services._
+import perfplot._
+import perfplot.services._
 import java.io._
 import scala.io._
 

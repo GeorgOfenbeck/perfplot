@@ -10,9 +10,9 @@
 
 import org.scalatest.Suite
 
-import roofline.plot._
-import roofline.quantities.{TransferredBytes, Throughput}
-import roofline.services._
+import perfplot.plot._
+import perfplot.quantities.{TransferredBytes, Throughput}
+import perfplot.services._
 
 import services._
 import java.io._
@@ -167,9 +167,9 @@ class TestMeasuring extends Suite{
     val mcwrite = getFile(temp.getPath + File.separator + "MC_write.txt").split(" ").map( x => x.toLong ) // /1024/1024)
 
 
-    import roofline.plot._
-    import roofline.services._
-    import roofline.quantities._
+    import perfplot.plot._
+    import perfplot.services._
+    import perfplot.quantities._
 
 
     println("-------------")

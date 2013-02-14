@@ -1,4 +1,4 @@
-package roofline
+package perfplot
 package quantities
 
 /**
