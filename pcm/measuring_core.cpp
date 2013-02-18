@@ -459,16 +459,16 @@ void measurement_stop(long nr_runs)
 		c2 = getL3CacheHitsSnoop(cstates1[i], cstates2[i]);
 		c3 = getL2CacheHits(cstates1[i], cstates2[i]);
 
-		plists0[i].push_front(c0); //Counter0
-		plists1[i].push_front(c1); //Counter1
-		plists2[i].push_front(c2); //Counter2
-		plists3[i].push_front(c3); //Counter3
+		plists0[i].push_front(c0/nr_runs); //Counter0
+		plists1[i].push_front(c1/nr_runs); //Counter1
+		plists2[i].push_front(c2/nr_runs); //Counter2
+		plists3[i].push_front(c3/nr_runs); //Counter3
 
 		//this is a placeholder till all 8 counters are enabled again
-		plists4[i].push_front(c0); //Counter0
-		plists5[i].push_front(c1); //Counter1
-		plists6[i].push_front(c2); //Counter2
-		plists7[i].push_front(c3); //Counter3
+		plists4[i].push_front(0); //Counter0
+		plists5[i].push_front(0); //Counter1
+		plists6[i].push_front(0); //Counter2
+		plists7[i].push_front(0); //Counter3
 
 		/*
 		plists4[i].push_front(getCustom4(cstates1[i], cstates2[i]));
@@ -476,9 +476,9 @@ void measurement_stop(long nr_runs)
 		plists6[i].push_front(getCustom6(cstates1[i], cstates2[i]));
 		plists7[i].push_front(getCustom7(cstates1[i], cstates2[i]));
         */
-		plist_cycles[i].push_front(getCycles(cstates1[i], cstates2[i]));
-		plist_refcycles[i].push_front(getRefCycles(cstates1[i], cstates2[i]));
-		plist_tsc[i].push_front(getInvariantTSC(cstates1[i], cstates2[i]));		
+		plist_cycles[i].push_front(getCycles(cstates1[i], cstates2[i])/nr_runs);
+		plist_refcycles[i].push_front(getRefCycles(cstates1[i], cstates2[i])/nr_runs);
+		plist_tsc[i].push_front(getInvariantTSC(cstates1[i], cstates2[i])/nr_runs);		
 
 		
 	}
@@ -493,8 +493,8 @@ void measurement_stop(long nr_runs)
 		sysWrite =+ getBytesWrittenToMC(sktstate1[i], sktstate2[i]);
 	}
 
-	plist_mcread[0].push_front(sysRead);
-	plist_mcwrite[0].push_front(sysWrite);
+	plist_mcread[0].push_front(sysRead/nr_runs);
+	plist_mcwrite[0].push_front(sysWrite/nr_runs);
 	plist_nrruns[0].push_front(nr_runs);	
 	
 	// Dani start
@@ -599,9 +599,10 @@ unsigned long measurement_getNumberOfShifts(unsigned long size, unsigned long in
 	
 	unsigned long value = initialGuess;
 	unsigned long llcSize = getLLCSize();
-	if (size*value > 2*llcSize) { //GO: 2DO - binary search - calculate with page aligned!
-		while((size*value > 2*llcSize) && (value > 2))
-			--value;
+	if (size > 2 *llcSize || size*value > 2*llcSize) { //GO: 2DO - binary search - calculate with page aligned!
+		value = 2;
+		while((size*value < 2*llcSize) )
+			value=value*2;
 	}
 	return value;
 }

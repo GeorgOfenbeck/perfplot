@@ -51,7 +51,7 @@ class TestMemory  extends Suite{
     cmdbat.println("counters[7] = " + counter.getUmask + ";")
 
     if (counter.getEventNr == 183) //Offcore response
-      cmdbat.println("perfmon_init(counters,"+counter.getComment+",0);")
+      cmdbat.println("perfmon_init(counters,"+counter.Comment+",0);")
     else
       cmdbat.println("perfmon_init(counters,0,0);")
 
@@ -96,7 +96,7 @@ class TestMemory  extends Suite{
     sourcefile.println("counters[7] = " + counter.getUmask + ";")
 
     if (counter.getEventNr == 183) //Offcore response
-      sourcefile.println("perfmon_init(counters,"+counter.getComment+",0);")
+      sourcefile.println("perfmon_init(counters,"+counter.Comment+",0);")
     else
       sourcefile.println("perfmon_init(counters,0,0);")
     sourcefile.println("const int page = 1024*4;")
@@ -175,7 +175,7 @@ class TestMemory  extends Suite{
 
 
 
-
+/*
   def test() =
   {
     val outfile = new PrintStream("data.txt")
@@ -235,5 +235,5 @@ class TestMemory  extends Suite{
     outfile2.close();
 
   }
-
+          */
 }

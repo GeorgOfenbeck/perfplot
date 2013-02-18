@@ -47,7 +47,7 @@ Y_LABEL="Performance [Flop/Cycle]"
 OUTPUT_FILE="performancePlot.pdf"
 PLOT_STATS=1
 colors=['black', '#000066','#336600','#CC0033' ,'#FFFF00' ]
-series = ['cold_mmm', 'warm_mmm']
+series = ['dgemv_warm'] #, 'warm_mmm']
 
 
 fig = plt.figure()

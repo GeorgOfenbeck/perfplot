@@ -48,7 +48,8 @@ object CommandService {
       sRefCycleCounter: Array[Long],
       avgTSCCounter: Array[Long],
       mcread: Array[Long],
-      mcwrite: Array[Long]
+      mcwrite: Array[Long],
+      nrruns : Array[Long]
     )
   {
 
@@ -108,11 +109,23 @@ object CommandService {
 
     def getFlops(r : Range): List[Long] = (for (i <- r) yield getFlops(i)).toList
 
+
+    def getnrruns(i: Int) = nrruns(i)
+
+    def getTSC (i: Int) : Long =
+    {
+      avgTSCCounter(i)
+    }
+
     def getFlops (i: Int) : Long =
     {
-      get_scalar_double_flops(i) + get_scalar_single_flops(i) +
-      get_sse_double_flops(i) + get_sse_single_flops(i) +
-      get_avx_double_flops(i) + get_avx_single_flops(i)
+      (
+        get_scalar_double_flops(i) + //+ get_scalar_single_flops(i) +
+      get_sse_double_flops(i) + get_avx_double_flops(i)
+        /*+ get_sse_single_flops(i) +
+     + get_avx_single_flops(i) */
+        ) / nrruns(i)
+
     }
 
     def getFlops(core: Int, exp: Int) =
@@ -190,32 +203,32 @@ object CommandService {
       for (i <- 0 until nrcores)
         println(
           "%6d".format(i) +
-          "%12d".format(TSCCounter(i)(j)) +
-          "%12d".format(Counter0(i)(j)) +
-          "%12d".format(Counter1(i)(j)) +
-          "%12d".format(Counter2(i)(j)) +
-          "%12d".format(Counter3(i)(j)) +
-          "%12d".format(Counter4(i)(j)) +
-          "%12d".format(Counter5(i)(j)) +
+          "%12d".format(TSCCounter(i)(j)/nrruns(j)) +
+          "%12d".format(Counter0(i)(j)/nrruns(j)) +
+          "%12d".format(Counter1(i)(j)/nrruns(j)) +
+          "%12d".format(Counter2(i)(j)/nrruns(j)) +
+          "%12d".format(Counter3(i)(j)/nrruns(j)) +
+          "%12d".format(Counter4(i)(j)/nrruns(j)) +
+          "%12d".format(Counter5(i)(j)/nrruns(j)) +
           //"%12d".format(Counter6(i)(j)) +
-          "%12d".format(Counter7(i)(j)) +
+          "%12d".format(Counter7(i)(j)/nrruns(j)) +
           "%12f".format(getPerformance(i,j).value)
         )
-      println("--------------------------------------------------------------------------------------------------------")
+      println(nrruns(j) + "--------------------------------------------------------------------------------------------------------")
       println(
         "%6d".format(-1) +
-          "%12d".format(avgTSCCounter(j)) +
-          "%12d".format(SCounter0(j)) +
-          "%12d".format(SCounter1(j)) +
-          "%12d".format(SCounter2(j)) +
-          "%12d".format(SCounter3(j)) +
-          "%12d".format(SCounter4(j)) +
-          "%12d".format(SCounter5(j)) +
+          "%12d".format(avgTSCCounter(j)/nrruns(j)) +
+          "%12d".format(SCounter0(j)/nrruns(j)) +
+          "%12d".format(SCounter1(j)/nrruns(j)) +
+          "%12d".format(SCounter2(j)/nrruns(j)) +
+          "%12d".format(SCounter3(j)/nrruns(j)) +
+          "%12d".format(SCounter4(j)/nrruns(j)) +
+          "%12d".format(SCounter5(j)/nrruns(j)) +
           //"%12d".format(SCounter6(j)) +
-          "%12d".format(SCounter7(j)) +
+          "%12d".format(SCounter7(j)/nrruns(j)) +
           "%12f".format(getPerformance(j).value) +
-          "%12d".format(mcread(j)/1024) +
-          "%12d".format(mcwrite(j)/1024)
+          "%12d".format(mcread(j)/1024/nrruns(j)) +
+          "%12d".format(mcwrite(j)/1024/nrruns(j))
       )
         println()
       }
@@ -294,7 +307,7 @@ object CommandService {
       }
 
 
-      for (i <- 0 until avgTSCCounter.size) {
+      for (i <- 0 until avgTSCCounter.size) { //GO: TODO: should change this to max instead of average
         avgTSCCounter(i) = 0
         for (j <- 0 until nrcores)
           avgTSCCounter(i) = avgTSCCounter(i) + TSCCounter(j)(i)
@@ -316,6 +329,8 @@ object CommandService {
 
       val mcread = getFile(path.getPath + File.separator + "MC_read.txt").split(" ").map( x => x.toLong  ).reverse // /1024/1024 )
       val mcwrite = getFile(path.getPath + File.separator + "MC_write.txt").split(" ").map( x => x.toLong ).reverse // /1024/1024)
+      val nrruns = getFile(path.getPath + File.separator + "nrruns.txt").split(" ").map( x => x.toLong ).reverse // /1024/1024)
+
 
       new Counters(nrcores,
         Counter0,
@@ -341,7 +356,8 @@ object CommandService {
         sRefCycleCounter,
         avgTSCCounter,
         mcread,
-        mcwrite
+        mcwrite,
+        nrruns
       )
     }
   }

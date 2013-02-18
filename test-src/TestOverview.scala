@@ -49,7 +49,7 @@ def Counters2CCode(counters: Array[HWCounters.Counter]): (String,String) =
 
 def tuneNrRuns(sourcefile : PrintStream, kernel: String, printsomething: String) =
 {
-  sourcefile.println("long runs = 16;")
+  sourcefile.println("long runs = 1;")
   sourcefile.println("for(; runs <= (1 << 20); runs *= 2){")
   sourcefile.println("measurement_start();")
   sourcefile.println("for(int i = 0; i < runs; i++)")
@@ -62,85 +62,304 @@ def tuneNrRuns(sourcefile : PrintStream, kernel: String, printsomething: String)
   sourcefile.println("measurement_emptyLists();") //duplicated cause of the break
 }
 
+  def create_array_of_buffers (sourcefile: PrintStream) =
+  {
+    def p(x: String) = sourcefile.println(x)
+    val prec =  "double"
+    p("void * CreateBuffers(long size, long numberofshifts)")
+    p("{")
+    p( prec + " ** bench_buffer = (" + prec + "**) _mm_malloc(numberofshifts*sizeof(" + prec + "*),page);" )
+    p( "if (!bench_buffer) {\n      std::cout << \"malloc failed\";\n      measurement_end();\n      return ;} ")
+    p("for(int i = 0; i < numberofshifts; i++){")
+    p("bench_buffer[i] = (" + prec + "*) _mm_malloc(size,page);" )
+    p( "if (!bench_buffer[i]) {\n      std::cout << \"malloc failed\";\n      measurement_end();\n      return ;} ")
+    p("}")
+    p("return (void*)bench_buffer;")
+    p("}")
+  }
+
+
+  def destroy_array_of_buffers( sourcefile: PrintStream) =
+  {
+    def p(x: String) = sourcefile.println(x)
+    p("void DestroyBuffers(void ** bench_buffer, long numberofshifts) {")
+    p("for(int i = 0; i < numberofshifts; i++)")
+    p("_mm_free(bench_buffer[i]);")
+    p("_mm_free(bench_buffer);")
+    p("}")
+  }
+
+
+
+def dgemv_MKL (sourcefile: PrintStream,sizes: List[Long], counters: Array[HWCounters.Counter], runs: Long,  double_precision: Boolean = true, warmData: Boolean = false) =
+{
+  def p(x: String) = sourcefile.println(x)
+  
+  
+  val prec = if (double_precision) "double" else "float"
+
+  p("#include <mkl.h>")
+  p("#include <iostream>")
+  p("#include <iostream>\n#include <fstream>\n#include <cstdlib>\n#include <ctime>\n#include <cmath>\n")
+  p(Config.MeasuringCoreH)
+  p("#define page 4096")
+  p("#define THRESHOLD " + Config.testDerivate_Threshold)
+  p("using namespace std;")
+  val (counterstring, initstring ) = Counters2CCode(counters)
+
+  create_array_of_buffers(sourcefile)
+  destroy_array_of_buffers(sourcefile)
+  p("int main () { ")
+  p(counterstring)
+  p(initstring)
+  for (size <- sizes)
+  {
+    p("{")
+    p("double alpha = 1.1;")
+
+    p("int n = " +size + ";")
+    //Tune the number of runs
+    p("std::cout << \"tuning\";")
+
+    //tuneNrRuns(sourcefile,"cblas_dgemv(CblasRowMajor, CblasNoTrans,"+size+" ,"+size+", alpha, A, "+size+", x, 1, 0., y, 1);","" )
+    p("long runs = "+runs+";")
+    //p(" size_t runs = 1;\n    double slope = THRESHOLD, max_slope = 1000*THRESHOLD;\n    double d;\n\n    for(size_t count = 0; runs <= (1 << 20); count++){\n\n    measurement_start();\n    for(int i = 0; i < runs; i++)\n    cblas_dgemv(CblasRowMajor, CblasNoTrans, n, n, alpha, A, n, x, 1, 0., y, 1);\n    measurement_stop(runs);       \n\n    if(measurement_testDerivative(runs, slope, 1e7, 10, &d))\n      break;\n    dumpMeans();\n    measurement_emptyLists(false); //don't clear the vector of runs\n\n    if (count >= 2) {\n      cout << \"Runs = \" << runs << \" d = \" << d << endl;\n\n      if (runs <= (1 << 10)) runs *= 2;\n      else if ((fabs(d) <= max_slope) && (slope*10 <= max_slope)) slope *= 10;\n      else runs += 10*count;\n    }\n  }")
+    //find out the number of shifts required
+    p("std::cout << runs << \"allocate\";")
+    //allocate the buffers
+
+    p("std::cout << \"run\";")
+
+    if (!warmData)
+    {
+      //allocate
+      p("long numberofshifts =  measurement_getNumberOfShifts(" + (size*size+size+size)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
+      p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
+
+      p("double ** A_array = (double **) CreateBuffers("+size*size+"* sizeof(" + prec + "),numberofshifts);")
+      p("double ** x_array = (double **) CreateBuffers("+size+"* sizeof(" + prec + "),numberofshifts);")
+      p("double ** y_array = (double **) CreateBuffers("+size+"* sizeof(" + prec + "),numberofshifts);")
+
+
+
+      p("for(int r = 0; r < " + Config.repeats + "; r++){")
+      p("measurement_start();")
+      p("for(int i = 0; i < runs; i++){")
+      p("cblas_dgemv(CblasRowMajor, CblasNoTrans,"+size+" ,"+size+", alpha, A_array[i%numberofshifts], "+size+", x_array[i%numberofshifts], 1, 0., y_array[i%numberofshifts], 1);")
+      p("}")
+      p( "measurement_stop(runs);")
+      p( " }")
+
+      p("DestroyBuffers( (void **) A_array, numberofshifts);")
+      p("DestroyBuffers( (void **) x_array, numberofshifts);")
+      p("DestroyBuffers( (void **) y_array, numberofshifts);")
+
+    }
+    else
+    {
+      //allocate
+      p("double * A = (double *) _mm_malloc("+size*size+"*sizeof(double),page);")
+      p("double * x = (double *) _mm_malloc("+size+"*sizeof(double),page);")
+      p("double * y = (double *) _mm_malloc("+size+"*sizeof(double),page);")
+
+
+      //run it
+      p("for(int r = 0; r < " + Config.repeats + "; r++){")
+      p("measurement_start();")
+      p("for(int i = 0; i < runs; i++){")
+      p("cblas_dgemv(CblasRowMajor, CblasNoTrans,"+size+" ,"+size+", alpha, A, "+size+", x, 1, 0., y, 1);")
+      p("}")
+      p( "measurement_stop(runs);")
+      p( " }")
+
+
+      p("std::cout << \"deallocate\";")
+      //deallocate the buffers
+
+      p("_mm_free(A);")
+      p("_mm_free(x);")
+      p("_mm_free(y);")
+    }
+    p("}")
+  }
+
+  p("measurement_end();")
+  p("}")
+}
+
 
 
 def fft_MKL (sourcefile: PrintStream,sizes: List[Long], counters: Array[HWCounters.Counter], double_precision: Boolean = true, warmData: Boolean = false) =
 {
-
+  def p(x: String) = sourcefile.println(x)
   val prec = if (double_precision) "double" else "float"
 
-  sourcefile.println("#include <mkl.h>")
-  sourcefile.println("#include <iostream>")
-  sourcefile.println(Config.MeasuringCoreH)
-  sourcefile.println("#define page 4096")
+  p("#include <mkl.h>")
+  p("#include <iostream>")
+  p(Config.MeasuringCoreH)
+  p("#define page 4096")
   val (counterstring, initstring ) = Counters2CCode(counters)
-
-  sourcefile.println("int main () { ")
-  sourcefile.println(counterstring)
-  sourcefile.println(initstring)
+  p("int main () { ")
+  p(counterstring)
+  p(initstring)
 
   for (size <- sizes)
   {
-    sourcefile.println("{")
-    sourcefile.println("DFTI_DESCRIPTOR_HANDLE mklDescriptor;")
-    sourcefile.println("MKL_LONG status;")
+    p("{")
+    p("DFTI_DESCRIPTOR_HANDLE mklDescriptor;")
+    p("MKL_LONG status;")
     val dfti_prec = if (double_precision) "DFTI_DOUBLE" else "DFTI_SINGLE"
-    sourcefile.println("status = DftiCreateDescriptor( &mklDescriptor, " + dfti_prec+ ",DFTI_COMPLEX, 1,"+ size + ");")
-    sourcefile.println("if (status != 0) {\n    return -1;\n\t}\n\n\tstatus = DftiCommitDescriptor(mklDescriptor);\n\tif (status != 0) {\n\t\treturn -1;\n\t}")
+    p("status = DftiCreateDescriptor( &mklDescriptor, " + dfti_prec+ ",DFTI_COMPLEX, 1,"+ size + ");")
+    p("if (status != 0) {\n    return -1;\n\t}\n\n\tstatus = DftiCommitDescriptor(mklDescriptor);\n\tif (status != 0) {\n\t\treturn -1;\n\t}")
+
 
     //Tune the number of runs
-    sourcefile.println(prec + " * tuning_buffer = (" + prec + "*) _mm_malloc(" + 2*size + "* sizeof(" + prec + "),page);" )
-    tuneNrRuns(sourcefile,"status = DftiComputeForward(mklDescriptor, tuning_buffer);\n\tif (status != 0) {\n\t\treturn -1;\n\t}", "std::cout << tuning_buffer[0];" )
-    sourcefile.println("_mm_free(tuning_buffer);")
+    p("std::cout << \"tuning\";")
+    p(prec + " * tuning_buffer = (" + prec + "*) _mm_malloc(" + 2*size + "* sizeof(" + prec + "),page);" )
+    //tuneNrRuns(sourcefile,"status = DftiComputeForward(mklDescriptor, tuning_buffer);\n\tif (status != 0) {\n\t\treturn -1;\n\t}", "std::cout << tuning_buffer[0];" )
 
-
+    p("long runs = 10;")
+    p("_mm_free(tuning_buffer);")
     //find out the number of shifts required
-    sourcefile.println("long numberofshifts =  measurement_getNumberOfShifts(" + 2*size + "* sizeof(" + prec + "),runs*"+Config.repeats+");")
+    p("long numberofshifts =  measurement_getNumberOfShifts(" + 2*size + "* sizeof(" + prec + "),runs*"+Config.repeats+");")
+    p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
 
 
+
+    p("std::cout << \"allocate\";")
     //allocate the buffers
-    sourcefile.println( prec + " ** bench_buffer = (" + prec + "**) _mm_malloc(numberofshifts*sizeof(" + prec + "*),page);" )
-    sourcefile.println( "if (!bench_buffer) {\n      std::cout << \"malloc failed\";\n      measurement_end();\n      return ;} ")
-    sourcefile.println("for(int i = 0; i < numberofshifts; i++){")
-    sourcefile.println("bench_buffer[i] = (" + prec + "*) _mm_malloc(" + 2*size + "* sizeof(" + prec + "),page);" )
-    sourcefile.println( "if (!bench_buffer[i]) {\n      std::cout << \"malloc failed\";\n      measurement_end();\n      return ;} ")
-    sourcefile.println("}")
+    p( prec + " ** bench_buffer = (" + prec + "**) _mm_malloc(numberofshifts*sizeof(" + prec + "*),page);" )
+    p( "if (!bench_buffer) {\n      std::cout << \"malloc failed\";\n      measurement_end();\n      return ;} ")
+    p("for(int i = 0; i < numberofshifts; i++){")
+    p("bench_buffer[i] = (" + prec + "*) _mm_malloc(" + 2*size + "* sizeof(" + prec + "),page);" )
+    p( "if (!bench_buffer[i]) {\n      std::cout << \"malloc failed\";\n      measurement_end();\n      return ;} ")
+    p("}")
 
+    p("std::cout << \"run\";")
     //run it
-    sourcefile.println("for(int r = 0; r < " + Config.repeats + "; r++){")
-      sourcefile.println("measurement_start();")
-      sourcefile.println("for(int i = 0; i < runs; i++){")
-      sourcefile.println("status = DftiComputeForward(mklDescriptor, bench_buffer[i%numberofshifts]);\n\tif (status != 0) {\n\t\treturn -1;\n\t}")
-      sourcefile.println( "measurement_stop(runs);")
-    sourcefile.println( "} }")
+    p("for(int r = 0; r < " + Config.repeats + "; r++){")
+      p("measurement_start();")
+      p("for(int i = 0; i < runs; i++){")
+      p("status = DftiComputeForward(mklDescriptor, bench_buffer[i%numberofshifts]);\n\tif (status != 0) {\n\t\treturn -1;\n\t}")
+      p( "measurement_stop(runs);")
+    p( "} }")
 
-
+    p("std::cout << \"deallocate\";")
     //deallocate the buffers
-    sourcefile.println("for(int i = 0; i < numberofshifts; i++)")
-    sourcefile.println("_mm_free(bench_buffer[i]);")
-    sourcefile.println("_mm_free(bench_buffer);")
-    sourcefile.println("status = DftiFreeDescriptor(&mklDescriptor);")
-    sourcefile.println("}")
+    p("for(int i = 0; i < numberofshifts; i++)")
+    p("_mm_free(bench_buffer[i]);")
+    p("_mm_free(bench_buffer);")
+    p("status = DftiFreeDescriptor(&mklDescriptor);")
+    p("}")
   }
 
-  sourcefile.println("measurement_end();")
-  sourcefile.println("}")
+  p("measurement_end();")
+  p("}")
 }
 
 
   def test () =
   {
-    val sizes =  (for (i<-2 until 3) yield Math.pow(2,i).toLong).toList
+    val sizes_2power =  (for (i<-2 until 15) yield Math.pow(2,i).toLong).toList
+    val outputFile1 = new PrintStream("flop_dgemv_warm.txt")
+    val outputFile2 = new PrintStream("tsc_dgemv_warm.txt")
+    val outputFile3 = new PrintStream("size_dgemv_warm.txt")
+    var first1 = true
+    for (s <- sizes_2power)
+    {
+      val sizes: List[Long] = List(s)
+      val counters = Array(
+        Counter("10H","80H","FP_COMP_OPS_EXE.SSE_SCALAR_DOUBLE","Counts number of SSE* double precision FP scalar uops executed.",""),
+        Counter("10H","10H","FP_COMP_OPS_EXE.SSE_FP_PACKED_DOUBLE","Counts number of SSE* double precision FP packed uops executed.",""),
+        Counter("11H","02H","SIMD_FP_256.PACKED_DOUBLE","Counts 256-bit packed double-precision floating- point instructions.",""),
+        Counter("11H","01H","SIMD_FP_256.PACKED_SINGLE","Counts 256-bit packed single-precision floating- point instructions.","")
+      )
 
-    val counters = Array(
-      Counter("11H","01H","SIMD_FP_256.PACKED_SINGLE","Counts 256-bit packed single-precision floating- point instructions.",""),
-      Counter("10H","10H","FP_COMP_OPS_EXE.SSE_FP_P ACKED_DOUBLE","Counts number of SSE* double precision FP packed uops executed.",""),
-      Counter("10H","80H","FP_COMP_OPS_EXE.SSE_SCAL AR_DOUBLE","Counts number of SSE* double precision FP scalar uops executed.",""),
-      Counter("11H","02H","SIMD_FP_256.PACKED_DOUBL E","Counts 256-bit packed double-precision floating- point instructions.","")
-    )
 
-    def fft(sourcefile: PrintStream) = fft_MKL (sourcefile: PrintStream,sizes, counters)
-    val fft_res = CommandService.fromScratch("intel_fft", fft, Config.flag_c99 + Config.flag_optimization + Config.flag_hw + Config.flag_novec + Config.flag_mkl_seq )
+      def dgemv(sourcefile: PrintStream) = dgemv_MKL (sourcefile: PrintStream,sizes, counters,4096,true,true)
+      val dgemv_res = CommandService.fromScratch("intel_dgmev", dgemv, Config.flag_c99 + Config.flag_hw + Config.flag_novec + Config.flag_mkl_seq + " /O0")
+      dgemv_res.prettyprint()
+      var first = true
+      for (i <- 0 until Config.repeats)
+      {
+        if (!first)
+        {
+          outputFile1.print(" ")
+          outputFile2.print(" ")
+
+        }
+        first = false
+        outputFile1.print(dgemv_res.getFlops(i))
+        outputFile2.print(dgemv_res.getTSC(i))
+      }
+      outputFile1.print("\n")
+      outputFile2.print("\n")
+      if (first1)
+      {
+        outputFile3.print(s)
+        first1 = false
+      }
+      else
+        outputFile3.print(" " + s)
+    }
+
+
+    //dgemv_res.prettyprint()
+    outputFile1.close()
+    outputFile2.close()
+    outputFile3.close()
+  }
+
+  def test2 () =
+  {
+    val sizes_2power =  (for (i<-2 until 15) yield Math.pow(2,i).toLong).toList
+    val outputFile1 = new PrintStream("flop_dgemv_cold.txt")
+    val outputFile2 = new PrintStream("tsc_dgemv_cold.txt")
+    val outputFile3 = new PrintStream("size_dgemv_cold.txt")
+    var first1 = true
+    for (s <- sizes_2power)
+    {
+      val sizes: List[Long] = List(s)
+      val counters = Array(
+        Counter("10H","80H","FP_COMP_OPS_EXE.SSE_SCALAR_DOUBLE","Counts number of SSE* double precision FP scalar uops executed.",""),
+        Counter("10H","10H","FP_COMP_OPS_EXE.SSE_FP_PACKED_DOUBLE","Counts number of SSE* double precision FP packed uops executed.",""),
+        Counter("11H","02H","SIMD_FP_256.PACKED_DOUBLE","Counts 256-bit packed double-precision floating- point instructions.",""),
+        Counter("11H","01H","SIMD_FP_256.PACKED_SINGLE","Counts 256-bit packed single-precision floating- point instructions.","")
+      )
+
+
+      def dgemv(sourcefile: PrintStream) = dgemv_MKL (sourcefile: PrintStream,sizes, counters,4096,true,false)
+      val dgemv_res = CommandService.fromScratch("intel_dgmev", dgemv, Config.flag_c99 + Config.flag_hw + Config.flag_novec + Config.flag_mkl_seq + " /O0")
+      dgemv_res.prettyprint()
+      var first = true
+      for (i <- 0 until Config.repeats)
+      {
+        if (!first)
+        {
+          outputFile1.print(" ")
+          outputFile2.print(" ")
+
+        }
+        first = false
+        outputFile1.print(dgemv_res.getFlops(i))
+        outputFile2.print(dgemv_res.getTSC(i))
+      }
+      outputFile1.print("\n")
+      outputFile2.print("\n")
+      if (first1)
+      {
+        outputFile3.print(s)
+        first1 = false
+      }
+      else
+        outputFile3.print(" " + s)
+    }
+
+
+    //dgemv_res.prettyprint()
+    outputFile1.close()
+    outputFile2.close()
+    outputFile3.close()
   }
 
 
