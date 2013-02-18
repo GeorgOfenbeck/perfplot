@@ -23,7 +23,7 @@ object Config {
   //win_icc is working with a hack atm - look into CompileService!
   val win_icc = new File("C:\\Program Files (x86)\\Intel\\Composer XE 2013\\bin\\intel64","icl.exe")
 
-
+  val measurement_Threshold : Long = 4 * (scala.math.pow(10,9)).toLong; //4giga cycles - TODO: GO: replace by seconds
   val testDerivate_Threshold =  0.0005
   val repeats = 10
 
@@ -43,7 +43,7 @@ object Config {
   def flag_novec = if (isWin) " /Qno-simd /Qno-vec" else " -no-simd -no-vec"
 
 
-  val MeasuringCoreH = "    #ifndef MEASURING_CORE_HEADER\n    #define MEASURING_CORE_HEADER\n\n\n\n\n    //int measurement_init(int type, bool flushData , bool flushICache , bool flushTLB );\n    int measurement_init(long * custom_counters = NULL, long offcore_response0 = 0, long offcore_response1 = 0);\n    void measurement_start();\n    void measurement_stop(long runs=1);\n    void measurement_end();\n    // Start Dani\n    //bool measurement_customTest(size_t runs, size_t vlen);\n    bool measurement_testDerivative(size_t runs, double alpha_threshold, double avg_threshold, double time_threshold, double *d, size_t points=1);\n    //void measurement_meanSingleRun();\n    //bool measurement_testSD(size_t runs);\n    void measurement_emptyLists(bool clearRuns=true);\n    void dumpMeans();\n\n    unsigned long measurement_getNumberOfShifts(unsigned long size, unsigned long initialGuess);\n    // End Dani\n\n    void flushITLB();\n    void flushDTLB();\n    void flushICache();\n    void flushDCache();\n\n\n    #endif"
+  val MeasuringCoreH = "#ifndef MEASURING_CORE_HEADER\n#define MEASURING_CORE_HEADER\n\n//int measurement_init(int type, bool flushData , bool flushICache , bool flushTLB );\nint measurement_init(long * custom_counters = NULL, long offcore_response0 = 0, long offcore_response1 = 0);\nvoid measurement_start();\nvoid measurement_stop(long runs=1);\nvoid measurement_end();\n// Start Dani\n//bool measurement_customTest(size_t runs, size_t vlen);\nlong measurement_run_multiplier(long threshold);\nbool measurement_testDerivative(size_t runs, double alpha_threshold, double avg_threshold, double time_threshold, double *d, size_t points=1);\n//void measurement_meanSingleRun();\n//bool measurement_testSD(size_t runs);\nvoid measurement_emptyLists(bool clearRuns=true);\nvoid dumpMeans();\n\nunsigned long measurement_getNumberOfShifts(unsigned long size, unsigned long initialGuess);\n// End Dani\n\nvoid flushITLB();\nvoid flushDTLB();\nvoid flushICache();\nvoid flushDCache();\n\n// Vicky --- Functions for getting cache parameters with CPUID\n\n\n#endif"
 
 
 }

@@ -11,6 +11,7 @@ void measurement_stop(long runs=1);
 void measurement_end();
 // Start Dani
 //bool measurement_customTest(size_t runs, size_t vlen);
+long measurement_run_multiplier(long threshold);
 bool measurement_testDerivative(size_t runs, double alpha_threshold, double avg_threshold, double time_threshold, double *d, size_t points=1);
 //void measurement_meanSingleRun();
 //bool measurement_testSD(size_t runs);
@@ -33,3 +34,7 @@ cpuid_cache_descriptor_t getTLBinfo(cpuid_leaf2_qualifier_t cacheType);
 unsigned long getLLCSize();
 
 #endif
+
+
+
+

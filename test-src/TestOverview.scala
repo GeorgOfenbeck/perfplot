@@ -47,6 +47,26 @@ def Counters2CCode(counters: Array[HWCounters.Counter]): (String,String) =
 }
 
 
+def tuneNrRunsbyRunTime(sourcefile : PrintStream, kernel: String, printsomething: String) =
+{
+  def p(x: String) = sourcefile.println(x)
+
+  p("long runs = 1; //start of with a single run for sample")
+  p("long multiplier;")
+  p("do{")
+  p("measurement_start();")
+  p(kernel)
+  p("measurement_stop(runs);")
+  p("multiplier = measurement_run_multiplier("+measurement_Threshold+");")
+  p("runs = runs * multiplier;")
+  p("std::cout << multiplier<< \" multiplier\";")
+  p("}while (multiplier > 2);")
+
+
+
+}
+
+
 def tuneNrRuns(sourcefile : PrintStream, kernel: String, printsomething: String) =
 {
   sourcefile.println("long runs = 1;")
@@ -116,13 +136,19 @@ def dgemv_MKL (sourcefile: PrintStream,sizes: List[Long], counters: Array[HWCoun
   {
     p("{")
     p("double alpha = 1.1;")
+    //allocate
+    p("double * A = (double *) _mm_malloc("+size*size+"*sizeof(double),page);")
+    p("double * x = (double *) _mm_malloc("+size+"*sizeof(double),page);")
+    p("double * y = (double *) _mm_malloc("+size+"*sizeof(double),page);")
+
 
     p("int n = " +size + ";")
     //Tune the number of runs
     p("std::cout << \"tuning\";")
 
     //tuneNrRuns(sourcefile,"cblas_dgemv(CblasRowMajor, CblasNoTrans,"+size+" ,"+size+", alpha, A, "+size+", x, 1, 0., y, 1);","" )
-    p("long runs = "+runs+";")
+    tuneNrRunsbyRunTime(sourcefile,"cblas_dgemv(CblasRowMajor, CblasNoTrans,"+size+" ,"+size+", alpha, A, "+size+", x, 1, 0., y, 1);","" )
+    //p("long runs = "+runs+";")
     //p(" size_t runs = 1;\n    double slope = THRESHOLD, max_slope = 1000*THRESHOLD;\n    double d;\n\n    for(size_t count = 0; runs <= (1 << 20); count++){\n\n    measurement_start();\n    for(int i = 0; i < runs; i++)\n    cblas_dgemv(CblasRowMajor, CblasNoTrans, n, n, alpha, A, n, x, 1, 0., y, 1);\n    measurement_stop(runs);       \n\n    if(measurement_testDerivative(runs, slope, 1e7, 10, &d))\n      break;\n    dumpMeans();\n    measurement_emptyLists(false); //don't clear the vector of runs\n\n    if (count >= 2) {\n      cout << \"Runs = \" << runs << \" d = \" << d << endl;\n\n      if (runs <= (1 << 10)) runs *= 2;\n      else if ((fabs(d) <= max_slope) && (slope*10 <= max_slope)) slope *= 10;\n      else runs += 10*count;\n    }\n  }")
     //find out the number of shifts required
     p("std::cout << runs << \"allocate\";")
@@ -157,10 +183,6 @@ def dgemv_MKL (sourcefile: PrintStream,sizes: List[Long], counters: Array[HWCoun
     }
     else
     {
-      //allocate
-      p("double * A = (double *) _mm_malloc("+size*size+"*sizeof(double),page);")
-      p("double * x = (double *) _mm_malloc("+size+"*sizeof(double),page);")
-      p("double * y = (double *) _mm_malloc("+size+"*sizeof(double),page);")
 
 
       //run it
@@ -277,7 +299,7 @@ def fft_MKL (sourcefile: PrintStream,sizes: List[Long], counters: Array[HWCounte
 
 
       def dgemv(sourcefile: PrintStream) = dgemv_MKL (sourcefile: PrintStream,sizes, counters,4096,true,true)
-      val dgemv_res = CommandService.fromScratch("intel_dgmev", dgemv, Config.flag_c99 + Config.flag_hw + Config.flag_novec + Config.flag_mkl_seq + " /O0")
+      val dgemv_res = CommandService.fromScratch("intel_dgmev", dgemv, Config.flag_c99 + Config.flag_hw + Config.flag_novec + Config.flag_mkl_seq + " -O0")
       dgemv_res.prettyprint()
       var first = true
       for (i <- 0 until Config.repeats)
@@ -312,7 +334,7 @@ def fft_MKL (sourcefile: PrintStream,sizes: List[Long], counters: Array[HWCounte
 
   def test2 () =
   {
-    val sizes_2power =  (for (i<-2 until 15) yield Math.pow(2,i).toLong).toList
+    val sizes_2power =  (for (i<-2 until 6) yield Math.pow(2,i).toLong).toList
     val outputFile1 = new PrintStream("flop_dgemv_cold.txt")
     val outputFile2 = new PrintStream("tsc_dgemv_cold.txt")
     val outputFile3 = new PrintStream("size_dgemv_cold.txt")
@@ -329,7 +351,7 @@ def fft_MKL (sourcefile: PrintStream,sizes: List[Long], counters: Array[HWCounte
 
 
       def dgemv(sourcefile: PrintStream) = dgemv_MKL (sourcefile: PrintStream,sizes, counters,4096,true,false)
-      val dgemv_res = CommandService.fromScratch("intel_dgmev", dgemv, Config.flag_c99 + Config.flag_hw + Config.flag_novec + Config.flag_mkl_seq + " /O0")
+      val dgemv_res = CommandService.fromScratch("intel_dgmev", dgemv, Config.flag_c99 + Config.flag_hw + Config.flag_novec + Config.flag_mkl_seq + " -O0")
       dgemv_res.prettyprint()
       var first = true
       for (i <- 0 until Config.repeats)
