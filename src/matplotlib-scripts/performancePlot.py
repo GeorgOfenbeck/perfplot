@@ -184,21 +184,23 @@ ax.axis([X_MIN,X_MAX,Y_MIN,Y_MAX])
 #                label.set_fontproperties(ticks_font)
 #xticks(locs, new_labels)
 
-
 # Manually adjust xtick/ytick labels when log scale
 if LOG_X:
-	locs, labels = xticks()
-	minloc =int(log10(X_MIN))
-	maxloc =int(log10(X_MAX) +1)
-	newlocs = []
-	newlabels = []
-	for i in range(minloc,maxloc):
-		newlocs.append(10**i)
-		if 10**i <= 100:
-			newlabels.append(str(10**i))
-		else:
-			newlabels.append(r'$10^ %d$' %i)
-	xticks(newlocs, newlabels)
+    locs, labels = xticks()
+    minloc =int(log10(X_MIN))
+    maxloc =int(log10(X_MAX) +1)
+    newlocs = []
+    newlabels = []
+    for i in range(minloc,maxloc):
+        newlocs.append(10**i)
+        # Do not plot the first label, it is ugly in the corner
+        if i==minloc:
+            newlabels.append('')
+        elif 10**i <= 100:
+            newlabels.append(str(10**i))
+        else:
+            newlabels.append(r'$10^ %d$' %i)
+    xticks(newlocs, newlabels)
 
 if LOG_Y:
     locs, labels = yticks()
@@ -208,11 +210,14 @@ if LOG_Y:
     newlabels = []
     for i in range(minloc,maxloc):
         newlocs.append(10**i)
-        if 10**i <= 100:
+        if i==minloc:
+            newlabels.append('')
+        elif 10**i <= 100:
             newlabels.append(str(10**i))
         else:
             newlabels.append(r'$10^ %d$' %i)
     yticks(newlocs, newlabels)
+
 
 #save file
 fig.savefig(OUTPUT_FILE, dpi=250,  bbox_inches='tight')

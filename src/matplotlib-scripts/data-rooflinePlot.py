@@ -15,8 +15,7 @@ from scipy import stats
 
 
 
-   
-background_color = '#eeeeee' 
+background_color =(0.85,0.85,0.85) #'#C0C0C0'    
 grid_color = 'white' #FAFAF7'
 matplotlib.rc('axes', facecolor = background_color)
 matplotlib.rc('axes', edgecolor = grid_color)
@@ -30,13 +29,13 @@ matplotlib.rc('xtick.major',size =0 )
 matplotlib.rc('xtick.minor',size =0 )
 matplotlib.rc('ytick.major',size =0 )
 matplotlib.rc('ytick.minor',size =0 )
-
+matplotlib.rc('font', family='serif')
 
 X_MIN=0.01
-X_MAX=300.0
+X_MAX=500.0
 Y_MIN=0.01
 Y_MAX=20.0
-PEAK_PERF=1.0
+PEAK_PERF=8.0
 PEAK_BW=2.2
 ASPECT_RATIO=0.618
 LOG_X=1
@@ -45,15 +44,15 @@ OUTPUT_FILE="data-rooflinePlot.pdf"
 TITLE="TITLE"
 X_LABEL="Operational Intensity [Flop/Byte]"
 Y_LABEL="Performance [Flop/Cycle]"
-series = ['MMM', 'MKL']
-colors=[ '#000066','#336600','#CC0033' ,'#FFFF00', 'black' ]
-
+ANNOTATE_POINTS=1
+series = ['MVM']
+colors=[(0.6,0.011,0.043), (0.258, 0.282, 0.725),(0.2117, 0.467, 0.216),'#CC0033' ,'#FFFF00' ]
 fig = plt.figure()
 # Returns the Axes instance
 ax = fig.add_subplot(111, aspect = ASPECT_RATIO)
-ffont = {'family':'sans-serif','fontsize':10,'weight':'bold'}
-ax.set_xticklabels(ax.get_xticks(),ffont)
-ax.set_yticklabels(ax.get_yticks(),ffont)
+#ffont = {'family':'sans-serif','fontsize':10,'weight':'bold'}
+#ax.set_xticklabels(ax.get_xticks(),ffont)
+#ax.set_yticklabels(ax.get_yticks(),ffont)
 
 #Log scale
 if LOG_Y: ax.set_yscale('log')
@@ -69,31 +68,54 @@ ax.set_ylabel(Y_LABEL, fontsize=12)
 ax.axis([X_MIN,X_MAX,Y_MIN,Y_MAX])
 
 #TODO: When log scale, axis labels have a different font...
-ticks_font = matplotlib.font_manager.FontProperties(family='Helvetica', style='normal', size=12, weight='normal', stretch='normal')
-if LOG_X:
-        ax.xaxis.set_major_formatter(matplotlib.ticker.ScalarFormatter())
+#ticks_font = matplotlib.font_manager.FontProperties(family='Helvetica', style='normal', size=12, weight='normal', stretch='normal')
+#if LOG_X:
+#        ax.xaxis.set_major_formatter(matplotlib.ticker.ScalarFormatter())
         #ax.xaxis.major.formatter.set_powerlimits((-3, 6)) 
-        for label in ax.get_xticklabels() :
-                label.set_fontproperties(ticks_font)
+#        for label in ax.get_xticklabels() :
+#                label.set_fontproperties(ticks_font)
 
-if LOG_X:
-        ax.yaxis.set_major_formatter(matplotlib.ticker.ScalarFormatter())
+#if LOG_X:
+#        ax.yaxis.set_major_formatter(matplotlib.ticker.ScalarFormatter())
         #ax.yaxis.major.formatter.set_powerlimits((-3, 6)) 
-        for label in ax.get_yticklabels() :
-                label.set_fontproperties(ticks_font)
+#        for label in ax.get_yticklabels() :
+#                label.set_fontproperties(ticks_font)
 
 
-#labels = ['', '0.1','1', '10', '100', '1000']
-#xlocs, xlabels = xticks()
-#nXLabels = len(xlabels)
-#new_xlabels = [x.format(xlocs[i]) for i,x  in enumerate(labels[0:nXLabels])]
-#xticks(xlocs, new_xlabels)
-#ylocs, ylabels = yticks()
-#nYLabels = len(ylabels)
-#new_ylabels = [x.format(ylocs[i]) for i,x  in enumerate(labels[0:nYLabels])]
-#yticks(ylocs, new_ylabels)
 
+# Manually adjust xtick/ytick labels when log scale
+if LOG_X:
+    locs, labels = xticks()
+    minloc =int(log10(X_MIN))
+    maxloc =int(log10(X_MAX) +1)
+    newlocs = []
+    newlabels = []
+    for i in range(minloc,maxloc):
+        newlocs.append(10**i)
+        # Do not plot the first label, it is ugly in the corner
+        if i==minloc:
+			newlabels.append('')
+        elif 10**i <= 100:
+            newlabels.append(str(10**i))
+        else:
+            newlabels.append(r'$10^ %d$' %i)
+    xticks(newlocs, newlabels)
 
+if LOG_Y:
+    locs, labels = yticks()
+    minloc =int(log10(Y_MIN))
+    maxloc =int(log10(Y_MAX) +1)
+    newlocs = []
+    newlabels = []
+    for i in range(minloc,maxloc):
+		newlocs.append(10**i)
+		if i==minloc:
+			newlabels.append('')
+		elif 10**i <= 100:
+			newlabels.append(str(10**i))
+		else:
+			newlabels.append(r'$10^ %d$' %i)
+    yticks(newlocs, newlabels)
 
 # Load the data 
 
@@ -134,7 +156,7 @@ for serie,i in zip(series,range(len(series))):
 
 	xData =[]
     	for f,b in zip(nFLOPS,bytesTransferred):
-        	xData.append([float(vf)/float(vb) for vf, vb in zip(f,b) if vf != '' and vb != ''])
+        	xData.append([float(vf)/float(vb) for vf, vb in zip(f,b) if vf != '' and vb != '' and float(vb)!= 0])
 
 	x=[]
 	xerr_low=[]
@@ -158,28 +180,40 @@ for serie,i in zip(series,range(len(series))):
 	yerr_low = [a - b for a, b in zip(y, yerr_low)]
 	yerr_high = [a - b for a, b in zip(yerr_high, y)]
 
-
+	#print x
+	#print xerr_low
+	#print xerr_high
+	#print y
+	#print yerr_low
+	#print yerr_high
 
 	p, =ax.plot(x, y, '-', color=colors[i],label=serie)
 	pp.append(p)
 	ss.append(serie);
 	ax.errorbar(x, y, yerr=[yerr_low, yerr_high], xerr=[xerr_low, xerr_high], color=colors[i])  
 
+	# Read sizes	
+	sizes = []
+	file_in = open('size_'+serie+'.txt','r')
+	lines = file_in.readlines()
+	for line in lines:
+		split_line = line.rstrip('\n').split(' ')
+		sizes.append(split_line)
 
-#print pp
+	file_in.close()
+
+	if ANNOTATE_POINTS:
+		ax.annotate(sizes[0][0],
+        xy=(x[0], y[0]), xycoords='data',
+        xytext=(+3, +1), textcoords='offset points', fontsize=8)
+
+		ax.annotate(sizes[0][len(sizes[0])-1],
+        xy=(x[len(x)-1],y[len(y)-1]), xycoords='data',
+        xytext=(+3, +1), textcoords='offset points', fontsize=8)
+
 ax.legend(pp,ss, numpoints=1, loc='best',fontsize =6,frameon = False )
 
 
-
-#Anotate 
-# TODO: make it if anotate
-#ax.annotate('Variant 0',
-#         xy=(x[0], y[0]), xycoords='data',
-#         xytext=(+3, +1), textcoords='offset points', fontsize=8)
-
-#ax.annotate('Variant 1',
-#         xy=(x[1],y[1]), xycoords='data',
-#         xytext=(+3, +1), textcoords='offset points', fontsize=8)
 
 
 
@@ -195,7 +229,7 @@ ax.plot(x, y, linewidth=1, color='black')
 
 
 l2 = array((0.01,0.01))
-angle = 45*(ASPECT_RATIO+0.1)
+angle = 45*(ASPECT_RATIO+0.05)
 trans_angle = gca().transData.transform_angles(array((angle,)),
                                                l2.reshape((1,2)))[0]
 
