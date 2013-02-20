@@ -40,6 +40,7 @@ Y_MIN=0
 Y_MAX=8
 LOG_X=1
 LOG_Y=0
+INVERSE_GOLDEN_RATIO=0.618
 TITLE="MVM"
 X_LABEL="Problem Size [Doubles]"
 Y_LABEL="Performance [Flop/Cycle]"
@@ -61,6 +62,8 @@ ax = fig.add_subplot(111)
 #Log scale
 if LOG_Y:  ax.set_yscale('log')
 if LOG_X: ax.set_xscale('log')
+
+
 
 #formatting:
 ax.set_title(TITLE,fontsize=14,fontweight='bold')
@@ -160,29 +163,23 @@ for serie,i in zip(series,range(len(series))):
 #end for loop
 
 
-#ax.legend(numpoints=1, loc='best',fontsize =6,frameon = False )
-ax.legend(numpoints=1, loc='best',frameon = False )
+#ax.legend(numpoints=1, loc='best',frameon = False )
+ax.legend(numpoints=1, loc='best').get_frame().set_visible(False)
 
 
 #x-y range
 ax.axis([X_MIN,X_MAX,Y_MIN,Y_MAX])
 
+#if LOG_X and LOG_Y:
+#    AXIS_ASPECT_RATIO=log10(X_MAX/X_MIN)/log10(Y_MAX/Y_MIN)
+#elif LOG_X and not(LOG_Y):
+#	AXIS_ASPECT_RATIO=log10(X_MAX/X_MIN)/(Y_MAX-Y_MIN)
+#elif not(LOG_X) and LOG_Y:
+#	AXIS_ASPECT_RATIO=(X_MAX-X_MIN)/log10(Y_MAX/Y_MIN)
+#else:
+#	AXIS_ASPECT_RATIO=(X_MAX-X_MIN)/(Y_MAX-Y_MIN)
+#ax.set_aspect(INVERSE_GOLDEN_RATIO*AXIS_ASPECT_RATIO)
 
-#TODO: When log scale, axis labels have a different font...
-#if LOG_X:
-#    ax.xaxis.set_major_formatter(FormatStrFormatter('%.03f'))   
-	# ax.xaxis.set_major_formatter(matplotlib.ticker.ScalarFormatter())
-   # ax.xaxis.set_major_formatter(matplotlib.ticker.LogFormatter())
-    #ax.xaxis.major.formatter.set_powerlimits((-3, 6)) 
-#    for label in ax.get_xticklabels() :
-#        label.set_fontproperties(ticks_font)
-
-#if LOG_Y:
-#        ax.yaxis.set_major_formatter(matplotlib.ticker.ScalarFormatter())
-        #ax.yaxis.major.formatter.set_powerlimits((-3, 6)) 
-#        for label in ax.get_yticklabels() :
-#                label.set_fontproperties(ticks_font)
-#xticks(locs, new_labels)
 
 # Manually adjust xtick/ytick labels when log scale
 if LOG_X:

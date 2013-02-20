@@ -12,7 +12,7 @@ from matplotlib.font_manager import FontProperties
 import matplotlib.pyplot as plt
 import matplotlib.lines as lns
 from scipy import stats
-
+from matplotlib.patches import Polygon
 
 
 background_color =(0.85,0.85,0.85) #'#C0C0C0'    
@@ -32,31 +32,29 @@ matplotlib.rc('ytick.minor',size =0 )
 matplotlib.rc('font', family='serif')
 
 X_MIN=0.01
-X_MAX=500.0
+X_MAX=1000.0
 Y_MIN=0.01
-Y_MAX=20.0
-PEAK_PERF=8.0
-PEAK_BW=2.2
-ASPECT_RATIO=0.618
-LOG_X=1
-LOG_Y=1
+Y_MAX=10.0
+PEAK_PERF=4.0
+PEAK_BW=2.5
+INVERSE_GOLDEN_RATIO=0.618
 OUTPUT_FILE="data-rooflinePlot.pdf"
 TITLE="TITLE"
 X_LABEL="Operational Intensity [Flop/Byte]"
 Y_LABEL="Performance [Flop/Cycle]"
 ANNOTATE_POINTS=1
-series = ['MVM']
+AXIS_ASPECT_RATIO=log10(X_MAX/X_MIN)/log10(Y_MAX/Y_MIN)
+
+
+series = ['dgemv_cold']
 colors=[(0.6,0.011,0.043), (0.258, 0.282, 0.725),(0.2117, 0.467, 0.216),'#CC0033' ,'#FFFF00' ]
 fig = plt.figure()
 # Returns the Axes instance
-ax = fig.add_subplot(111, aspect = ASPECT_RATIO)
-#ffont = {'family':'sans-serif','fontsize':10,'weight':'bold'}
-#ax.set_xticklabels(ax.get_xticks(),ffont)
-#ax.set_yticklabels(ax.get_yticks(),ffont)
+ax = fig.add_subplot(111)
 
-#Log scale
-if LOG_Y: ax.set_yscale('log')
-if LOG_X: ax.set_xscale('log')
+#Log scale - Roofline is always log-log plot, so remove the condition if LOG_X
+ax.set_yscale('log')
+ax.set_xscale('log')
 
 #formatting:
 ax.set_title(TITLE,fontsize=14,fontweight='bold')
@@ -66,56 +64,41 @@ ax.set_ylabel(Y_LABEL, fontsize=12)
 
 #x-y range
 ax.axis([X_MIN,X_MAX,Y_MIN,Y_MAX])
-
-#TODO: When log scale, axis labels have a different font...
-#ticks_font = matplotlib.font_manager.FontProperties(family='Helvetica', style='normal', size=12, weight='normal', stretch='normal')
-#if LOG_X:
-#        ax.xaxis.set_major_formatter(matplotlib.ticker.ScalarFormatter())
-        #ax.xaxis.major.formatter.set_powerlimits((-3, 6)) 
-#        for label in ax.get_xticklabels() :
-#                label.set_fontproperties(ticks_font)
-
-#if LOG_X:
-#        ax.yaxis.set_major_formatter(matplotlib.ticker.ScalarFormatter())
-        #ax.yaxis.major.formatter.set_powerlimits((-3, 6)) 
-#        for label in ax.get_yticklabels() :
-#                label.set_fontproperties(ticks_font)
+ax.set_aspect(INVERSE_GOLDEN_RATIO*AXIS_ASPECT_RATIO)
 
 
 
 # Manually adjust xtick/ytick labels when log scale
-if LOG_X:
-    locs, labels = xticks()
-    minloc =int(log10(X_MIN))
-    maxloc =int(log10(X_MAX) +1)
-    newlocs = []
-    newlabels = []
-    for i in range(minloc,maxloc):
-        newlocs.append(10**i)
-        # Do not plot the first label, it is ugly in the corner
-        if i==minloc:
-			newlabels.append('')
-        elif 10**i <= 100:
-            newlabels.append(str(10**i))
-        else:
-            newlabels.append(r'$10^ %d$' %i)
-    xticks(newlocs, newlabels)
+locs, labels = xticks()
+minloc =int(log10(X_MIN))
+maxloc =int(log10(X_MAX) +1)
+newlocs = []
+newlabels = []
+for i in range(minloc,maxloc):
+    newlocs.append(10**i)
+    # Do not plot the first label, it is ugly in the corner
+    if i==minloc:
+		newlabels.append('')
+    elif 10**i <= 100:
+        newlabels.append(str(10**i))
+    else:
+        newlabels.append(r'$10^ %d$' %i)
+xticks(newlocs, newlabels)
 
-if LOG_Y:
-    locs, labels = yticks()
-    minloc =int(log10(Y_MIN))
-    maxloc =int(log10(Y_MAX) +1)
-    newlocs = []
-    newlabels = []
-    for i in range(minloc,maxloc):
-		newlocs.append(10**i)
-		if i==minloc:
-			newlabels.append('')
-		elif 10**i <= 100:
-			newlabels.append(str(10**i))
-		else:
-			newlabels.append(r'$10^ %d$' %i)
-    yticks(newlocs, newlabels)
+locs, labels = yticks()
+minloc =int(log10(Y_MIN))
+maxloc =int(log10(Y_MAX) +1)
+newlocs = []
+newlabels = []
+for i in range(minloc,maxloc):
+	newlocs.append(10**i)
+	if i==minloc:
+		newlabels.append('')
+	elif 10**i <= 100:
+		newlabels.append(str(10**i))
+	else:
+		newlabels.append(r'$10^ %d$' %i)
+yticks(newlocs, newlabels)
 
 # Load the data 
 
@@ -211,7 +194,9 @@ for serie,i in zip(series,range(len(series))):
         xy=(x[len(x)-1],y[len(y)-1]), xycoords='data',
         xytext=(+3, +1), textcoords='offset points', fontsize=8)
 
-ax.legend(pp,ss, numpoints=1, loc='best',fontsize =6,frameon = False )
+# Work around to get rid of the problem with frameon=False and the extra space generated in the plot
+ax.legend(pp,ss, numpoints=1, loc='best',fontsize =6).get_frame().set_visible(False)
+#ax.legend(pp,ss, numpoints=1, loc='best',fontsize =6,frameon = False )
 
 
 
@@ -219,8 +204,9 @@ ax.legend(pp,ss, numpoints=1, loc='best',fontsize =6,frameon = False )
 
 #Peak performance line and text
 ax.axhline(y=PEAK_PERF, linewidth=1, color='black')
-ax.text(X_MAX/10.0, PEAK_PERF+0.1, "Peak Performance ("+str(PEAK_PERF)+" F/C)", fontsize=8)
-
+#ax.text(X_MAX/10.0, PEAK_PERF+(PEAK_PERF)/10, "Peak Performance ("+str(PEAK_PERF)+" F/C)", fontsize=8)
+yCoordinateTransformed = (log(PEAK_PERF)-log(Y_MIN))/(log(Y_MAX/Y_MIN))
+ax.text(0.76,yCoordinateTransformed+0.01, "Peak Performance ("+str(PEAK_PERF)+" F/C)", fontsize=8, transform=ax.transAxes)
 
 #BW line and text
 x = np.linspace(X_MIN, X_MAX, X_MAX)
@@ -228,13 +214,12 @@ y = x*PEAK_BW
 ax.plot(x, y, linewidth=1, color='black')
 
 
-l2 = array((0.01,0.01))
-angle = 45*(ASPECT_RATIO+0.05)
-trans_angle = gca().transData.transform_angles(array((angle,)),
-                                               l2.reshape((1,2)))[0]
-
-ax.text(X_MIN,X_MIN*PEAK_BW+0.1,'MemLoad ('+str(PEAK_BW)+' B/C)',fontsize=8,
-           rotation=trans_angle)
+#l2 = array((0.01,X_MIN*PEAK_BW*(1/INVERSE_GOLDEN_RATIO)*log10(X_MAX/X_MIN)/log10(Y_MAX/Y_MIN)))
+#angle = 45*(INVERSE_GOLDEN_RATIO)*log10(X_MAX/X_MIN)/log10(Y_MAX/Y_MIN)
+#trans_angle = gca().transData.transform_angles(array((angle,)),
+#                                               l2.reshape((1,2)))[0]
+yCoordinateTransformed = (log(X_MIN*PEAK_BW)-log(Y_MIN))/(log(Y_MAX/Y_MIN))+0.16 #0.16 is the offset of the lower axis
+ax.text(0.01,yCoordinateTransformed+0.05+0.0075*(len(str(PEAK_BW))-1),'MemLoad ('+str(PEAK_BW)+' B/C)',fontsize=8, rotation=45, transform=ax.transAxes)
 
 
 #save file
