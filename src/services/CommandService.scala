@@ -112,6 +112,14 @@ object CommandService {
 
     def getnrruns(i: Int) = nrruns(i)
 
+
+    def getbytes_transferred (i: Int) : Long =
+    {
+      mcread(i) + mcwrite(i)
+    }
+
+
+
     def getTSC (i: Int) : Long =
     {
       avgTSCCounter(i)
@@ -124,7 +132,7 @@ object CommandService {
       get_sse_double_flops(i) + get_avx_double_flops(i)
         /*+ get_sse_single_flops(i) +
      + get_avx_single_flops(i) */
-        ) / nrruns(i)
+        )
 
     }
 
@@ -203,32 +211,32 @@ object CommandService {
       for (i <- 0 until nrcores)
         println(
           "%6d".format(i) +
-          "%12d".format(TSCCounter(i)(j)/nrruns(j)) +
-          "%12d".format(Counter0(i)(j)/nrruns(j)) +
-          "%12d".format(Counter1(i)(j)/nrruns(j)) +
-          "%12d".format(Counter2(i)(j)/nrruns(j)) +
-          "%12d".format(Counter3(i)(j)/nrruns(j)) +
-          "%12d".format(Counter4(i)(j)/nrruns(j)) +
-          "%12d".format(Counter5(i)(j)/nrruns(j)) +
+          "%12d".format(TSCCounter(i)(j)) +
+          "%12d".format(Counter0(i)(j)) +
+          "%12d".format(Counter1(i)(j)) +
+          "%12d".format(Counter2(i)(j)) +
+          "%12d".format(Counter3(i)(j)) +
+          "%12d".format(Counter4(i)(j)) +
+          "%12d".format(Counter5(i)(j)) +
           //"%12d".format(Counter6(i)(j)) +
-          "%12d".format(Counter7(i)(j)/nrruns(j)) +
+          "%12d".format(Counter7(i)(j)) +
           "%12f".format(getPerformance(i,j).value)
         )
       println(nrruns(j) + "--------------------------------------------------------------------------------------------------------")
       println(
         "%6d".format(-1) +
-          "%12d".format(avgTSCCounter(j)/nrruns(j)) +
-          "%12d".format(SCounter0(j)/nrruns(j)) +
-          "%12d".format(SCounter1(j)/nrruns(j)) +
-          "%12d".format(SCounter2(j)/nrruns(j)) +
-          "%12d".format(SCounter3(j)/nrruns(j)) +
-          "%12d".format(SCounter4(j)/nrruns(j)) +
-          "%12d".format(SCounter5(j)/nrruns(j)) +
+          "%12d".format(avgTSCCounter(j)) +
+          "%12d".format(SCounter0(j)) +
+          "%12d".format(SCounter1(j)) +
+          "%12d".format(SCounter2(j)) +
+          "%12d".format(SCounter3(j)) +
+          "%12d".format(SCounter4(j)) +
+          "%12d".format(SCounter5(j)) +
           //"%12d".format(SCounter6(j)) +
-          "%12d".format(SCounter7(j)/nrruns(j)) +
+          "%12d".format(SCounter7(j)) +
           "%12f".format(getPerformance(j).value) +
-          "%12d".format(mcread(j)/1024/nrruns(j)) +
-          "%12d".format(mcwrite(j)/1024/nrruns(j))
+          "%12d".format(mcread(j)/1024) +
+          "%12d".format(mcwrite(j)/1024)
       )
         println()
       }
