@@ -6,7 +6,7 @@
  */
 
 
-import HWCounters.JakeTown
+
 import org.scalatest.Suite
 
 import perfplot._
@@ -17,14 +17,72 @@ import perfplot.services._
 
 import java.io._
 import scala.io._
-
+import HWCounters.Counter
+import HWCounters.JakeTown
 
 class TestMemory  extends Suite{
 
+  def test () =
+  {
+    val seq = Config.flag_c99 + Config.flag_hw + Config.flag_mkl_seq + Config.flag_no_optimization
+    val parallel = Config.flag_c99 + Config.flag_hw + Config.flag_mkl + Config.flag_no_optimization
+
+
+    for (counter <- JakeTown.counters)
+    {
+      val index = JakeTown.counters.indexOf(counter)
+      val counters = Array(
+        Counter("10H","80H","FP_COMP_OPS_EXE.SSE_SCALAR_DOUBLE","Counts number of SSE* double precision FP scalar uops executed.",""),
+        Counter("10H","10H","FP_COMP_OPS_EXE.SSE_FP_PACKED_DOUBLE","Counts number of SSE* double precision FP packed uops executed.",""),
+        Counter("11H","02H","SIMD_FP_256.PACKED_DOUBLE","Counts 256-bit packed double-precision floating- point instructions.",""),
+        counter
+      )
+
+
+      {
+        val sizes =  (for (i<-1 until 8) yield (i*128).toLong ).toList
+        CodeGeneration.run_kernel(CodeGeneration.dgemm_MKL,sizes,index+"dgemm-warm",counters,true,true, seq)
+        CodeGeneration.run_kernel(CodeGeneration.dgemm_MKL,sizes,index+"dgemm-cold",counters,true,false, seq)
+        CodeGeneration.run_kernel(CodeGeneration.dgemm_MKL,sizes,index+"dgemm-parallel-warm",counters,true,true, parallel)
+        CodeGeneration.run_kernel(CodeGeneration.dgemm_MKL,sizes,index+"dgemm-parallel-cold",counters,true,false, parallel)
+      }
 
 
 
+      {
+        val sizes_2power =  (for (i<-5 until 20) yield Math.pow(2,i).toLong).toList
+        CodeGeneration.run_kernel(CodeGeneration.daxpy_MKL,sizes_2power,index+"daxpy-warm",counters,true,true, seq)
+        CodeGeneration.run_kernel(CodeGeneration.daxpy_MKL,sizes_2power,index+"daxpy-cold",counters,true,false, seq)
+        CodeGeneration.run_kernel(CodeGeneration.daxpy_MKL,sizes_2power,index+"daxpy-parallel-warm",counters,true,true, parallel)
+        CodeGeneration.run_kernel(CodeGeneration.daxpy_MKL,sizes_2power,index+"daxpy-parallel-cold",counters,true,false, parallel)
+      }
 
+
+
+      {
+        val sizes_2power =  (for (i<-5 until 15) yield Math.pow(2,i).toLong).toList
+        CodeGeneration.run_kernel(CodeGeneration.fft_MKL,sizes_2power,index+"fft-MKL-warm",counters,true,true, seq)
+        CodeGeneration.run_kernel(CodeGeneration.fft_MKL,sizes_2power,index+"fft-MKL-cold",counters,true,false, seq)
+        CodeGeneration.run_kernel(CodeGeneration.fft_MKL,sizes_2power,index+"fft-MKL-parallel-warm",counters,true,true, parallel)
+        CodeGeneration.run_kernel(CodeGeneration.fft_MKL,sizes_2power,index+"fft-MKL-parallel-cold",counters,true,false, parallel)
+      }
+
+
+
+      {
+        val sizes_2power =  (for (i<-2 until 12) yield Math.pow(2,i).toLong).toList
+        CodeGeneration.run_kernel(CodeGeneration.dgemv_MKL,sizes_2power,index+"dgemv-warm",counters,true,true, seq)
+        CodeGeneration.run_kernel(CodeGeneration.dgemv_MKL,sizes_2power,index+"dgemv-cold",counters,true,false, seq)
+        CodeGeneration.run_kernel(CodeGeneration.dgemv_MKL,sizes_2power,index+"dgemv-parallel-warm",counters,true,true, parallel)
+        CodeGeneration.run_kernel(CodeGeneration.dgemv_MKL,sizes_2power,index+"dgemv-parallel-cold",counters,true,false, parallel)
+
+      }
+    }
+  }
+
+}
+
+/*
   def fft (cmdbat: PrintStream, size: Int,counter: HWCounters.Counter) =
   {
     cmdbat.println(Config.MeasuringCoreH)
@@ -171,7 +229,7 @@ class TestMemory  extends Suite{
 
     sourcefile.println("}")
   }
-
+*/
 
 
 
@@ -236,4 +294,3 @@ class TestMemory  extends Suite{
 
   }
           */
-}

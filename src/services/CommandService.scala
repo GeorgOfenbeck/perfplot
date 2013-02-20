@@ -113,6 +113,9 @@ object CommandService {
     def getnrruns(i: Int) = nrruns(i)
 
 
+    def getbytes_read (i: Int) : Long = mcread(i)
+    def getbytes_write (i: Int) : Long = mcwrite(i)
+
     def getbytes_transferred (i: Int) : Long =
     {
       mcread(i) + mcwrite(i)
