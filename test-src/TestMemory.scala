@@ -27,9 +27,10 @@ class TestMemory  extends Suite{
     val seq = Config.flag_c99 + Config.flag_hw + Config.flag_mkl_seq + Config.flag_no_optimization
     val parallel = Config.flag_c99 + Config.flag_hw + Config.flag_mkl + Config.flag_no_optimization
 
-
+    //for (j <- 86 until 87)
     for (counter <- JakeTown.counters)
     {
+      //val counter = JakeTown.counters(j)
       val index = JakeTown.counters.indexOf(counter)
       val counters = Array(
         Counter("10H","80H","FP_COMP_OPS_EXE.SSE_SCALAR_DOUBLE","Counts number of SSE* double precision FP scalar uops executed.",""),
@@ -75,8 +76,21 @@ class TestMemory  extends Suite{
         CodeGeneration.run_kernel(CodeGeneration.dgemv_MKL,sizes_2power,index+"dgemv-cold",counters,true,false, seq)
         CodeGeneration.run_kernel(CodeGeneration.dgemv_MKL,sizes_2power,index+"dgemv-parallel-warm",counters,true,true, parallel)
         CodeGeneration.run_kernel(CodeGeneration.dgemv_MKL,sizes_2power,index+"dgemv-parallel-cold",counters,true,false, parallel)
-
       }
+
+      {
+        val sizes_2power : List[Long] =  List(30*1024, 240*1024, 1*1024*1024, 8*1024*1024, 30*1024*1024 )
+        CodeGeneration.run_kernel(CodeGeneration.memonly1,sizes_2power,index+"mem1-warm",counters,true,true, seq)
+        CodeGeneration.run_kernel(CodeGeneration.memonly1,sizes_2power,index+"mem1-cold",counters,true,false, seq)
+        CodeGeneration.run_kernel(CodeGeneration.memonly2,sizes_2power,index+"mem2-warm",counters,true,true, seq)
+        CodeGeneration.run_kernel(CodeGeneration.memonly2,sizes_2power,index+"mem2-cold",counters,true,false, seq)
+        CodeGeneration.run_kernel(CodeGeneration.memonly3,sizes_2power,index+"mem3-warm",counters,true,true, seq)
+        CodeGeneration.run_kernel(CodeGeneration.memonly3,sizes_2power,index+"mem3-cold",counters,true,false, seq)
+        CodeGeneration.run_kernel(CodeGeneration.memonly4,sizes_2power,index+"mem4-warm",counters,true,true, seq)
+        CodeGeneration.run_kernel(CodeGeneration.memonly4,sizes_2power,index+"mem4-cold",counters,true,false, seq)
+      }
+
+
     }
   }
 

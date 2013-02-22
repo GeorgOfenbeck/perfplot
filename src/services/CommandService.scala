@@ -343,6 +343,19 @@ object CommandService {
       val nrruns = getFile(path.getPath + File.separator + "nrruns.txt").split(" ").map( x => x.toLong ).reverse // /1024/1024)
 
 
+
+      //everything read - delete it
+      if (Config.delete_temp_files){
+        val children = path.list()
+        for (i <- 0 until children.length)
+        {
+          val x = new File(path, children(i))
+          x.delete
+        }
+        // The directory is now empty so delete it
+        path.delete()
+      }
+
       new Counters(nrcores,
         Counter0,
         Counter1,
