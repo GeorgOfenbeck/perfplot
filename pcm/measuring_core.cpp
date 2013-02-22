@@ -24,11 +24,16 @@
 #include <algorithm>
 #include <climits>
 #include <vector>
-
+#include "cpuid_info.h"
 
 #define SIZE (10000000)
 #define DELAY 1 // in seconds
 
+
+// Vicky --- Functions for getting cache parameters with CPUID
+
+cpuid_cache_descriptor_t getTLBinfo(cpuid_leaf2_qualifier_t cacheType);
+unsigned long getLLCSize();
 
 
 //Vicky - Auxiliary functions for execuitng CPUID
@@ -441,7 +446,7 @@ void measurement_start ()
 
 
 
-void measurement_stop(long nr_runs)
+void measurement_stop(unsigned long nr_runs)
 {
 	*sstate2 = getSystemCounterState();
     for (uint32 i = 0; i < m->getNumSockets(); ++i)
@@ -483,18 +488,30 @@ void measurement_stop(long nr_runs)
 		
 	}
 	
-	long sysRead, sysWrite;
+	uint64 sysRead, sysWrite;
 	sysRead = 0;
 	sysWrite = 0;
 
 	for (uint32 i = 0; i < m->getNumSockets(); ++i)
-	{
+	{	
 		sysRead =+ getBytesReadFromMC(sktstate1[i], sktstate2[i]) ;
 		sysWrite =+ getBytesWrittenToMC(sktstate1[i], sktstate2[i]);
+		//cout << endl << "Read: " << sysRead << endl;
+		//cout << endl << "Write: " << sysWrite << endl;
 	}
 
-	plist_mcread[0].push_front(sysRead/nr_runs);
-	plist_mcwrite[0].push_front(sysWrite/nr_runs);
+	
+
+	
+
+	
+	plist_mcread[0].push_front( (sysRead/nr_runs) );
+	plist_mcwrite[0].push_front( (sysWrite/nr_runs) );
+
+	//cout << endl << "Read: " << sysRead << endl;
+	//cout << endl << "Write: " <<sysWrite << endl;
+
+	
 	plist_nrruns[0].push_front(nr_runs);	
 	
 	// Dani start
@@ -537,23 +554,25 @@ void measurement_emptyLists(bool clearRuns)
 
 
 //GO: this is used to estimate how many times more runs we need to get over the threshold specified
-long measurement_run_multiplier(long threshold)
+unsigned long measurement_run_multiplier(unsigned long threshold)
 {
 
  	uint32 ncores = m->getNumCores();
- 	long maxtsc = 1;
+ 	unsigned long maxtsc = 1;
  	list<uint64>::iterator it;
  	for(uint32 i = 0; i < ncores; i++)
  	{
-
  	    for (it =  plist_tsc[i].begin(); it != plist_tsc[i].end(); ++it)
  	        if (*it > maxtsc)
                 maxtsc = *it;
  	}
+	it =  plist_nrruns[0].begin(); //we assume that we only have on entry
+ 	unsigned long nrruns = *it ;
+
 
     measurement_emptyLists(true);
 
-    return ceil (  (threshold *1.0) / (maxtsc * 1.0)  + 1.0 );
+	return ceil (  (threshold *1.0) / (maxtsc * 1.0 *nrruns)  + 1.0 );
 
 
 }
@@ -766,14 +785,20 @@ void dumpResults(const char * prefix)
  	ss_read << sprefix << "MC_read.txt";
  	fplist_mcread[0].open(ss_read.str().c_str());
  	for (it =  plist_mcread[0].begin(); it != plist_mcread[0].end(); ++it)
+	{
+		//cout << endl << "Read iterator: " << *it << endl;
  		fplist_mcread[0] << *it << " ";
+	}
  	fplist_mcread[0].close();
 
  	stringstream ss_write;
  	ss_write << sprefix << "MC_write.txt";
  	fplist_mcwrite[0].open(ss_write.str().c_str());
  	for (it =  plist_mcwrite[0].begin(); it != plist_mcwrite[0].end(); ++it)
- 		fplist_mcwrite[0] << *it << " ";
+ 	{
+		//cout << endl << "Write iterator: " << *it << endl;
+		fplist_mcwrite[0] << *it << " ";
+	}
  	fplist_mcwrite[0].close();
 
 
