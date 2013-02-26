@@ -80,7 +80,7 @@ int convertUnknownToInt(size_t size, char* value);
 #endif
 
 
-long g_offcore_response0, g_offcore_response1;
+unsigned long g_offcore_response0, g_offcore_response1;
 
 #ifdef _MSC_VER
 
@@ -1228,15 +1228,23 @@ numInst<=1 && canUsePerf==true -> we are first, perf will be used, *dont check*,
         // disable counters while programming
         MSR[i]->write(IA32_CR_PERF_GLOBAL_CTRL, 0);
         MSR[i]->read(IA32_CR_FIXED_CTR_CTRL, &ctrl_reg.value);
-
-		//GO: Change to program offcore response events
+				//GO: Change to program offcore response events
 		#define MSR_OFFCORE_RSP_0 (0x1A6)
 		#define MSR_OFFCORE_RSP_1 (0x1A7)
 
+		std::cout <<std::endl << "offcore response!" << g_offcore_response0 << std::endl;
 		if (g_offcore_response0 != 0)
+		{
+			std::cout <<"Programmed offcore response!"<< std::endl;
+			MSR[i]->write(MSR_OFFCORE_RSP_0, 0);
 			MSR[i]->write(MSR_OFFCORE_RSP_0, g_offcore_response0);
+			
+		}
 		if (g_offcore_response1 != 0)
+		{
+			MSR[i]->write(MSR_OFFCORE_RSP_1, 0);
 			MSR[i]->write(MSR_OFFCORE_RSP_1, g_offcore_response1);
+		}
 		//--GO End
 
 	if(EXT_CUSTOM_CORE_EVENTS == mode_ && pExtDesc && pExtDesc->fixedCfg)
@@ -1304,6 +1312,9 @@ numInst<=1 && canUsePerf==true -> we are first, perf will be used, *dont check*,
             else
 #endif              
             {
+				
+
+
               MSR[i]->write(IA32_PMC0 + j, 0);
               MSR[i]->write(IA32_PERFEVTSEL0_ADDR + j, event_select_reg.value);
             }

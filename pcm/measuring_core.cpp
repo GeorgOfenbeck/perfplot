@@ -46,7 +46,7 @@ unsigned long getLLCSize();
 using namespace std;
 
 
-extern long g_offcore_response0, g_offcore_response1;
+extern unsigned long g_offcore_response0, g_offcore_response1;
 
 #ifdef _MSC_VER
 BOOL cleanup(DWORD)
@@ -257,7 +257,7 @@ void flushDCache()
 
 
 
-int measurement_init(long * custom_counters, long offcore_response0, long offcore_response1)
+int measurement_init(long * custom_counters, unsigned long offcore_response0, unsigned long offcore_response1)
 {
     
 	flog.open("log.txt");	 
@@ -321,10 +321,12 @@ int measurement_init(long * custom_counters, long offcore_response0, long offcor
 			events[i].event_number = custom_counters[i*2];
 			events[i].umask_value = custom_counters[i*2+1];
 		}
+		g_offcore_response0 = offcore_response0;
+		std::cout <<std::endl << "offcore response!" << g_offcore_response0 << std::endl;
+		g_offcore_response1 = offcore_response1;
 		status = m->program(PCM::CUSTOM_CORE_EVENTS,events);
 
-		g_offcore_response0 = offcore_response0;
-		g_offcore_response1 = offcore_response1;
+		
 			
 	}
 

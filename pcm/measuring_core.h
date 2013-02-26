@@ -5,7 +5,7 @@
 
 
 //int measurement_init(int type, bool flushData , bool flushICache , bool flushTLB );
-int measurement_init(long * custom_counters = NULL, long offcore_response0 = 0, long offcore_response1 = 0);
+int measurement_init(long * custom_counters = NULL, unsigned long offcore_response0 = 0, unsigned long offcore_response1 = 0);
 void measurement_start();
 void measurement_stop(unsigned long runs=1);
 void measurement_end();

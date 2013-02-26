@@ -1576,7 +1576,10 @@ inline double getCoreC1Residency(const CounterStateType & before, const CounterS
 template <class CounterStateType>
 uint64 getBytesReadFromMC(const CounterStateType & before, const CounterStateType & after)
 {
-    return (after.UncMCNormalReads - before.UncMCNormalReads) * 64;
+	if (after.UncMCNormalReads < before.UncMCNormalReads)
+		return 0;
+	else	
+		return (after.UncMCNormalReads - before.UncMCNormalReads) * 64;
 }
 
 /*! \brief Computes number of bytes written to DRAM memory controllers
@@ -1588,7 +1591,10 @@ uint64 getBytesReadFromMC(const CounterStateType & before, const CounterStateTyp
 template <class CounterStateType>
 uint64 getBytesWrittenToMC(const CounterStateType & before, const CounterStateType & after)
 {
-    return (after.UncMCFullWrites - before.UncMCFullWrites) * 64;
+	if ((after.UncMCFullWrites < before.UncMCFullWrites) * 64)
+		return 0;
+	else
+		return (after.UncMCFullWrites - before.UncMCFullWrites) * 64;
 }
 
 /*! \brief Returns the number of occured custom core events
