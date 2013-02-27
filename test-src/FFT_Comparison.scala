@@ -20,6 +20,10 @@ class FFT_Comparison extends Suite{
   val repeats = 20
 
 
+
+//  def FFTWCode2 (sourcefile: PrintStream, sizes)
+
+
   def FFTWCode (sourcefile: PrintStream, sizes: List[Long]) =
   {
     sourcefile.println(Config.MeasuringCoreH)

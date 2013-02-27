@@ -263,7 +263,21 @@ object JakeTown {
    Counter("B7H","01H","OFFCORE_RESPONSE.PF_L2_DATA_RD.LLC_MISS.ANY_RESPONSE_N","","0x3F803C0010"),
    Counter("B7H","01H","OFFCORE_RESPONSE.PF_L2_DATA_RD.LLC_MISS.LOCAL_DRAM_N","","0x600400010"),
    Counter("B7H","01H","OFFCORE_RESPONSE.PF_L2_DATA_RD.LLC_MISS.REMOTE_DRAM_N","","0x67F800010"),
-   Counter("B7H","01H","OFFCORE_RESPONSE.PF_L2_DATA_RD.LLC_MISS.REMOTE_HIT_FWD_N","","0x87F800010")
+   Counter("B7H","01H","OFFCORE_RESPONSE.PF_L2_DATA_RD.LLC_MISS.REMOTE_HIT_FWD_N","","0x87F800010"),
+   Counter("B7H","01H","Custom_all","",     "0x3F80400FFF"),
+   Counter("B7H","01H","DMND_DATA_RD","",   "0x3F80400001"),
+   Counter("B7H","01H","DMND_RFO","",       "0x3F80400002"),
+   Counter("B7H","01H","DMND_IFETCH","",    "0x3F80400004"),
+   Counter("B7H","01H","WB","",             "0x3F80400008"),
+   Counter("B7H","01H","PF_DATA_RD","",     "0x3F80400010"),
+   Counter("B7H","01H","PF_RFO","",         "0x3F80400020"),
+   Counter("B7H","01H","PF_IFETCH","",      "0x3F80400040"),
+   Counter("B7H","01H","PF_LLC_DATA_RD","", "0x3F80400080"),
+   Counter("B7H","01H","PF_LLC_RFO","",     "0x3F80400100"),
+   Counter("B7H","01H","PF_IFETCH","",      "0x3F80400200"),
+   Counter("B7H","01H","BUS_LOCKS","",      "0x3F80400400"),
+   Counter("B7H","01H","STRM_ST","",        "0x3F80400800"),
+   Counter("B7H","01H","OTHER","",          "0x3F80408000")
    )
 
 

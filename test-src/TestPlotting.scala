@@ -21,7 +21,7 @@ class TestPlotting extends Suite{
       List(
         ("first",Performance(Flops(8),Cycles(1))),
         ("second",Performance(Flops(2),Cycles(1)))
-      ),
+      ),                                                                     test
         List(
         ("firstB",  Throughput(Transfe
         rredBytes(10), Cycles(1))),

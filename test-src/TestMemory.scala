@@ -27,25 +27,28 @@ class TestMemory  extends Suite{
     val seq = Config.flag_c99 + Config.flag_hw + Config.flag_mkl_seq + Config.flag_no_optimization
     val parallel = Config.flag_c99 + Config.flag_hw + Config.flag_mkl + Config.flag_no_optimization
 
-    //for (j <- 86 until 87)
-    for (counter <- JakeTown.counters)
+    for (j <- 210  until 211)// JakeTown.counters.size)
+    //for (counter <- JakeTown.counters)
     {
-      //val counter = JakeTown.counters(j)
+      val counter = JakeTown.counters(j)
       val index = JakeTown.counters.indexOf(counter)
       val counters = Array(
+        Counter("B7H","01H","OFFCORE_RESPONSE.PF_L2_DATA_RD.LLC_MISS.REMOTE_HIT_FWD_N","","0x10FFF"),
+        Counter("10H","80H","FP_COMP_OPS_EXE.SSE_SCALAR_DOUBLE","Counts number of SSE* double precision FP scalar uops executed.",""),
         Counter("10H","80H","FP_COMP_OPS_EXE.SSE_SCALAR_DOUBLE","Counts number of SSE* double precision FP scalar uops executed.",""),
         Counter("10H","10H","FP_COMP_OPS_EXE.SSE_FP_PACKED_DOUBLE","Counts number of SSE* double precision FP packed uops executed.",""),
-        Counter("11H","02H","SIMD_FP_256.PACKED_DOUBLE","Counts 256-bit packed double-precision floating- point instructions.",""),
-        counter
+        Counter("11H","02H","SIMD_FP_256.PACKED_DOUBLE","Counts 256-bit packed double-precision floating- point instructions.","")
+
       )
-
-
+      CodeGeneration.check(CodeGeneration.memonly1,List((30*1024*1024).toLong),index+"mem4-cold",counters,true,false, seq)
+      CodeGeneration.check(CodeGeneration.dgemm_MKL,List(500),index+"dgemm-cold",counters,true,false, seq)
+      /*
       {
         val sizes =  (for (i<-1 until 8) yield (i*128).toLong ).toList
         CodeGeneration.run_kernel(CodeGeneration.dgemm_MKL,sizes,index+"dgemm-warm",counters,true,true, seq)
         CodeGeneration.run_kernel(CodeGeneration.dgemm_MKL,sizes,index+"dgemm-cold",counters,true,false, seq)
         CodeGeneration.run_kernel(CodeGeneration.dgemm_MKL,sizes,index+"dgemm-parallel-warm",counters,true,true, parallel)
-        CodeGeneration.run_kernel(CodeGeneration.dgemm_MKL,sizes,index+"dgemm-parallel-cold",counters,true,false, parallel)
+        //CodeGeneration.run_kernel(CodeGeneration.dgemm_MKL,sizes,index+"dgemm-parallel-cold",counters,true,false, parallel)
       }
 
 
@@ -55,7 +58,7 @@ class TestMemory  extends Suite{
         CodeGeneration.run_kernel(CodeGeneration.daxpy_MKL,sizes_2power,index+"daxpy-warm",counters,true,true, seq)
         CodeGeneration.run_kernel(CodeGeneration.daxpy_MKL,sizes_2power,index+"daxpy-cold",counters,true,false, seq)
         CodeGeneration.run_kernel(CodeGeneration.daxpy_MKL,sizes_2power,index+"daxpy-parallel-warm",counters,true,true, parallel)
-        CodeGeneration.run_kernel(CodeGeneration.daxpy_MKL,sizes_2power,index+"daxpy-parallel-cold",counters,true,false, parallel)
+        //CodeGeneration.run_kernel(CodeGeneration.daxpy_MKL,sizes_2power,index+"daxpy-parallel-cold",counters,true,false, parallel)
       }
 
 
@@ -65,7 +68,7 @@ class TestMemory  extends Suite{
         CodeGeneration.run_kernel(CodeGeneration.fft_MKL,sizes_2power,index+"fft-MKL-warm",counters,true,true, seq)
         CodeGeneration.run_kernel(CodeGeneration.fft_MKL,sizes_2power,index+"fft-MKL-cold",counters,true,false, seq)
         CodeGeneration.run_kernel(CodeGeneration.fft_MKL,sizes_2power,index+"fft-MKL-parallel-warm",counters,true,true, parallel)
-        CodeGeneration.run_kernel(CodeGeneration.fft_MKL,sizes_2power,index+"fft-MKL-parallel-cold",counters,true,false, parallel)
+        //CodeGeneration.run_kernel(CodeGeneration.fft_MKL,sizes_2power,index+"fft-MKL-parallel-cold",counters,true,false, parallel)
       }
 
 
@@ -75,7 +78,7 @@ class TestMemory  extends Suite{
         CodeGeneration.run_kernel(CodeGeneration.dgemv_MKL,sizes_2power,index+"dgemv-warm",counters,true,true, seq)
         CodeGeneration.run_kernel(CodeGeneration.dgemv_MKL,sizes_2power,index+"dgemv-cold",counters,true,false, seq)
         CodeGeneration.run_kernel(CodeGeneration.dgemv_MKL,sizes_2power,index+"dgemv-parallel-warm",counters,true,true, parallel)
-        CodeGeneration.run_kernel(CodeGeneration.dgemv_MKL,sizes_2power,index+"dgemv-parallel-cold",counters,true,false, parallel)
+        //CodeGeneration.run_kernel(CodeGeneration.dgemv_MKL,sizes_2power,index+"dgemv-parallel-cold",counters,true,false, parallel)
       }
 
       {
@@ -89,7 +92,7 @@ class TestMemory  extends Suite{
         CodeGeneration.run_kernel(CodeGeneration.memonly4,sizes_2power,index+"mem4-warm",counters,true,true, seq)
         CodeGeneration.run_kernel(CodeGeneration.memonly4,sizes_2power,index+"mem4-cold",counters,true,false, seq)
       }
-
+*/
 
     }
   }
