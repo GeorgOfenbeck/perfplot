@@ -303,6 +303,7 @@ private:
     bool checkModel();
     void programBecktonUncore(int core);
     void programNehalemEPUncore(int core);
+	void programSandyBridgeUncore(int core);
     void enableJKTWorkaround(bool enable);
 
 public:
@@ -594,9 +595,9 @@ public:
     {
         return !(
                   cpu_model == PCM::ATOM 
-               || cpu_model == PCM::SANDY_BRIDGE 
+               //|| cpu_model == PCM::SANDY_BRIDGE 
                || cpu_model == PCM::CLARKDALE 
-               || cpu_model == PCM::IVY_BRIDGE
+               //|| cpu_model == PCM::IVY_BRIDGE
                );
     }
 

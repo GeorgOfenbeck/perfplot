@@ -1332,7 +1332,12 @@ numInst<=1 && canUsePerf==true -> we are first, perf will be used, *dont check*,
         }
 
         // program uncore counters
-
+		//GO: start
+		if (cpu_model == SANDY_BRIDGE || cpu_model == IVY_BRIDGE)
+		{
+			programSandyBridgeUncore(i);
+		}
+		//GO: end
         if (cpu_model == NEHALEM_EP || cpu_model == WESTMERE_EP || cpu_model == CLARKDALE)
         {
             programNehalemEPUncore(i);
@@ -1366,6 +1371,70 @@ numInst<=1 && canUsePerf==true -> we are first, perf will be used, *dont check*,
 
     return PCM::Success;
 }
+
+
+void PCM::programSandyBridgeUncore (int32 core)
+{
+	UncoreGlobalControlRegisterSandy unc_control;
+	UncoreEventSelectRegisterSandy unc_event_select_reg;
+
+
+	MSR[core]->read(MSR_UNC_ARB_PERFEVTSEL0, &unc_event_select_reg.value);
+
+	unc_event_select_reg.fields.event_select = UNC_ARB_TRK_REQUEST_EVICTIONS_EVTNR;
+    unc_event_select_reg.fields.umask = UNC_ARB_TRK_REQUEST_EVICTIONS_UMASK;
+
+    unc_event_select_reg.fields.edge = 0; \
+    unc_event_select_reg.fields.enable_pmi = 0; \
+    unc_event_select_reg.fields.enable = 1; \
+    unc_event_select_reg.fields.invert = 0; \
+    unc_event_select_reg.fields.cmask = 0;
+
+    MSR[core]->write(MSR_UNC_ARB_PERFEVTSEL0, unc_event_select_reg.value);
+
+
+	
+	
+	
+	MSR[core]->read(MSR_UNC_ARB_PERFEVTSEL1, &unc_event_select_reg.value);
+
+	unc_event_select_reg.fields.event_select = UNC_ARB_TRK_REQUEST_WRITES_EVTNR;
+    unc_event_select_reg.fields.umask = UNC_ARB_TRK_REQUEST_WRITES_UMASK;
+
+    unc_event_select_reg.fields.edge = 0; \
+    unc_event_select_reg.fields.enable_pmi = 0; \
+    unc_event_select_reg.fields.enable = 1; \
+    unc_event_select_reg.fields.invert = 0; \
+    unc_event_select_reg.fields.cmask = 0;
+
+    MSR[core]->write(MSR_UNC_ARB_PERFEVTSEL1, unc_event_select_reg.value);
+
+	core_gen_counter_width = 44;
+
+
+
+	
+	//enable all the uncore counters
+	MSR[core]->read(MSR_UNC_PERF_GLOBAL_CTRL, &unc_control.value);
+
+	unc_control.fields.enable = 1;
+	unc_control.fields.PMI_Sel_Core0 = 0;
+	unc_control.fields.PMI_Sel_Core1 = 0;
+	unc_control.fields.PMI_Sel_Core2 = 0;
+	unc_control.fields.PMI_Sel_Core3 = 0;
+	unc_control.fields.wakePMI = 0;
+	unc_control.fields.FREEZE = 0;
+
+
+	MSR[core]->write(MSR_UNC_PERF_GLOBAL_CTRL, unc_control.value);
+
+	// synchronise counters
+	MSR[core]->write(MSR_UNC_ARB_PER_CTR0, 0);
+	MSR[core]->write(MSR_UNC_ARB_PER_CTR1, 0);
+
+}
+
+
 
 void PCM::programNehalemEPUncore(int32 core)
 {
@@ -2245,6 +2314,16 @@ void UncoreCounterState::readAndAggregate(MsrHandle * msr)
     case PCM::SANDY_BRIDGE:
     case PCM::IVY_BRIDGE:
     {
+		uint64 cUncMCNormalReads = 0;
+		msr->read(MSR_UNC_ARB_PER_CTR0, &cUncMCNormalReads);
+		std::cout << std::endl << "C0: " << cUncMCNormalReads << std::endl;
+        UncMCNormalReads += m->extractUncoreGenCounterValue(cUncMCNormalReads);
+		std::cout << std::endl << "C0x: " << UncMCNormalReads << std::endl;
+		uint64 cUncMCFullWrites = 0;                         // really good approximation of
+        msr->read(MSR_UNC_ARB_PER_CTR1, &cUncMCFullWrites);
+		std::cout << std::endl << "C1: "<< cUncMCFullWrites << std::endl;
+        UncMCFullWrites += m->extractUncoreGenCounterValue(cUncMCFullWrites);
+		std::cout << std::endl << "C1x: "<< UncMCFullWrites << std::endl;
     }
     break;
     default:;

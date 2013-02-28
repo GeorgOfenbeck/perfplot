@@ -125,6 +125,25 @@ typedef signed int int32;
 #define ATOM_MEM_LOAD_RETIRED_L2_MISS_EVTNR   (0xCB)
 #define ATOM_MEM_LOAD_RETIRED_L2_MISS_UMASK   (0x02)
 
+
+//GO: start
+
+#define MSR_UNC_PERF_GLOBAL_CTRL        (0x391)
+
+#define MSR_UNC_ARB_PER_CTR0			(0x3B0)				
+#define MSR_UNC_ARB_PER_CTR1			(0x3B1)
+
+#define MSR_UNC_ARB_PERFEVTSEL0			(0x3B2)
+#define MSR_UNC_ARB_PERFEVTSEL1			(0x3B3)
+
+#define UNC_ARB_TRK_REQUEST_EVICTIONS_EVTNR   (0x81)
+#define UNC_ARB_TRK_REQUEST_EVICTIONS_UMASK   (0x80)
+
+#define UNC_ARB_TRK_REQUEST_WRITES_EVTNR   (0x81)
+#define UNC_ARB_TRK_REQUEST_WRITES_UMASK   (0x20)
+
+//GO: end
+
 /*
         From "Intel(r) Xeon(r) Processor 7500 Series Uncore Programming Guide"
 */
@@ -150,6 +169,8 @@ typedef signed int int32;
 #define MSR_UNCORE_PMC5                         (MSR_UNCORE_PMC0 + 5)
 #define MSR_UNCORE_PMC6                         (MSR_UNCORE_PMC0 + 6)
 #define MSR_UNCORE_PMC7                         (MSR_UNCORE_PMC0 + 7)
+
+
 
 // Uncore event IDs
 
@@ -343,12 +364,69 @@ inline std::ostream & operator << (std::ostream & o, const FixedEventControlRegi
 
 // UNCORE COUNTER CONTROL
 
+
+//GO: Start Sandy Bridge uncore
+
+struct UncoreEventSelectRegisterSandy
+{
+    union
+    {
+        struct
+        {
+            uint64 event_select : 8;
+            uint64 umask : 8;
+            uint64 reserved1 : 2;            
+            uint64 edge : 1;
+            uint64 reserved2 : 1;
+            uint64 enable_pmi : 1;
+			uint64 reserved3 : 1;
+			uint64 enable : 1;
+			uint64 invert : 1;
+			uint64 cmask : 4;	            
+            uint64 reservedx : 36;
+        } fields;
+        uint64 value;
+    };
+};
+
+struct UncoreGlobalControlRegisterSandy
+{
+    union
+    {
+        struct
+        {
+			uint64 PMI_Sel_Core0 : 1;
+			uint64 PMI_Sel_Core1 : 1;
+			uint64 PMI_Sel_Core2 : 1;
+			uint64 PMI_Sel_Core3 : 1;
+
+			uint64 reserved1 : 25;            
+
+			uint64 enable : 1;
+			uint64 wakePMI : 1;
+			uint64 FREEZE : 1;			
+            
+            uint64 reserved2: 32;                        
+        } fields;
+        uint64 value;
+    };
+};
+
+
+//GO: End Sandy Bridge uncore
+
 /* \brief Uncore Event Select Register Register format
 
         According to
         "Intel 64 and IA-32 Architectures Software Developers Manual Volume 3B:
         System Programming Guide, Part 2", Figure 30-20. Layout of MSR_UNCORE_PERFEVTSELx MSRs
 */
+
+
+
+
+
+
 struct UncoreEventSelectRegister
 {
     union
