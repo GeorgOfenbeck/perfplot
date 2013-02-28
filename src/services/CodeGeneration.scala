@@ -164,11 +164,13 @@ object CodeGeneration {
       p("fftw_plan fftwPlan;")
       p("fftw_complex * in;")
       p("fftw_complex * out;")
+      p("std::cout << \"before fftwmalloc\";");
       p("in =  (fftw_complex*) fftw_malloc("+size+ " * sizeof(fftw_complex));")
       p("out =  (fftw_complex*) fftw_malloc("+size+ " * sizeof(fftw_complex));")
+      p("std::cout << \"before plan\";");
       p("fftwPlan = fftw_plan_dft_1d("+size+", in, out, FFTW_FORWARD, FFTW_MEASURE);")
 
-
+      p("std::cout << \"before tune\";");
       //tune nr runs
       CodeGeneration.tuneNrRunsbyRunTime(sourcefile,"fftw_execute_dft(fftwPlan,in,out);", "std::cout << out[1];" )
       //find out the number of shifts required
@@ -179,35 +181,40 @@ object CodeGeneration {
       if (!warmData)
       {
         p("fftw_free(in);")
+	p("fftw_free(out);")
         //allocate
-        p("long numberofshifts =  measurement_getNumberOfShifts(" + (size)+ "* sizeof(fftw_complex),runs*"+Config.repeats+");")
+        p("long numberofshifts =  measurement_getNumberOfShifts(" + 2*(size)+ "* sizeof(fftw_complex),runs*"+Config.repeats+");")
         p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
         p("fftw_complex ** in_array = (fftw_complex **) CreateBuffers("+size+"* sizeof(fftw_complex),numberofshifts);")
+	p("fftw_complex ** out_array = (fftw_complex **) CreateBuffers("+size+"* sizeof(fftw_complex),numberofshifts);")
         p("for(int r = 0; r < " + Config.repeats + "; r++){")
         p("measurement_start();")
         p("for(int i = 0; i < runs; i++){")
-        p("fftw_execute_dft(fftwPlan,in_array[i%numberofshifts],out);")
+        p("fftw_execute_dft(fftwPlan,in_array[i%numberofshifts],out_array[i%numberofshifts]);")
         p("}")
         p( "measurement_stop(runs);")
         p( " }")
         p("DestroyBuffers( (void **) in_array, numberofshifts);")
+        p("DestroyBuffers( (void **) out_array, numberofshifts);")
 
       }
       else
       {
         //run it
+        p("std::cout << \"before repeats\";");
+
         p("for(int r = 0; r < " + Config.repeats + "; r++){")
-        p("measurement_start();")
-        p("for(int i = 0; i < runs; i++){")
-        p("fftw_execute_dft(fftwPlan,in,out);")
-        p("}")
-        p( "measurement_stop(runs);")
+        	p("measurement_start();")
+	        p("for(int i = 0; i < runs; i++){")
+		        p("fftw_execute_dft(fftwPlan,in,out);")
+	        p("}")
+        	p( "measurement_stop(runs);")
         p( " }")
         p("std::cout << \"deallocate\";")
         //deallocate the buffers
-        p("_mm_free(in);")
+        p("fftw_free(in);")
+	p("fftw_free(out);") 
       }
-      p("fftw_free(out);")
       p("}")
     }
     p("measurement_end();")
