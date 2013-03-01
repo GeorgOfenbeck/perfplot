@@ -1378,7 +1378,8 @@ void PCM::programSandyBridgeUncore (int32 core)
 	UncoreGlobalControlRegisterSandy unc_control;
 	UncoreEventSelectRegisterSandy unc_event_select_reg;
 
-
+	core_gen_counter_width = 44;
+	//ARB0
 	MSR[core]->read(MSR_UNC_ARB_PERFEVTSEL0, &unc_event_select_reg.value);
 
 	unc_event_select_reg.fields.event_select = UNC_ARB_TRK_REQUEST_EVICTIONS_EVTNR;
@@ -1391,11 +1392,8 @@ void PCM::programSandyBridgeUncore (int32 core)
     unc_event_select_reg.fields.cmask = 0;
 
     MSR[core]->write(MSR_UNC_ARB_PERFEVTSEL0, unc_event_select_reg.value);
-
-
-	
-	
-	
+		
+	//ARB1
 	MSR[core]->read(MSR_UNC_ARB_PERFEVTSEL1, &unc_event_select_reg.value);
 
 	unc_event_select_reg.fields.event_select = UNC_ARB_TRK_REQUEST_WRITES_EVTNR;
@@ -1409,9 +1407,63 @@ void PCM::programSandyBridgeUncore (int32 core)
 
     MSR[core]->write(MSR_UNC_ARB_PERFEVTSEL1, unc_event_select_reg.value);
 
-	core_gen_counter_width = 44;
+	
+	//CBO0
+	MSR[core]->read(MSR_UNC_CBO_0_PERFEVTSEL0, &unc_event_select_reg.value);
+
+	unc_event_select_reg.fields.event_select = UNC_CBO_CACHE_LOOKUP_ANY_I_EVENTNR;
+    unc_event_select_reg.fields.umask = UNC_CBO_CACHE_LOOKUP_ANY_I_UMASK;
+
+    unc_event_select_reg.fields.edge = 0; \
+    unc_event_select_reg.fields.enable_pmi = 0; \
+    unc_event_select_reg.fields.enable = 1; \
+    unc_event_select_reg.fields.invert = 0; \
+    unc_event_select_reg.fields.cmask = 0;
+
+	MSR[core]->write(MSR_UNC_CBO_0_PERFEVTSEL0, unc_event_select_reg.value);
+
+	//CBO1
+	MSR[core]->read(MSR_UNC_CBO_1_PERFEVTSEL0, &unc_event_select_reg.value);
+
+	unc_event_select_reg.fields.event_select = UNC_CBO_CACHE_LOOKUP_ANY_I_EVENTNR;
+    unc_event_select_reg.fields.umask = UNC_CBO_CACHE_LOOKUP_ANY_I_UMASK;
+
+    unc_event_select_reg.fields.edge = 0; \
+    unc_event_select_reg.fields.enable_pmi = 0; \
+    unc_event_select_reg.fields.enable = 1; \
+    unc_event_select_reg.fields.invert = 0; \
+    unc_event_select_reg.fields.cmask = 0;
+
+	MSR[core]->write(MSR_UNC_CBO_1_PERFEVTSEL0, unc_event_select_reg.value);
+
+	//CBO2
+	MSR[core]->read(MSR_UNC_CBO_2_PERFEVTSEL0, &unc_event_select_reg.value);
+
+	unc_event_select_reg.fields.event_select = UNC_CBO_CACHE_LOOKUP_ANY_I_EVENTNR;
+    unc_event_select_reg.fields.umask = UNC_CBO_CACHE_LOOKUP_ANY_I_UMASK;
+
+    unc_event_select_reg.fields.edge = 0; \
+    unc_event_select_reg.fields.enable_pmi = 0; \
+    unc_event_select_reg.fields.enable = 1; \
+    unc_event_select_reg.fields.invert = 0; \
+    unc_event_select_reg.fields.cmask = 0;
+
+	MSR[core]->write(MSR_UNC_CBO_2_PERFEVTSEL0, unc_event_select_reg.value);
 
 
+	//CBO3
+	MSR[core]->read(MSR_UNC_CBO_3_PERFEVTSEL0, &unc_event_select_reg.value);
+
+	unc_event_select_reg.fields.event_select = UNC_CBO_CACHE_LOOKUP_ANY_I_EVENTNR;
+    unc_event_select_reg.fields.umask = UNC_CBO_CACHE_LOOKUP_ANY_I_UMASK;
+
+    unc_event_select_reg.fields.edge = 0; \
+    unc_event_select_reg.fields.enable_pmi = 0; \
+    unc_event_select_reg.fields.enable = 1; \
+    unc_event_select_reg.fields.invert = 0; \
+    unc_event_select_reg.fields.cmask = 0;
+
+	MSR[core]->write(MSR_UNC_CBO_3_PERFEVTSEL0, unc_event_select_reg.value);
 
 	
 	//enable all the uncore counters
@@ -1428,9 +1480,23 @@ void PCM::programSandyBridgeUncore (int32 core)
 
 	MSR[core]->write(MSR_UNC_PERF_GLOBAL_CTRL, unc_control.value);
 
+
+
+
+
+
+
+
+
 	// synchronise counters
+	MSR[core]->write(MSR_UNC_CBO_0_PER_CTR0, 0);
+	MSR[core]->write(MSR_UNC_CBO_1_PER_CTR0, 0);
+	MSR[core]->write(MSR_UNC_CBO_2_PER_CTR0, 0);
+	MSR[core]->write(MSR_UNC_CBO_3_PER_CTR0, 0);
+
 	MSR[core]->write(MSR_UNC_ARB_PER_CTR0, 0);
 	MSR[core]->write(MSR_UNC_ARB_PER_CTR1, 0);
+	
 
 }
 
@@ -2314,16 +2380,23 @@ void UncoreCounterState::readAndAggregate(MsrHandle * msr)
     case PCM::SANDY_BRIDGE:
     case PCM::IVY_BRIDGE:
     {
+		
 		uint64 cUncMCNormalReads = 0;
-		msr->read(MSR_UNC_ARB_PER_CTR0, &cUncMCNormalReads);
-		std::cout << std::endl << "C0: " << cUncMCNormalReads << std::endl;
+		msr->read(MSR_UNC_CBO_0_PER_CTR0, &cUncMCNormalReads);		
         UncMCNormalReads += m->extractUncoreGenCounterValue(cUncMCNormalReads);
-		std::cout << std::endl << "C0x: " << UncMCNormalReads << std::endl;
+		msr->read(MSR_UNC_CBO_1_PER_CTR0, &cUncMCNormalReads);		
+        UncMCNormalReads += m->extractUncoreGenCounterValue(cUncMCNormalReads);
+		msr->read(MSR_UNC_CBO_2_PER_CTR0, &cUncMCNormalReads);		
+        UncMCNormalReads += m->extractUncoreGenCounterValue(cUncMCNormalReads);
+		msr->read(MSR_UNC_CBO_3_PER_CTR0, &cUncMCNormalReads);		
+        UncMCNormalReads += m->extractUncoreGenCounterValue(cUncMCNormalReads);
+		//std::cout << std::endl << "C0x: " << UncMCNormalReads << std::endl;
 		uint64 cUncMCFullWrites = 0;                         // really good approximation of
-        msr->read(MSR_UNC_ARB_PER_CTR1, &cUncMCFullWrites);
-		std::cout << std::endl << "C1: "<< cUncMCFullWrites << std::endl;
+        //msr->read(MSR_UNC_ARB_PER_CTR1, &cUncMCFullWrites);
+		msr->read(MSR_UNC_ARB_PER_CTR0, &cUncMCFullWrites);
+		//std::cout << std::endl << "C1: "<< cUncMCFullWrites << std::endl;
         UncMCFullWrites += m->extractUncoreGenCounterValue(cUncMCFullWrites);
-		std::cout << std::endl << "C1x: "<< UncMCFullWrites << std::endl;
+		//std::cout << std::endl << "C1x: "<< UncMCFullWrites << std::endl;
     }
     break;
     default:;
