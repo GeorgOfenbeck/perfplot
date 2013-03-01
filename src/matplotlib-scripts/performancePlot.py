@@ -4,6 +4,7 @@ import sys
 import os
 import math
 from matplotlib import rc
+rc('text', usetex=True)
 from numpy import *
 from pylab import *
 import random
@@ -13,7 +14,7 @@ import matplotlib.lines as lns
 import matplotlib.ticker
 
    
-background_color = '#eeeeee' 
+background_color =(0.85,0.85,0.85) #'#C0C0C0' 
 grid_color = 'white' #FAFAF7'
 matplotlib.rc('axes', facecolor = background_color)
 matplotlib.rc('axes', edgecolor = grid_color)
@@ -27,27 +28,26 @@ matplotlib.rc('xtick.major',size =0 )
 matplotlib.rc('xtick.minor',size =0 )
 matplotlib.rc('ytick.major',size =0 )
 matplotlib.rc('ytick.minor',size =0 )
-#matplotlib.rc('font', family='sans-serif')
-matplotlib.rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
+matplotlib.rc('font', family='serif')
+#matplotlib.rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
 ## for Palatino and other serif fonts use:
 #rc('font',**{'family':'serif','serif':['Palatino']})
-matplotlib.rc('text', usetex=True)
 
 
-X_MIN=0.1
-X_MAX=2*1024
+X_MIN=0.1  # Don't worry about this.
+X_MAX=100  # Will be adjusted depending on x axis data
 Y_MIN=0
 Y_MAX=8
 LOG_X=1
 LOG_Y=0
+INVERSE_GOLDEN_RATIO=0.618
 TITLE="MVM"
 X_LABEL="Problem Size [Doubles]"
 Y_LABEL="Performance [Flop/Cycle]"
-#Y_LABEL="Performance [Cycles]"
 OUTPUT_FILE="performancePlot.pdf"
 PLOT_STATS=1
-colors=['black', '#000066','#336600','#CC0033' ,'#FFFF00' ]
-series = ['dgemv_warm'] #, 'warm_mmm']
+colors=[(0.6,0.011,0.043), (0.258, 0.282, 0.725),(0.2117, 0.467, 0.216),'#CC0033' ,'#FFFF00' ]
+series = ['MVM']
 
 
 fig = plt.figure()
@@ -63,31 +63,12 @@ ax = fig.add_subplot(111)
 if LOG_Y:  ax.set_yscale('log')
 if LOG_X: ax.set_xscale('log')
 
+
+
 #formatting:
 ax.set_title(TITLE,fontsize=14,fontweight='bold')
 ax.set_xlabel(X_LABEL, fontsize=12)
 ax.set_ylabel(Y_LABEL, fontsize=12)
-
-
-#x-y range
-ax.axis([X_MIN,X_MAX,Y_MIN,Y_MAX])
-
-#TODO: When log scale, axis labels have a different font...
-if LOG_X:
-    ax.xaxis.set_major_formatter(matplotlib.ticker.ScalarFormatter())
-    #ax.xaxis.major.formatter.set_powerlimits((-3, 6)) 
-#    for label in ax.get_xticklabels() :
-#        label.set_fontproperties(ticks_font)
-
-if LOG_Y:
-        ax.yaxis.set_major_formatter(matplotlib.ticker.ScalarFormatter())
-        #ax.yaxis.major.formatter.set_powerlimits((-3, 6)) 
-#        for label in ax.get_yticklabels() :
-#                label.set_fontproperties(ticks_font)
-
-
-
-
 
 
 # Load the data 
@@ -132,7 +113,10 @@ for serie,i in zip(series,range(len(series))):
 
     file_in.close()
 
-    xData = [float(x) for x in xData[0]]
+    xData = [float(x) for x in xData[0]]	
+	# Adjust X_MIN and X_MAX according to data plotted.    
+    X_MIN=xData[0] - xData[0]/2
+    X_MAX=xData[len(xData)-1] + xData[len(xData)-1]/2	
 
     if PLOT_STATS:    
         """
@@ -141,7 +125,7 @@ for serie,i in zip(series,range(len(series))):
         ) and the upper hinge (the 75th percentile), the whiskers extend to the most extreme data points not considered outliers,
          this ones are plotted individually.    
         """
-        locs, labels = xticks() 
+  #      locs, labels = xticks() 
         if LOG_X:
             rectanglesWidths = [float(x)/3 for x in xData]
             bp = ax.boxplot(yData, positions=xData, widths = rectanglesWidths)
@@ -154,7 +138,7 @@ for serie,i in zip(series,range(len(series))):
         setp(bp['caps'], color=colors[i])
 
         #Restore xticks location --> Needed to locate boxes in arbitrary positions
-        xticks(locs)
+   #     xticks(locs)
 
 
         # Plot a line between the medians of each dataset => need to get medians calculated by boxplot
@@ -179,8 +163,58 @@ for serie,i in zip(series,range(len(series))):
 #end for loop
 
 
-#ax.legend(numpoints=1, loc='best',fontsize =6,frameon = False )
-ax.legend(numpoints=1, loc='best',frameon = False )
+#ax.legend(numpoints=1, loc='best',frameon = False )
+ax.legend(numpoints=1, loc='best').get_frame().set_visible(False)
+
+
+#x-y range
+ax.axis([X_MIN,X_MAX,Y_MIN,Y_MAX])
+
+#if LOG_X and LOG_Y:
+#    AXIS_ASPECT_RATIO=log10(X_MAX/X_MIN)/log10(Y_MAX/Y_MIN)
+#elif LOG_X and not(LOG_Y):
+#	AXIS_ASPECT_RATIO=log10(X_MAX/X_MIN)/(Y_MAX-Y_MIN)
+#elif not(LOG_X) and LOG_Y:
+#	AXIS_ASPECT_RATIO=(X_MAX-X_MIN)/log10(Y_MAX/Y_MIN)
+#else:
+#	AXIS_ASPECT_RATIO=(X_MAX-X_MIN)/(Y_MAX-Y_MIN)
+#ax.set_aspect(INVERSE_GOLDEN_RATIO*AXIS_ASPECT_RATIO)
+
+
+# Manually adjust xtick/ytick labels when log scale
+if LOG_X:
+    locs, labels = xticks()
+    minloc =int(log10(X_MIN))
+    maxloc =int(log10(X_MAX) +1)
+    newlocs = []
+    newlabels = []
+    for i in range(minloc,maxloc):
+        newlocs.append(10**i)
+        # Do not plot the first label, it is ugly in the corner
+        if i==minloc:
+            newlabels.append('')
+        elif 10**i <= 100:
+            newlabels.append(str(10**i))
+        else:
+            newlabels.append(r'$10^ %d$' %i)
+    xticks(newlocs, newlabels)
+
+if LOG_Y:
+    locs, labels = yticks()
+    minloc =int(log10(Y_MIN))
+    maxloc =int(log10(Y_MAX) +1)
+    newlocs = []
+    newlabels = []
+    for i in range(minloc,maxloc):
+        newlocs.append(10**i)
+        if i==minloc:
+            newlabels.append('')
+        elif 10**i <= 100:
+            newlabels.append(str(10**i))
+        else:
+            newlabels.append(r'$10^ %d$' %i)
+    yticks(newlocs, newlabels)
+
 
 #save file
 fig.savefig(OUTPUT_FILE, dpi=250,  bbox_inches='tight')
