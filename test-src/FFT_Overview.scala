@@ -66,8 +66,8 @@ class FFT_Overview extends Suite{
   def test_FFT_FFTW()=
   {
     val sizes_2power =  (for (i<- 3 until 20) yield (Math.pow(2,i).toLong)).toList
-    CodeGeneration.run_kernel(folder,CodeGeneration.fft_FFTW,sizes_2power,"fft-FFTW-warm",counters,true,true, seq)
-    CodeGeneration.run_kernel(folder,CodeGeneration.fft_FFTW,sizes_2power,"fft-FFTW-cold",counters,true,false, seq)
+    CodeGeneration.run_kernel(folder,CodeGeneration.fft_FFTW,sizes_2power,"fft-FFTW-warm",counters,true,true, seq + " -lfftw3 -lm " )
+    CodeGeneration.run_kernel(folder,CodeGeneration.fft_FFTW,sizes_2power,"fft-FFTW-cold",counters,true,false, seq + " -lfftw3 -lm " )
   }
 
 
