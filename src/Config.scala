@@ -39,7 +39,7 @@ object Config {
   def flag_mkl = if (isWin) " /Qmkl" else " -mkl"
   def flag_mkl_seq = if (isWin) " /Qmkl:sequential" else " -mkl:sequential"
   def flag_optimization = if (isWin) " /O3" else " -O3"
-  def flag_no_optimization = if (isWin) " /Od" else " -Od"
+  def flag_no_optimization = if (isWin) " /Od" else " -O0"
   def flag_hw = if (isWin) " /QxHost" else " -xHost"
   def flag_novec = if (isWin) " /Qno-simd /Qno-vec" else " -no-simd -no-vec"
 
