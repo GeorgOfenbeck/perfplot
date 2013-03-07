@@ -13,6 +13,10 @@ import matplotlib.pyplot as plt
 import matplotlib.lines as lns
 from scipy import stats
 from matplotlib.patches import Polygon
+import matplotlib.font_manager as fm
+
+font = fm.FontProperties(
+        family = 'Gill Sans', fname = 'GillSans.ttc')
 
 
 background_color =(0.85,0.85,0.85) #'#C0C0C0'    
@@ -29,7 +33,7 @@ matplotlib.rc('xtick.major',size =0 )
 matplotlib.rc('xtick.minor',size =0 )
 matplotlib.rc('ytick.major',size =0 )
 matplotlib.rc('ytick.minor',size =0 )
-matplotlib.rc('font', family='serif')
+#matplotlib.rc('font', family='serif')
 
 X_MIN=0.01
 X_MAX=1000.0
@@ -58,8 +62,8 @@ ax.set_xscale('log')
 
 #formatting:
 ax.set_title(TITLE,fontsize=14,fontweight='bold')
-ax.set_xlabel(X_LABEL, fontsize=12)
-ax.set_ylabel(Y_LABEL, fontsize=12)
+ax.set_xlabel(X_LABEL, fontproperties = font, fontsize=12)
+ax.set_ylabel(Y_LABEL, fontproperties = font, fontsize=12)
 
 
 #x-y range
@@ -79,6 +83,8 @@ for i in range(minloc,maxloc):
     # Do not plot the first label, it is ugly in the corner
     if i==minloc:
 		newlabels.append('')
+    elif i==maxloc-1: #Do not plot the last label either
+        newlabels.append('')
     elif 10**i <= 100:
         newlabels.append(str(10**i))
     else:
@@ -203,7 +209,7 @@ ax.legend(pp,ss, numpoints=1, loc='best',fontsize =6).get_frame().set_visible(Fa
 
 
 #Peak performance line and text
-ax.axhline(y=PEAK_PERF, linewidth=1, color='black')
+ax.axhline(y=PEAK_PERF, linewidth=0.75, color='black')
 #ax.text(X_MAX/10.0, PEAK_PERF+(PEAK_PERF)/10, "Peak Performance ("+str(PEAK_PERF)+" F/C)", fontsize=8)
 yCoordinateTransformed = (log(PEAK_PERF)-log(Y_MIN))/(log(Y_MAX/Y_MIN))
 ax.text(0.76,yCoordinateTransformed+0.01, "Peak Performance ("+str(PEAK_PERF)+" F/C)", fontsize=8, transform=ax.transAxes)
@@ -211,7 +217,7 @@ ax.text(0.76,yCoordinateTransformed+0.01, "Peak Performance ("+str(PEAK_PERF)+" 
 #BW line and text
 x = np.linspace(X_MIN, X_MAX, X_MAX)
 y = x*PEAK_BW 
-ax.plot(x, y, linewidth=1, color='black')
+ax.plot(x, y, linewidth=0.75, color='black')
 
 
 #l2 = array((0.01,X_MIN*PEAK_BW*(1/INVERSE_GOLDEN_RATIO)*log10(X_MAX/X_MIN)/log10(Y_MAX/Y_MIN)))
