@@ -279,11 +279,39 @@ object JakeTown {
    Counter("B7H","01H","STRM_ST","",        "0x3F80400800"),
    Counter("B7H","01H","OTHER","",          "0x3F80408000")
    )
+}
 
 
+object IvyBridge {
 
+    val flops = Array (
+        Counter("10H","01H","FP_COMP_OPS_EXE.X87","Counts number of X87 uops executed.",""),
+        Counter("10H","80H","FP_COMP_OPS_EXE.SSE_SCALAR_DOUBLE","Counts number of SSE* double precision FP scalar uops executed.",""),
+        Counter("10H","10H","FP_COMP_OPS_EXE.SSE_FP_PACKED_DOUBLE","Counts number of SSE* double precision FP packed uops executed.",""),
+        Counter("11H","02H","SIMD_FP_256.PACKED_DOUBLE","Counts 256-bit packed double-precision floating- point instructions.","")
+    )
 
+    val single_flops = Array (
+        Counter("10H","01H","FP_COMP_OPS_EXE.X87","Counts number of X87 uops executed.",""),
+        Counter("10H","20H","FP_COMP_OPS_EXE.SSE_FP_SCALAR_SINGLE","Counts number of SSE* single precision FP scalar uops executed.",""),
+        Counter("10H","40H","FP_COMP_OPS_EXE.SSE_PACKED_SINGLE","Counts number of SSE* single precision FP packed uops executed.",""),
+        Counter("11H","01H","SIMD_FP_256.PACKED_SINGLE","Counts 256-bit packed single-precision floating- point instructions.","")
+    )
 
+    val tlbs = Array (
+        Counter("08H","81H","DTLB_LOAD_MISSES.MISS_CAUSES_A_WALK","Misses in all TLB levels that cause a page walk of any page size.",""),
+        Counter("5FH","01H","TLB_ACCESS.LOAD_STLB_HIT","Number of cache load STLB hits. No page walk.",""),
+        Counter("49H","01H","DTLB_STORE_MISSES.MISS_CAUSES_A_WALK","Miss in all TLB levels causes an page walk of any page size (4K/2M/4M/1G).",""),
+        Counter("49H","10H","DTLB_STORE_MISSES.STLB_HIT","Store operations that miss the first TLB level but hit the second and do not cause page walks.","")
+    )
 
+    val offcore_rd = Array  (
+        Counter("B7H","01H","OFFCORE_RESPONSE.ALL_DATA_RD.LLC_MISS.DRAM_N","","0x300400091"),
+        Counter("BBH","01H","OFFCORE_RESPONSE.ALL_RFO.LLC_MISS.DRAM_N","","0x300400122")
+    )
 
+    val uncore_rd_wr = Array (
+        Counter("81H","80H","UNC_ARB_TRK_REQUEST.EVICTIONS","Counts the number of LLC evictions allocated.",""),
+        Counter("34H","88H","UNC_CBO_CACHE_LOOKUP.ANY.STATE_I","LLC lookup request that access cache and found line in I-state.","")
+    )
 }
