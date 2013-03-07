@@ -563,7 +563,7 @@ object CodeGeneration {
     p("void _rands(double * m, size_t row, size_t col)\n{\n  for (size_t i = 0; i < row*col; ++i)  m[i] = (double)(rand())/RAND_MAX;;\n}")
 
     p("int main () { ")
-    p("srand(time(NULL));")
+    p("srand(1984);")
 
     p(counterstring)
     p(initstring)
@@ -665,7 +665,7 @@ object CodeGeneration {
     CodeGeneration.destroy_array_of_buffers(sourcefile)
     p("void _rands(double * m, size_t row, size_t col)\n{\n  for (size_t i = 0; i < row*col; ++i)  m[i] = (double)(rand())/RAND_MAX;;\n}")
     p("int main () { ")
-    p("srand(time(NULL));")
+    p("srand(1984);")
 
     p(counterstring)
     p(initstring)
@@ -762,7 +762,7 @@ object CodeGeneration {
     p("int main () { ")
     p(counterstring)
     p(initstring)
-    p("srand(time(NULL));")
+    p("srand(1984);")
     for (size <- sizes)
     {
       p("{")
@@ -855,7 +855,7 @@ object CodeGeneration {
     p("void _rands(double * m, size_t row, size_t col)\n{\n  for (size_t i = 0; i < row*col; ++i)  m[i] = (double)(rand())/RAND_MAX;;\n}")
 
     p("int main () { ")
-    p("srand(time(NULL));")
+    p("srand(1984);")
     p(counterstring)
     p(initstring)
 
