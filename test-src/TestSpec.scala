@@ -103,9 +103,13 @@ class TestSpec extends Suite{
       val outputFile6 = new PrintStream(path.getPath + File.separator +"bytes_read_" + name + ".txt")
       val outputFile7 = new PrintStream(path.getPath + File.separator +"bytes_write_" + name + ".txt")
       var first1 = true
-      CommandService.execute("echo 0 > ~/.LARGE_INPUT")
 
-      for (i <- 0 until 1)
+
+      val tmpfile = new PrintStream(".~/.LARGE_INPUT")
+      tmpfile.print("0")
+      tmpfile.close()
+
+      for (i <- 0 until 2)
       {
         //this way we do a single measurment setup for each size
 
@@ -148,7 +152,9 @@ class TestSpec extends Suite{
         else
           outputFile3.print(" " + i)
 
-//        CommandService.execute("echo 1 > ~/.LARGE_INPUT")
+        val tmpfile2 = new PrintStream(".~/.LARGE_INPUT")
+        tmpfile2.print("1")
+        tmpfile2.close()
       }
       //dgemv_res.prettyprint()
       outputFile1.close()

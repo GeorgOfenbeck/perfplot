@@ -560,7 +560,11 @@ object CodeGeneration {
     val (counterstring, initstring ) = CodeGeneration.Counters2CCode(counters)
     CodeGeneration.create_array_of_buffers(sourcefile)
     CodeGeneration.destroy_array_of_buffers(sourcefile)
+    p("void _rands(double * m, size_t row, size_t col)\n{\n  for (size_t i = 0; i < row*col; ++i)  m[i] = (double)(rand())/RAND_MAX;;\n}")
+
     p("int main () { ")
+    p("srand(1984);")
+
     p(counterstring)
     p(initstring)
     for (size <- sizes)
@@ -594,6 +598,21 @@ object CodeGeneration {
         p("double ** A_array = (double **) CreateBuffers("+size*size+"* sizeof(" + prec + "),numberofshifts);")
         p("double ** B_array = (double **) CreateBuffers("+size*size+"* sizeof(" + prec + "),numberofshifts);")
         p("double ** C_array = (double **) CreateBuffers("+size*size+"* sizeof(" + prec + "),numberofshifts);")
+
+
+        p("for(int i = 0; i < numberofshifts; i++){")
+        p("_rands(A_array[i],"+size+" ,"+size+");")
+        p("}")
+
+        p("for(int i = 0; i < numberofshifts; i++){")
+        p("_rands(B_array[i],"+size+" ,"+size+");")
+        p("}")
+
+        p("for(int i = 0; i < numberofshifts; i++){")
+        p("_rands(C_array[i],"+size+" ,"+size+");")
+        p("}")
+
+
         p("for(int r = 0; r < " + Config.repeats + "; r++){")
         p("measurement_start();")
         p("for(int i = 0; i < runs; i++){")
@@ -644,7 +663,10 @@ object CodeGeneration {
     val (counterstring, initstring ) = CodeGeneration.Counters2CCode(counters)
     CodeGeneration.create_array_of_buffers(sourcefile)
     CodeGeneration.destroy_array_of_buffers(sourcefile)
+    p("void _rands(double * m, size_t row, size_t col)\n{\n  for (size_t i = 0; i < row*col; ++i)  m[i] = (double)(rand())/RAND_MAX;;\n}")
     p("int main () { ")
+    p("srand(1984);")
+
     p(counterstring)
     p(initstring)
     for (size <- sizes)
@@ -675,6 +697,16 @@ object CodeGeneration {
         p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
         p("double ** x_array = (double **) CreateBuffers("+size+"* sizeof(" + prec + "),numberofshifts);")
         p("double ** y_array = (double **) CreateBuffers("+size+"* sizeof(" + prec + "),numberofshifts);")
+
+
+        p("for(int i = 0; i < numberofshifts; i++){")
+        p("_rands(x_array[i],"+size+" ,1);")
+        p("}")
+
+        p("for(int i = 0; i < numberofshifts; i++){")
+        p("_rands(y_array[i],"+size+" ,1);")
+        p("}")
+
         p("for(int r = 0; r < " + Config.repeats + "; r++){")
         p("measurement_start();")
         p("for(int i = 0; i < runs; i++){")
@@ -722,9 +754,15 @@ object CodeGeneration {
     val (counterstring, initstring ) = CodeGeneration.Counters2CCode(counters)
     CodeGeneration.create_array_of_buffers(sourcefile)
     CodeGeneration.destroy_array_of_buffers(sourcefile)
+
+
+    p("void _rands(double * m, size_t row, size_t col)\n{\n  for (size_t i = 0; i < row*col; ++i)  m[i] = (double)(rand())/RAND_MAX;;\n}")
+
+
     p("int main () { ")
     p(counterstring)
     p(initstring)
+    p("srand(1984);")
     for (size <- sizes)
     {
       p("{")
@@ -738,7 +776,7 @@ object CodeGeneration {
       //Tune the number of runs
       p("std::cout << \"tuning\";")
       //tuneNrRuns(sourcefile,"cblas_dgemv(CblasRowMajor, CblasNoTrans,"+size+" ,"+size+", alpha, A, "+size+", x, 1, 0., y, 1);","" )
-      CodeGeneration.tuneNrRunsbyRunTime(sourcefile,"cblas_dgemv(CblasRowMajor, CblasNoTrans,"+size+" ,"+size+", alpha, A, "+size+", x, 1, 0., y, 1);","" )
+      CodeGeneration.tuneNrRunsbyRunTime(sourcefile,"cblas_dgemv(CblasRowMajor, CblasNoTrans,"+size+" ,"+size+", alpha, A, "+size+", x, 1, 1., y, 1);","" )
       //find out the number of shifts required
       //p("std::cout << runs << \"allocate\";")
       //allocate the buffers
@@ -749,16 +787,30 @@ object CodeGeneration {
         p("_mm_free(x);")
         p("_mm_free(y);")
         //allocate
-        p("long numberofshifts =  measurement_getNumberOfShifts(" + (size*size+size+size)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
+        p("long numberofshifts =  100*measurement_getNumberOfShifts(" + (size*size+size+size)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
         p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
 
         p("double ** A_array = (double **) CreateBuffers("+size*size+"* sizeof(" + prec + "),numberofshifts);")
         p("double ** x_array = (double **) CreateBuffers("+size+"* sizeof(" + prec + "),numberofshifts);")
         p("double ** y_array = (double **) CreateBuffers("+size+"* sizeof(" + prec + "),numberofshifts);")
+
+
+        p("for(int i = 0; i < numberofshifts; i++){")
+        p("_rands(A_array[i],"+size+" ,"+size+");")
+        p("}")
+
+        p("for(int i = 0; i < numberofshifts; i++){")
+        p("_rands(x_array[i],"+size+" ,1);")
+        p("}")
+
+        p("for(int i = 0; i < numberofshifts; i++){")
+        p("_rands(y_array[i],"+size+" ,1);")
+        p("}")
+
         p("for(int r = 0; r < " + Config.repeats + "; r++){")
         p("measurement_start();")
         p("for(int i = 0; i < runs; i++){")
-        p("cblas_dgemv(CblasRowMajor, CblasNoTrans,"+size+" ,"+size+", alpha, A_array[i%numberofshifts], "+size+", x_array[i%numberofshifts], 1, 0., y_array[i%numberofshifts], 1);")
+        p("cblas_dgemv(CblasRowMajor, CblasNoTrans,"+size+" ,"+size+", alpha, A_array[i%numberofshifts], "+size+", x_array[i%numberofshifts], 1, 1., y_array[i%numberofshifts], 1);")
         p("}")
         p( "measurement_stop(runs);")
         p( " }")
@@ -800,7 +852,10 @@ object CodeGeneration {
     val (counterstring, initstring ) = CodeGeneration.Counters2CCode(counters)
     CodeGeneration.create_array_of_buffers(sourcefile)
     CodeGeneration.destroy_array_of_buffers(sourcefile)
+    p("void _rands(double * m, size_t row, size_t col)\n{\n  for (size_t i = 0; i < row*col; ++i)  m[i] = (double)(rand())/RAND_MAX;;\n}")
+
     p("int main () { ")
+    p("srand(1984);")
     p(counterstring)
     p(initstring)
 
@@ -829,6 +884,11 @@ object CodeGeneration {
         p("long numberofshifts =  measurement_getNumberOfShifts(" + (2*size)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
         p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
         p("double ** x_array = (double **) CreateBuffers("+2*size+"* sizeof(" + prec + "),numberofshifts);")
+
+        p("for(int i = 0; i < numberofshifts; i++){")
+        p("_rands(x_array[i],"+size+" ,1);")
+        p("}")
+
         p("for(int r = 0; r < " + Config.repeats + "; r++){")
         p("measurement_start();")
         p("for(int i = 0; i < runs; i++){")
