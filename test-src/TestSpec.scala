@@ -105,7 +105,7 @@ class TestSpec extends Suite{
       var first1 = true
 
 
-      val tmpfile = new PrintStream(".~/.LARGE_INPUT")
+      val tmpfile = new PrintStream("/Users/Victoria/.LARGE_INPUT")
       tmpfile.print("0")
       tmpfile.close()
 
@@ -152,7 +152,7 @@ class TestSpec extends Suite{
         else
           outputFile3.print(" " + i)
 
-        val tmpfile2 = new PrintStream(".~/.LARGE_INPUT")
+        val tmpfile2 = new PrintStream("/Users/Victoria/.LARGE_INPUT")
         tmpfile2.print("1")
         tmpfile2.close()
       }
