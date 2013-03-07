@@ -1054,16 +1054,32 @@ PCM::ErrorCode PCM::program(PCM::ProgramMode mode_, void * parameter_)
     sem_post(numInstancesSemaphore);
     int curValue = 0;
     sem_getvalue(numInstancesSemaphore, &curValue);
+  
+  //VCA: Move this code here because it does not apply to APPLE
+  if (curValue > 1)  // already programmed since another instance exists
+  {
+    std::cout << "Number of PCM instances: " << curValue << std::endl;
+    return PCM::Success;
+  }
+//END of VCA
+  
 #else //if it is apple
-    uint32 curValue = PCM::incrementNumInstances();
+  //VCA: Original code
+   // uint32 curValue = PCM::incrementNumInstances();
+   // sem_post(numInstancesSemaphore);
+  if (sem_trywait(numInstancesSemaphore)!= 0 ) { // If I cannot lock it, release it
     sem_post(numInstancesSemaphore);
+    sem_post(numInstancesSemaphore);
+  }else{
+    sem_post(numInstancesSemaphore);
+    sem_post(numInstancesSemaphore);
+    std::cout << "Already programmed since another instance exists.... "<< std::endl;
+    return PCM::Success;
+  }
+  //End of VCA
 #endif // end ifndef __APPLE__
-
-    if (curValue > 1)  // already programmed since another instance exists
-    {
-        std::cout << "Number of PCM instances: " << curValue << std::endl;
-        if(!canUsePerf) return PCM::Success;
-    }
+//VCA: This now only applies to not-apply, so moved to line 1057
+  
 
 #endif // end ifdef _MSC_VER
 
@@ -1931,11 +1947,13 @@ void PCM::cleanup()
     SystemWideLock lock;
     
     if (!MSR) return;
-    
-    std::cout << "Cleaning up" << std::endl;
+  
 
-    if (decrementInstanceSemaphore())
-        cleanupPMU();
+  if (decrementInstanceSemaphore()){
+    std::cout << "Cleaning up" << std::endl;
+    cleanupPMU();
+  }
+        
 }
 
 #ifdef __APPLE__
@@ -2007,6 +2025,8 @@ bool PCM::decrementInstanceSemaphore()
         
 
         #elif __APPLE__
+  //VCA : Comment original code
+  /*
     sem_wait(numInstancesSemaphore);
     uint32 oldValue = PCM::getNumInstances();
     sem_post(numInstancesSemaphore);
@@ -2021,7 +2041,23 @@ bool PCM::decrementInstanceSemaphore()
     if(currValue == 0){
 	isLastInstance = true;
     }
-
+*/
+  //VCA 
+  // Want to know is the current value is already zero, that is, if the sempahore
+  if(sem_trywait(numInstancesSemaphore)==0){
+    if(sem_trywait(numInstancesSemaphore)==0){
+      if(sem_trywait(numInstancesSemaphore)==0){
+        sem_post(numInstancesSemaphore);
+        sem_post(numInstancesSemaphore);
+        return false;
+      }else{
+        isLastInstance = true;
+        //sem_close(PCM_NUM_INSTANCES_SEMAPHORE_NAME);
+      }
+    }
+  }
+  //End of VCA
+  
 	#else // if linux
     int oldValue = -1;
     sem_getvalue(numInstancesSemaphore, &oldValue);
