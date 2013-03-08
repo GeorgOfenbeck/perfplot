@@ -39,34 +39,34 @@ class TestSpec extends Suite{
   def test_spec_433 =
   {
 
-    run_spec("433",folder, new File("/home/ofgeorg/perfplot/BENCHMARKS/SPEC2006/433.milc/run.sh") )
+    run_spec("433",folder, new File("/Users/Victoria/ETH-VICTORIA/BENCHMARKS/SPEC2006/433.milc/run.sh") )
   }*/
 
   def test_spec_444 =
   {
-    run_spec("444",folder,new File("/home/ofgeorg/perfplot/BENCHMARKS/SPEC2006/444.namd/run.sh"))
+    run_spec("444",folder,new File("/Users/Victoria/ETH-VICTORIA/BENCHMARKS/SPEC2006/444.namd/run.sh"))
   }
 
   def test_spec_450 =
   {
-    run_spec("450",folder,new File("/home/ofgeorg/perfplot/BENCHMARKS/SPEC2006/450.soplex/run.sh"))
+    run_spec("450",folder,new File("/Users/Victoria/ETH-VICTORIA/BENCHMARKS/SPEC2006/450.soplex/run.sh"))
   }
 
   def test_spec_470 =
   {
-    run_spec("470",folder,new File("/home/ofgeorg/perfplot/BENCHMARKS/SPEC2006/470.lbm/run.sh"))
+    run_spec("470",folder,new File("/Users/Victoria/ETH-VICTORIA/BENCHMARKS/SPEC2006/470.lbm/run.sh"))
 
   }
 
   def test_spec_482 =
   {
-    run_spec("482",folder,new File("/home/ofgeorg/perfplot/BENCHMARKS/SPEC2006/482.sphinx3/run.sh"))
+    run_spec("482",folder,new File("/Users/Victoria/ETH-VICTORIA/BENCHMARKS/SPEC2006/482.sphinx3/run.sh"))
 
   }
 
   def test_spec_999 =
   {
-    run_spec("999",folder,new File("/home/ofgeorg/perfplot/BENCHMARKS/SPEC2006/999.specrand/run.sh"))
+    run_spec("999",folder,new File("/Users/Victoria/ETH-VICTORIA/BENCHMARKS/SPEC2006/999.specrand/run.sh"))
   }
 
 
@@ -105,7 +105,7 @@ class TestSpec extends Suite{
       var first1 = true
 
 
-      val tmpfile = new PrintStream(".~/.LARGE_INPUT")
+      val tmpfile = new PrintStream("/Users/Victoria/.LARGE_INPUT")
       tmpfile.print("0")
       tmpfile.close()
 
@@ -152,7 +152,7 @@ class TestSpec extends Suite{
         else
           outputFile3.print(" " + i)
 
-        val tmpfile2 = new PrintStream(".~/.LARGE_INPUT")
+        val tmpfile2 = new PrintStream("/Users/Victoria/.LARGE_INPUT")
         tmpfile2.print("1")
         tmpfile2.close()
       }

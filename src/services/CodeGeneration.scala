@@ -1,6 +1,7 @@
 package perfplot
 package services
 
+import HWCounters.IvyBridge
 import perfplot.Config._
 import java.io._
 
@@ -1114,6 +1115,75 @@ object CodeGeneration {
     else
       println(name + " read from cached file")
   }
+
+  // run kernel with flops/tlb counters. Gets all the data needed for the plots
+  def run_kernel2 (path: File, kernel: (PrintStream, List[Long], Array[HWCounters.Counter], Boolean, Boolean, Boolean) => Unit,
+                     sizes_in: List[Long], name: String, double_precision: Boolean = true, warmData: Boolean = false, warmTLB: Boolean = false, flags: String) =
+    {
+        val file = new File(path.getPath + File.separator + "flop_"+ name + ".txt")
+
+        if(!file.exists())
+        {
+            val outputFile1 = new PrintStream(path.getPath + File.separator + "flop_"+ name + ".txt")
+            val outputFile2 = new PrintStream(path.getPath + File.separator + "tsc_"+ name + ".txt")
+            val outputFile3 = new PrintStream(path.getPath + File.separator + "size_"+ name + ".txt")
+            val outputFile4 = new PrintStream(path.getPath + File.separator + "bytes_transferred_" + name + ".txt")
+            val outputFile5 = new PrintStream(path.getPath + File.separator + "tlb_misses_" + name + ".txt")
+
+            var first1 = true
+            for (s <- sizes_in)
+            {
+                //this way we do a single measurment setup for each size
+                val sizes: List[Long] = List(s)
+
+                def kernelTLB(sourcefile: PrintStream) = kernel (sourcefile: PrintStream, sizes, IvyBridge.tlbs, double_precision, warmData, warmTLB)
+                def kernelFlops(sourcefile: PrintStream) = kernel (sourcefile: PrintStream, sizes, IvyBridge.flops, double_precision, warmData, warmTLB)
+
+                val tlb_res = CommandService.fromScratch(name, kernelTLB, flags)
+                val flops_res = CommandService.fromScratch(name, kernelFlops, flags)
+
+                var first = true
+                for (i <- 0 until Config.repeats)
+                {
+                    if (!first)
+                    {
+                        outputFile1.print(" ")
+                        outputFile2.print(" ")
+                        outputFile4.print(" ")
+                        outputFile5.print(" ")
+                    }
+
+                    first = false
+
+                    outputFile1.print(flops_res.getSCounter(0)(i) + flops_res.getSCounter(1)(i) + flops_res.getSCounter(2)(i)*2 + flops_res.getSCounter(3)(i)*4)
+                    outputFile2.print(flops_res.getTSC(i))
+                    outputFile4.print(flops_res.getbytes_transferred(i))
+                    outputFile5.print(tlb_res.getSCounter(0)(i) + tlb_res.getSCounter(1)(i) + tlb_res.getSCounter(2)(i) + tlb_res.getSCounter(3)(i))
+                }
+
+                outputFile1.print("\n")
+                outputFile2.print("\n")
+                outputFile4.print("\n")
+                outputFile5.print("\n")
+
+                if (first1)
+                {
+                    outputFile3.print(s)
+                    first1 = false
+                }
+                else
+                    outputFile3.print(" " + s)
+            }
+
+            outputFile1.close()
+            outputFile2.close()
+            outputFile3.close()
+            outputFile4.close()
+            outputFile5.close()
+        }
+        else
+            println(name + " read from cached file")
+    }
 
 
   def Counters2CCode(counters: Array[HWCounters.Counter]): (String,String) =

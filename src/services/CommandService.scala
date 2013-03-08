@@ -53,6 +53,16 @@ object CommandService {
     )
   {
 
+    def getSCounter(i : Long)  =
+    {
+        i match {
+            case 0 =>  SCounter0
+            case 1 =>  SCounter1
+            case 2 =>  SCounter2
+            case 3 =>  SCounter3
+        }
+    }
+
 
     def getSCounter3():Array[Long] = SCounter3
 
