@@ -14,6 +14,116 @@ object CodeGeneration {
 
 
 
+  def tripple_loop(sourcefile: PrintStream,sizes: List[Long], counters: Array[HWCounters.Counter], double_precision: Boolean = true, warmData: Boolean = false) =
+  {
+    def p(x: String) = sourcefile.println(x)
+    val prec = if (double_precision) "double" else "float"
+
+    p("#include <iostream>")
+    p("#include <iostream>\n#include <fstream>\n#include <cstdlib>\n#include <ctime>\n#include <cmath>\n")
+    p(Config.MeasuringCoreH)
+    p("#define page 4096")
+    p("#define THRESHOLD " + Config.testDerivate_Threshold)
+    p("using namespace std;")
+    val (counterstring, initstring ) = CodeGeneration.Counters2CCode(counters)
+    CodeGeneration.create_array_of_buffers(sourcefile)
+    CodeGeneration.destroy_array_of_buffers(sourcefile)
+    p("void _rands(double * m, size_t row, size_t col)\n{\n  for (size_t i = 0; i < row*col; ++i)  m[i] = (double)(rand())/RAND_MAX;;\n}")
+
+
+
+
+    p("void dgemm(double *A, double * B, double * C, unsigned long size) {")
+
+    p("for (int i = 0; i < size; i++)")
+    p("for (int j = 0; j < size; j++)")
+    p("for (int k = 0; k < size; k++)")
+    //p("C[i][j] += A[i][k]*B[k][j];")
+    p("C[i*size+j] += A[i*size+k]*B[k*size+j];")
+    p("}")
+
+    p("int main () { ")
+    p("srand(1984);")
+
+    p(counterstring)
+    p(initstring)
+    for (size <- sizes)
+    {
+      p("{")
+      p("double alpha = 1.1;")
+      p("unsigned long size = " +size + ";")
+      //allocate
+      p("double * A = (double *) _mm_malloc("+size*size+"*sizeof(double),page);")
+      p("double * B = (double *) _mm_malloc("+size*size+"*sizeof(double),page);")
+      p("double * C = (double *) _mm_malloc("+size*size+"*sizeof(double),page);")
+      p("int n = " +size + ";")
+      //Tune the number of runs
+      p("std::cout << \"tuning\";")
+      //tuneNrRuns(sourcefile,"cblas_dgemv(CblasRowMajor, CblasNoTrans,"+size+" ,"+size+", alpha, A, "+size+", x, 1, 0., y, 1);","" )
+      CodeGeneration.tuneNrRunsbyRunTime(sourcefile, "dgemm(A,B,C,size);" ,"" )
+
+      //find out the number of shifts required
+      //p("std::cout << runs << \"allocate\";")
+      //allocate the buffers
+      //p("std::cout << \"run\";")
+      if (!warmData)
+      {
+        p("_mm_free(A);")
+        p("_mm_free(B);")
+        p("_mm_free(C);")
+        //allocate
+        p("long numberofshifts =  measurement_getNumberOfShifts(" + (size*size*3)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
+        p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
+
+        p("double ** A_array = (double **) CreateBuffers("+size*size+"* sizeof(" + prec + "),numberofshifts);")
+        p("double ** B_array = (double **) CreateBuffers("+size*size+"* sizeof(" + prec + "),numberofshifts);")
+        p("double ** C_array = (double **) CreateBuffers("+size*size+"* sizeof(" + prec + "),numberofshifts);")
+
+
+        p("for(int i = 0; i < numberofshifts; i++){")
+        p("_rands(A_array[i],"+size+" ,"+size+");")
+        p("_rands(B_array[i],"+size+" ,"+size+");")
+        p("_rands(C_array[i],"+size+" ,"+size+");")
+        p("}")
+
+
+
+        p("for(int r = 0; r < " + Config.repeats + "; r++){")
+        p("measurement_start();")
+        p("for(int i = 0; i < runs; i++){")
+        p("dgemm(A_array[i%numberofshifts], B_array[i%numberofshifts],C_array[i%numberofshifts], size);")
+        p("}")
+        p( "measurement_stop(runs);")
+        p( " }")
+        p("DestroyBuffers( (void **) A_array, numberofshifts);")
+        p("DestroyBuffers( (void **) B_array, numberofshifts);")
+        p("DestroyBuffers( (void **) C_array, numberofshifts);")
+      }
+      else
+      {
+        //run it
+        p("for(int r = 0; r < " + Config.repeats + "; r++){")
+        p("measurement_start();")
+        p("for(int i = 0; i < runs; i++){")
+        p("dgemm(A,B,C, size);")
+        //p("cblas_dgemm(CblasRowMajor, CblasNoTrans,"+size+" ,"+size+", alpha, A, "+size+", B, 1, 0., C, 1);")
+        p("}")
+        p( "measurement_stop(runs);")
+        p( " }")
+        p("std::cout << \"deallocate\";")
+        //deallocate the buffers
+        p("_mm_free(A);")
+        p("_mm_free(B);")
+        p("_mm_free(C);")
+      }
+      p("}")
+    }
+    p("measurement_end();")
+    p("}")
+  }
+
+
+
   def fft_Spiral(sourcefile: PrintStream,sizes: List[Long], counters: Array[HWCounters.Counter], double_precision: Boolean = true, warmData: Boolean = false) =
   {
     def p(x: String) = sourcefile.println(x)
@@ -181,7 +291,7 @@ object CodeGeneration {
       if (!warmData)
       {
         p("fftw_free(in);")
-	p("fftw_free(out);")
+	      p("fftw_free(out);")
         //allocate
         p("long numberofshifts =  measurement_getNumberOfShifts(" + 2*(size)+ "* sizeof(fftw_complex),runs*"+Config.repeats+");")
         p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
@@ -592,7 +702,8 @@ object CodeGeneration {
         p("_mm_free(B);")
         p("_mm_free(C);")
         //allocate
-        p("long numberofshifts =  measurement_getNumberOfShifts(" + (size*size*3)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
+        //p("long numberofshifts =  measurement_getNumberOfShifts(" + (size*size*3)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
+        p("long numberofshifts = (100 * 1024 * 1024 / (" + (size*size*size)+ "* sizeof(" + prec + "));")
         p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
 
         p("double ** A_array = (double **) CreateBuffers("+size*size+"* sizeof(" + prec + "),numberofshifts);")
@@ -693,7 +804,8 @@ object CodeGeneration {
         p("_mm_free(x);")
         p("_mm_free(y);")
         //allocate
-        p("long numberofshifts =  measurement_getNumberOfShifts(" + (size+size)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
+        //p("long numberofshifts =  measurement_getNumberOfShifts(" + (size+size)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
+        p("long numberofshifts = (100 * 1024 * 1024 / (" + (2*size)+ "* sizeof(" + prec + "));")
         p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
         p("double ** x_array = (double **) CreateBuffers("+size+"* sizeof(" + prec + "),numberofshifts);")
         p("double ** y_array = (double **) CreateBuffers("+size+"* sizeof(" + prec + "),numberofshifts);")
@@ -787,7 +899,8 @@ object CodeGeneration {
         p("_mm_free(x);")
         p("_mm_free(y);")
         //allocate
-        p("long numberofshifts =  100*measurement_getNumberOfShifts(" + (size*size+size+size)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
+        //p("long numberofshifts =  100*measurement_getNumberOfShifts(" + (size*size+size+size)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
+        p("long numberofshifts = (100 * 1024 * 1024 / ( " + (size*size+size+size)+ "* sizeof(" + prec + "));")
         p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
 
         p("double ** A_array = (double **) CreateBuffers("+size*size+"* sizeof(" + prec + "),numberofshifts);")
@@ -881,7 +994,8 @@ object CodeGeneration {
       {
         p("_mm_free(x);")
         //allocate
-        p("long numberofshifts =  measurement_getNumberOfShifts(" + (2*size)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
+        //p("long numberofshifts =  measurement_getNumberOfShifts(" + (2*size)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
+        p("long numberofshifts = (100 * 1024 * 1024 / (" + (2*size)+ "* sizeof(" + prec + "));")
         p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
         p("double ** x_array = (double **) CreateBuffers("+2*size+"* sizeof(" + prec + "),numberofshifts);")
 
