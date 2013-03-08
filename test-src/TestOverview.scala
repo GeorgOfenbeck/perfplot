@@ -67,7 +67,7 @@ class TestOverview extends Suite{
 
   def test_dgmev_seq() =
   {
-    val sizes_2power =  (for (i<-1 until 6) yield (Math.pow(10,i).toLong)).toList
+    val sizes_2power =  (for (i<-1 until 5) yield (Math.pow(10,i).toLong)).toList
     CodeGeneration.run_kernel(folder,CodeGeneration.dgemv_MKL,sizes_2power,"dgemv-warm",counters,true,true, seq)
     CodeGeneration.run_kernel(folder,CodeGeneration.dgemv_MKL,sizes_2power,"dgemv-cold",counters,true,false, seq)
     CodeGeneration.run_kernel(folder,CodeGeneration.dgemv_MKL,sizes_2power,"dgemv-parallel-warm",counters,true,true, parallel)

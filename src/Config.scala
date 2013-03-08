@@ -46,7 +46,7 @@ object Config {
 
   val MeasuringCoreH = "#ifndef MEASURING_CORE_HEADER\n#define MEASURING_CORE_HEADER\n\n\n\n#ifdef __cplusplus\nextern \"C\" {\n#endif\n//int measurement_init(int type, bool flushData , bool flushICache , bool flushTLB );\nint measurement_init(long * custom_counters , unsigned long offcore_response0 , unsigned long offcore_response1 );\nvoid measurement_start();\nvoid measurement_stop(unsigned long runs);\nvoid measurement_end();\n// Start Dani\n//bool measurement_customTest(size_t runs, size_t vlen);\nunsigned long measurement_run_multiplier(unsigned long threshold);\nbool measurement_testDerivative(size_t runs, double alpha_threshold, double avg_threshold, double time_threshold, double *d, size_t points);\n//void measurement_meanSingleRun();\n//bool measurement_testSD(size_t runs);\nvoid measurement_emptyLists(bool clearRuns);\nvoid dumpMeans();\n\nunsigned long measurement_getNumberOfShifts(unsigned long size, unsigned long initialGuess);\n// End Dani\n\nvoid flushITLB();\nvoid flushDTLB();\nvoid flushICache();\nvoid flushDCache();\n\n\n#ifdef __cplusplus\n}\n#endif\n#endif"
 
-  val delete_temp_files = false
+  val delete_temp_files = true
 
   def result_folder: File = if (isWin)
       new File("C:\\Users\\ofgeorg\\IdeaProjects\\results\\")

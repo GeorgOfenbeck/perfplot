@@ -30,7 +30,7 @@ object CodeGeneration {
     CodeGeneration.create_array_of_buffers(sourcefile)
     CodeGeneration.destroy_array_of_buffers(sourcefile)
     p("void _rands(double * m, size_t row, size_t col)\n{\n  for (size_t i = 0; i < row*col; ++i)  m[i] = (double)(rand())/RAND_MAX;;\n}")
-
+    p("void _ini1(double * m, size_t row, size_t col)\n{\n  for (size_t i = 0; i < row*col; ++i)  m[i] = (double)1.1;\n}")
 
 
 
@@ -57,6 +57,11 @@ object CodeGeneration {
       p("double * A = (double *) _mm_malloc("+size*size+"*sizeof(double),page);")
       p("double * B = (double *) _mm_malloc("+size*size+"*sizeof(double),page);")
       p("double * C = (double *) _mm_malloc("+size*size+"*sizeof(double),page);")
+
+      p("_ini1(A,"+size+" ,"+size+");")
+      p("_ini1(B,"+size+" ,"+size+");")
+      p("_ini1(C,"+size+" ,"+size+");")
+
       p("int n = " +size + ";")
       //Tune the number of runs
       p("std::cout << \"tuning\";")
@@ -82,9 +87,9 @@ object CodeGeneration {
 
 
         p("for(int i = 0; i < numberofshifts; i++){")
-        p("_rands(A_array[i],"+size+" ,"+size+");")
-        p("_rands(B_array[i],"+size+" ,"+size+");")
-        p("_rands(C_array[i],"+size+" ,"+size+");")
+        p("_ini1(A_array[i],"+size+" ,"+size+");")
+        p("_ini1(B_array[i],"+size+" ,"+size+");")
+        p("_ini1(C_array[i],"+size+" ,"+size+");")
         p("}")
 
 
@@ -295,6 +300,7 @@ object CodeGeneration {
 	      p("fftw_free(out);")
         //allocate
         p("long numberofshifts =  measurement_getNumberOfShifts(" + 2*(size)+ "* sizeof(fftw_complex),runs*"+Config.repeats+");")
+
         p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
         p("fftw_complex ** in_array = (fftw_complex **) CreateBuffers("+size+"* sizeof(fftw_complex),numberofshifts);")
 	p("fftw_complex ** out_array = (fftw_complex **) CreateBuffers("+size+"* sizeof(fftw_complex),numberofshifts);")
@@ -672,7 +678,7 @@ object CodeGeneration {
     CodeGeneration.create_array_of_buffers(sourcefile)
     CodeGeneration.destroy_array_of_buffers(sourcefile)
     p("void _rands(double * m, size_t row, size_t col)\n{\n  for (size_t i = 0; i < row*col; ++i)  m[i] = (double)(rand())/RAND_MAX;;\n}")
-
+    p("void _ini1(double * m, size_t row, size_t col)\n{\n  for (size_t i = 0; i < row*col; ++i)  m[i] = (double)1.1;\n}")
     p("int main () { ")
     p("srand(1984);")
 
@@ -687,6 +693,13 @@ object CodeGeneration {
       p("double * A = (double *) _mm_malloc("+size*size+"*sizeof(double),page);")
       p("double * B = (double *) _mm_malloc("+size*size+"*sizeof(double),page);")
       p("double * C = (double *) _mm_malloc("+size*size+"*sizeof(double),page);")
+
+
+      p("_ini1(A,"+size+" ,"+size+");")
+      p("_ini1(B,"+size+" ,"+size+");")
+      p("_ini1(C,"+size+" ,"+size+");")
+
+
       p("int n = " +size + ";")
       //Tune the number of runs
       p("std::cout << \"tuning\";")
@@ -704,7 +717,9 @@ object CodeGeneration {
         p("_mm_free(C);")
         //allocate
         //p("long numberofshifts =  measurement_getNumberOfShifts(" + (size*size*3)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
-        p("long numberofshifts = (100 * 1024 * 1024 / (" + (size*size*size)+ "* sizeof(" + prec + "));")
+        p("long numberofshifts = (100 * 1024 * 1024 / (" + (size*size*3)+ "* sizeof(" + prec + ")));")
+        p("if (numberofshifts < 2) numberofshifts = 2;")
+
         p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
 
         p("double ** A_array = (double **) CreateBuffers("+size*size+"* sizeof(" + prec + "),numberofshifts);")
@@ -713,15 +728,15 @@ object CodeGeneration {
 
 
         p("for(int i = 0; i < numberofshifts; i++){")
-        p("_rands(A_array[i],"+size+" ,"+size+");")
+        p("_ini1(A_array[i],"+size+" ,"+size+");")
         p("}")
 
         p("for(int i = 0; i < numberofshifts; i++){")
-        p("_rands(B_array[i],"+size+" ,"+size+");")
+        p("_ini1(B_array[i],"+size+" ,"+size+");")
         p("}")
 
         p("for(int i = 0; i < numberofshifts; i++){")
-        p("_rands(C_array[i],"+size+" ,"+size+");")
+        p("_ini1(C_array[i],"+size+" ,"+size+");")
         p("}")
 
 
@@ -776,6 +791,8 @@ object CodeGeneration {
     CodeGeneration.create_array_of_buffers(sourcefile)
     CodeGeneration.destroy_array_of_buffers(sourcefile)
     p("void _rands(double * m, size_t row, size_t col)\n{\n  for (size_t i = 0; i < row*col; ++i)  m[i] = (double)(rand())/RAND_MAX;;\n}")
+
+    p("void _ini1(double * m, size_t row, size_t col)\n{\n  for (size_t i = 0; i < row*col; ++i)  m[i] = (double)1.1;\n}")
     p("int main () { ")
     p("srand(1984);")
 
@@ -789,6 +806,13 @@ object CodeGeneration {
       //allocate
       p("double * x = (double *) _mm_malloc("+size+"*sizeof(double),page);")
       p("double * y = (double *) _mm_malloc("+size+"*sizeof(double),page);")
+      p("_ini1(x,"+size+" ,1);")
+      p("_ini1(y,"+size+" ,1);")
+
+
+
+
+
       p("int n = " +size + ";")
       //Tune the number of runs
       p("std::cout << \"tuning\";")
@@ -806,18 +830,19 @@ object CodeGeneration {
         p("_mm_free(y);")
         //allocate
         //p("long numberofshifts =  measurement_getNumberOfShifts(" + (size+size)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
-        p("long numberofshifts = (100 * 1024 * 1024 / (" + (2*size)+ "* sizeof(" + prec + "));")
+        p("long numberofshifts = (100 * 1024 * 1024 / (" + (2*size)+ "* sizeof(" + prec + ")));")
+        p("if (numberofshifts < 2) numberofshifts = 2;")
         p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
         p("double ** x_array = (double **) CreateBuffers("+size+"* sizeof(" + prec + "),numberofshifts);")
         p("double ** y_array = (double **) CreateBuffers("+size+"* sizeof(" + prec + "),numberofshifts);")
 
 
         p("for(int i = 0; i < numberofshifts; i++){")
-        p("_rands(x_array[i],"+size+" ,1);")
+        p("_ini1(x_array[i],"+size+" ,1);")
         p("}")
 
         p("for(int i = 0; i < numberofshifts; i++){")
-        p("_rands(y_array[i],"+size+" ,1);")
+        p("_ini1(y_array[i],"+size+" ,1);")
         p("}")
 
         p("for(int r = 0; r < " + Config.repeats + "; r++){")
@@ -870,7 +895,7 @@ object CodeGeneration {
 
 
     p("void _rands(double * m, size_t row, size_t col)\n{\n  for (size_t i = 0; i < row*col; ++i)  m[i] = (double)(rand())/RAND_MAX;;\n}")
-
+    p("void _ini1(double * m, size_t row, size_t col)\n{\n  for (size_t i = 0; i < row*col; ++i)  m[i] = (double)1.1;\n}")
 
     p("int main () { ")
     p(counterstring)
@@ -886,6 +911,15 @@ object CodeGeneration {
       p("double * x = (double *) _mm_malloc("+size+"*sizeof(double),page);")
       p("double * y = (double *) _mm_malloc("+size+"*sizeof(double),page);")
       p("int n = " +size + ";")
+
+
+
+      p("_ini1(A,"+size+" ,"+size+");")
+      p("_ini1(x,"+size+" ,1);")
+      p("_ini1(y,"+size+" ,1);")
+
+
+
       //Tune the number of runs
       p("std::cout << \"tuning\";")
       //tuneNrRuns(sourcefile,"cblas_dgemv(CblasRowMajor, CblasNoTrans,"+size+" ,"+size+", alpha, A, "+size+", x, 1, 0., y, 1);","" )
@@ -901,7 +935,8 @@ object CodeGeneration {
         p("_mm_free(y);")
         //allocate
         //p("long numberofshifts =  100*measurement_getNumberOfShifts(" + (size*size+size+size)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
-        p("long numberofshifts = (100 * 1024 * 1024 / ( " + (size*size+size+size)+ "* sizeof(" + prec + "));")
+        p("long numberofshifts = (100 * 1024 * 1024 / ( " + (size*size+size+size)+ "* sizeof(" + prec + ")));")
+        p("if (numberofshifts < 2) numberofshifts = 2;")
         p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
 
         p("double ** A_array = (double **) CreateBuffers("+size*size+"* sizeof(" + prec + "),numberofshifts);")
@@ -910,15 +945,15 @@ object CodeGeneration {
 
 
         p("for(int i = 0; i < numberofshifts; i++){")
-        p("_rands(A_array[i],"+size+" ,"+size+");")
+        p("_ini1(A_array[i],"+size+" ,"+size+");")
         p("}")
 
         p("for(int i = 0; i < numberofshifts; i++){")
-        p("_rands(x_array[i],"+size+" ,1);")
+        p("_ini1(x_array[i],"+size+" ,1);")
         p("}")
 
         p("for(int i = 0; i < numberofshifts; i++){")
-        p("_rands(y_array[i],"+size+" ,1);")
+        p("_ini1(y_array[i],"+size+" ,1);")
         p("}")
 
         p("for(int r = 0; r < " + Config.repeats + "; r++){")
@@ -967,7 +1002,7 @@ object CodeGeneration {
     CodeGeneration.create_array_of_buffers(sourcefile)
     CodeGeneration.destroy_array_of_buffers(sourcefile)
     p("void _rands(double * m, size_t row, size_t col)\n{\n  for (size_t i = 0; i < row*col; ++i)  m[i] = (double)(rand())/RAND_MAX;;\n}")
-
+    p("void _ini1(double * m, size_t row, size_t col)\n{\n  for (size_t i = 0; i < row*col; ++i)  m[i] = (double)1.1;\n}")
     p("int main () { ")
     p("srand(1984);")
     p(counterstring)
@@ -985,6 +1020,8 @@ object CodeGeneration {
 
       //Tune the number of runs
       p(prec + " * x = (" + prec + "*) _mm_malloc(" + 2*size + "* sizeof(" + prec + "),page);" )
+      p("_ini1(x,"+2*size+" ,1);")
+
       CodeGeneration.tuneNrRunsbyRunTime(sourcefile,"status = DftiComputeForward(mklDescriptor, x);\n\tif (status != 0) {\n\t\tstd::cout << \"status -1\";\nreturn -1;\n\t}", "std::cout << x[0];" )
       //find out the number of shifts required
       //p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
@@ -996,12 +1033,13 @@ object CodeGeneration {
         p("_mm_free(x);")
         //allocate
         //p("long numberofshifts =  measurement_getNumberOfShifts(" + (2*size)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
-        p("long numberofshifts = (100 * 1024 * 1024 / (" + (2*size)+ "* sizeof(" + prec + "));")
+        p("long numberofshifts = (100 * 1024 * 1024 / (" + (2*size)+ "* sizeof(" + prec + ")));")
+        p("if (numberofshifts < 2) numberofshifts = 2;")
         p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
         p("double ** x_array = (double **) CreateBuffers("+2*size+"* sizeof(" + prec + "),numberofshifts);")
 
         p("for(int i = 0; i < numberofshifts; i++){")
-        p("_rands(x_array[i],"+size+" ,1);")
+        p("_ini1(x_array[i],"+2*size+" ,1);")
         p("}")
 
         p("for(int r = 0; r < " + Config.repeats + "; r++){")
