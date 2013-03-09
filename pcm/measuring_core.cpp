@@ -24,11 +24,16 @@
 #include <algorithm>
 #include <climits>
 #include <vector>
-
+#include "cpuid_info.h"
 
 #define SIZE (10000000)
 #define DELAY 1 // in seconds
 
+
+// Vicky --- Functions for getting cache parameters with CPUID
+
+cpuid_cache_descriptor_t getTLBinfo(cpuid_leaf2_qualifier_t cacheType);
+unsigned long getLLCSize();
 
 
 //Vicky - Auxiliary functions for execuitng CPUID
@@ -41,7 +46,7 @@
 using namespace std;
 
 
-extern long g_offcore_response0, g_offcore_response1;
+extern unsigned long g_offcore_response0, g_offcore_response1;
 
 #ifdef _MSC_VER
 BOOL cleanup(DWORD)
@@ -252,7 +257,7 @@ void flushDCache()
 
 
 
-int measurement_init(long * custom_counters, long offcore_response0, long offcore_response1)
+int measurement_init(long * custom_counters, unsigned long offcore_response0, unsigned long offcore_response1)
 {
     
 	flog.open("log.txt");	 
@@ -316,10 +321,12 @@ int measurement_init(long * custom_counters, long offcore_response0, long offcor
 			events[i].event_number = custom_counters[i*2];
 			events[i].umask_value = custom_counters[i*2+1];
 		}
+		g_offcore_response0 = offcore_response0;
+		std::cout <<std::endl << "offcore response!" << g_offcore_response0 << std::endl;
+		g_offcore_response1 = offcore_response1;
 		status = m->program(PCM::CUSTOM_CORE_EVENTS,events);
 
-		g_offcore_response0 = offcore_response0;
-		g_offcore_response1 = offcore_response1;
+		
 			
 	}
 
@@ -441,7 +448,7 @@ void measurement_start ()
 
 
 
-void measurement_stop(long nr_runs)
+void measurement_stop(unsigned long nr_runs)
 {
 	*sstate2 = getSystemCounterState();
     for (uint32 i = 0; i < m->getNumSockets(); ++i)
@@ -459,16 +466,16 @@ void measurement_stop(long nr_runs)
 		c2 = getL3CacheHitsSnoop(cstates1[i], cstates2[i]);
 		c3 = getL2CacheHits(cstates1[i], cstates2[i]);
 
-		plists0[i].push_front(c0); //Counter0
-		plists1[i].push_front(c1); //Counter1
-		plists2[i].push_front(c2); //Counter2
-		plists3[i].push_front(c3); //Counter3
+		plists0[i].push_front(c0/nr_runs); //Counter0
+		plists1[i].push_front(c1/nr_runs); //Counter1
+		plists2[i].push_front(c2/nr_runs); //Counter2
+		plists3[i].push_front(c3/nr_runs); //Counter3
 
 		//this is a placeholder till all 8 counters are enabled again
-		plists4[i].push_front(c0); //Counter0
-		plists5[i].push_front(c1); //Counter1
-		plists6[i].push_front(c2); //Counter2
-		plists7[i].push_front(c3); //Counter3
+		plists4[i].push_front(0); //Counter0
+		plists5[i].push_front(0); //Counter1
+		plists6[i].push_front(0); //Counter2
+		plists7[i].push_front(0); //Counter3
 
 		/*
 		plists4[i].push_front(getCustom4(cstates1[i], cstates2[i]));
@@ -476,25 +483,37 @@ void measurement_stop(long nr_runs)
 		plists6[i].push_front(getCustom6(cstates1[i], cstates2[i]));
 		plists7[i].push_front(getCustom7(cstates1[i], cstates2[i]));
         */
-		plist_cycles[i].push_front(getCycles(cstates1[i], cstates2[i]));
-		plist_refcycles[i].push_front(getRefCycles(cstates1[i], cstates2[i]));
-		plist_tsc[i].push_front(getInvariantTSC(cstates1[i], cstates2[i]));		
+		plist_cycles[i].push_front(getCycles(cstates1[i], cstates2[i])/nr_runs);
+		plist_refcycles[i].push_front(getRefCycles(cstates1[i], cstates2[i])/nr_runs);
+		plist_tsc[i].push_front(getInvariantTSC(cstates1[i], cstates2[i])/nr_runs);		
 
 		
 	}
 	
-	long sysRead, sysWrite;
+	uint64 sysRead, sysWrite;
 	sysRead = 0;
 	sysWrite = 0;
 
 	for (uint32 i = 0; i < m->getNumSockets(); ++i)
-	{
+	{	
 		sysRead =+ getBytesReadFromMC(sktstate1[i], sktstate2[i]) ;
 		sysWrite =+ getBytesWrittenToMC(sktstate1[i], sktstate2[i]);
+		//cout << endl << "Read: " << sysRead << endl;
+		//cout << endl << "Write: " << sysWrite << endl;
 	}
 
-	plist_mcread[0].push_front(sysRead);
-	plist_mcwrite[0].push_front(sysWrite);
+	
+
+	
+
+	
+	plist_mcread[0].push_front( (sysRead/nr_runs) );
+	plist_mcwrite[0].push_front( (sysWrite/nr_runs) );
+
+	//cout << endl << "Read: " << sysRead << endl;
+	//cout << endl << "Write: " <<sysWrite << endl;
+
+	
 	plist_nrruns[0].push_front(nr_runs);	
 	
 	// Dani start
@@ -534,6 +553,32 @@ void measurement_emptyLists(bool clearRuns)
 	}
  
 }
+
+
+//GO: this is used to estimate how many times more runs we need to get over the threshold specified
+unsigned long measurement_run_multiplier(unsigned long threshold)
+{
+
+ 	uint32 ncores = m->getNumCores();
+ 	unsigned long maxtsc = 1;
+ 	list<uint64>::iterator it;
+ 	for(uint32 i = 0; i < ncores; i++)
+ 	{
+ 	    for (it =  plist_tsc[i].begin(); it != plist_tsc[i].end(); ++it)
+ 	        if (*it > maxtsc)
+                maxtsc = *it;
+ 	}
+	it =  plist_nrruns[0].begin(); //we assume that we only have on entry
+ 	unsigned long nrruns = *it ;
+
+
+    measurement_emptyLists(true);
+
+	return ceil (  (threshold *1.0) / (maxtsc * 1.0 *nrruns)  + 1.0 );
+
+
+}
+
 bool measurement_testDerivative(size_t runs, double alpha_threshold, double avg_threshold, double time_threshold, double *d, size_t points) {
 
 	// Using TSC
@@ -599,9 +644,10 @@ unsigned long measurement_getNumberOfShifts(unsigned long size, unsigned long in
 	
 	unsigned long value = initialGuess;
 	unsigned long llcSize = getLLCSize();
-	if (size*value > 2*llcSize) { //GO: 2DO - binary search - calculate with page aligned!
-		while((size*value > 2*llcSize) && (value > 2))
-			--value;
+	if (size > 2 *llcSize || size*value > 2*llcSize) { //GO: 2DO - binary search - calculate with page aligned!
+		value = 2;
+		while((size*value < 2*llcSize) )
+			value=value*2;
 	}
 	return value;
 }
@@ -619,140 +665,157 @@ void dumpMeans()
 // End Dani
 
 
+//moved dumping of results out ....
+void dumpResults(const char * prefix)
+{
+
+ 	char sprefix[100];
+ 	if (prefix == NULL)
+ 	    strcpy(sprefix,"");
+ 	else
+ 	    strcpy(sprefix,prefix);
+
+ 	uint32 nrcores = m->getNumCores();
+ 	fplist0 = new ofstream[nrcores];
+ 	fplist1 = new ofstream[nrcores];
+ 	fplist2 = new ofstream[nrcores];
+ 	fplist3 = new ofstream[nrcores];
+ 	fplist4 = new ofstream[nrcores];
+ 	fplist5 = new ofstream[nrcores];
+ 	fplist6 = new ofstream[nrcores];
+ 	fplist7 = new ofstream[nrcores];
+
+ 	fplist_cycles = new ofstream[nrcores];
+ 	fplist_refcycles = new ofstream[nrcores];
+ 	fplist_tsc = new ofstream[nrcores];
+
+ 	fplist_mcread = new ofstream[1];
+ 	fplist_mcwrite = new ofstream[1];
+
+ 	fplist_nrruns = new ofstream[1];
+
+ 	list<uint64>::iterator it;
+ 	for (uint32 i = 0; i < m->getNumCores(); ++i)
+ 	{
+ 		stringstream ss0;
+
+ 		ss0 << sprefix << "Custom_ev0_core" << i << ".txt";
+ 		//strcpy(ss0.str(),tstring);
+ 		fplist0[i].open(ss0.str().c_str());
+ 		//fplist0[i].open(tstring);
+   	    for (it =  plists0[i].begin(); it != plists0[i].end(); ++it)
+ 			fplist0[i] << *it << " ";
+ 		fplist0[i].close();
+
+ 		stringstream ss1;
+ 		ss1 << sprefix  << "Custom_ev1_core" << i << ".txt";
+ 		fplist1[i].open(ss1.str().c_str());
+   	    for (it =  plists1[i].begin(); it != plists1[i].end(); ++it)
+ 			fplist1[i] << *it << " ";
+ 		fplist1[i].close();
+
+ 		stringstream ss2;
+ 		ss2 << sprefix  << "Custom_ev2_core" << i << ".txt";
+ 		fplist2[i].open(ss2.str().c_str());
+   	    for (it =  plists2[i].begin(); it != plists2[i].end(); ++it)
+ 			fplist2[i] << *it << " ";
+ 		fplist2[i].close();
+
+ 		stringstream ss3;
+ 		ss3 << sprefix  << "Custom_ev3_core" << i << ".txt";
+ 		fplist3[i].open(ss3.str().c_str());
+   	    for (it =  plists3[i].begin(); it != plists3[i].end(); ++it)
+ 			fplist3[i] << *it << " ";
+ 		fplist3[i].close();
+
+
+
+ 		stringstream ss4;
+ 		ss4 << sprefix  << "Cycles_core_" << i << ".txt";
+ 		fplist_cycles[i].open(ss4.str().c_str());
+   	    for (it =  plist_cycles[i].begin(); it != plist_cycles[i].end(); ++it)
+ 			fplist_cycles[i] << *it << " ";
+ 		fplist_cycles[i].close();
+
+ 		stringstream ss5;
+ 		ss5 << sprefix  << "RefCycles_core_" << i << ".txt";
+ 		fplist_refcycles[i].open(ss5.str().c_str());
+   	    for (it =  plist_refcycles[i].begin(); it != plist_refcycles[i].end(); ++it)
+ 			fplist_refcycles[i] << *it << " ";
+ 		fplist_refcycles[i].close();
+
+ 		stringstream ss6;
+ 		ss6 << sprefix  << "TSC_core_" << i << ".txt";
+ 		fplist_tsc[i].open(ss6.str().c_str());
+   	    for (it =  plist_tsc[i].begin(); it != plist_tsc[i].end(); ++it)
+ 			fplist_tsc[i] << *it << " ";
+ 		fplist_tsc[i].close();
+
+ 		stringstream ss7;
+ 		ss7 << sprefix  << "Custom_ev4_core" << i << ".txt";
+ 		fplist4[i].open(ss7.str().c_str());
+   	    for (it =  plists4[i].begin(); it != plists4[i].end(); ++it)
+ 			fplist4[i] << *it << " ";
+ 		fplist4[i].close();
+
+ 		stringstream ss8;
+ 		ss8 << sprefix  << "Custom_ev5_core" << i << ".txt";
+ 		fplist5[i].open(ss8.str().c_str());
+   	    for (it =  plists5[i].begin(); it != plists5[i].end(); ++it)
+ 			fplist5[i] << *it << " ";
+ 		fplist5[i].close();
+
+ 		stringstream ss9;
+ 		ss9 << sprefix  << "Custom_ev6_core" << i << ".txt";
+ 		fplist6[i].open(ss9.str().c_str());
+   	    for (it =  plists6[i].begin(); it != plists6[i].end(); ++it)
+ 			fplist6[i] << *it << " ";
+ 		fplist6[i].close();
+
+ 		stringstream ss10;
+ 		ss10 << sprefix  << "Custom_ev7_core" << i << ".txt";
+ 		fplist7[i].open(ss10.str().c_str());
+   	    for (it =  plists7[i].begin(); it != plists7[i].end(); ++it)
+ 			fplist7[i] << *it << " ";
+ 		fplist7[i].close();
+
+
+
+ 	}
+
+ 	stringstream ss_read;
+ 	ss_read << sprefix << "MC_read.txt";
+ 	fplist_mcread[0].open(ss_read.str().c_str());
+ 	for (it =  plist_mcread[0].begin(); it != plist_mcread[0].end(); ++it)
+	{
+		//cout << endl << "Read iterator: " << *it << endl;
+ 		fplist_mcread[0] << *it << " ";
+	}
+ 	fplist_mcread[0].close();
+
+ 	stringstream ss_write;
+ 	ss_write << sprefix << "MC_write.txt";
+ 	fplist_mcwrite[0].open(ss_write.str().c_str());
+ 	for (it =  plist_mcwrite[0].begin(); it != plist_mcwrite[0].end(); ++it)
+ 	{
+		//cout << endl << "Write iterator: " << *it << endl;
+		fplist_mcwrite[0] << *it << " ";
+	}
+ 	fplist_mcwrite[0].close();
+
+
+ 	stringstream ss_nrruns;
+ 	ss_nrruns << sprefix << "nrruns.txt";
+ 	fplist_nrruns[0].open(ss_nrruns.str().c_str());
+ 	for (it =  plist_nrruns[0].begin(); it != plist_nrruns[0].end(); ++it)
+ 		fplist_nrruns[0] << *it << " ";
+ 	fplist_nrruns[0].close();
+}
 
 
 void measurement_end()
 {
-	char tstring[100];
-	uint32 nrcores = m->getNumCores();        	
-	fplist0 = new ofstream[nrcores];
-	fplist1 = new ofstream[nrcores];
-	fplist2 = new ofstream[nrcores];
-	fplist3 = new ofstream[nrcores];
-	fplist4 = new ofstream[nrcores];
-	fplist5 = new ofstream[nrcores];
-	fplist6 = new ofstream[nrcores];
-	fplist7 = new ofstream[nrcores];
-
-	fplist_cycles = new ofstream[nrcores];
-	fplist_refcycles = new ofstream[nrcores];
-	fplist_tsc = new ofstream[nrcores];
-
-	fplist_mcread = new ofstream[1];
-	fplist_mcwrite = new ofstream[1];
-
-	fplist_nrruns = new ofstream[1];
-
-	list<uint64>::iterator it;
-	for (uint32 i = 0; i < m->getNumCores(); ++i)
-	{	
-		stringstream ss0;
-		
-		ss0 << "Custom_ev0_core" << i << ".txt";
-		//strcpy(ss0.str(),tstring);
-		fplist0[i].open(ss0.str().c_str());
-		//fplist0[i].open(tstring);
-  	    for (it =  plists0[i].begin(); it != plists0[i].end(); ++it)
-			fplist0[i] << *it << " ";
-		fplist0[i].close();
-
-		stringstream ss1;
-		ss1 << "Custom_ev1_core" << i << ".txt";
-		fplist1[i].open(ss1.str().c_str());
-  	    for (it =  plists1[i].begin(); it != plists1[i].end(); ++it)
-			fplist1[i] << *it << " ";
-		fplist1[i].close();
-
-		stringstream ss2;
-		ss2 << "Custom_ev2_core" << i << ".txt";
-		fplist2[i].open(ss2.str().c_str());
-  	    for (it =  plists2[i].begin(); it != plists2[i].end(); ++it)
-			fplist2[i] << *it << " ";
-		fplist2[i].close();
-
-		stringstream ss3;
-		ss3 << "Custom_ev3_core" << i << ".txt";
-		fplist3[i].open(ss3.str().c_str());
-  	    for (it =  plists3[i].begin(); it != plists3[i].end(); ++it)
-			fplist3[i] << *it << " ";
-		fplist3[i].close();
-
-
-
-		stringstream ss4;
-		ss4 << "Cycles_core_" << i << ".txt";
-		fplist_cycles[i].open(ss4.str().c_str());
-  	    for (it =  plist_cycles[i].begin(); it != plist_cycles[i].end(); ++it)
-			fplist_cycles[i] << *it << " ";
-		fplist_cycles[i].close();
-
-		stringstream ss5;
-		ss5 << "RefCycles_core_" << i << ".txt";
-		fplist_refcycles[i].open(ss5.str().c_str());
-  	    for (it =  plist_refcycles[i].begin(); it != plist_refcycles[i].end(); ++it)
-			fplist_refcycles[i] << *it << " ";
-		fplist_refcycles[i].close();
-
-		stringstream ss6;
-		ss6 << "TSC_core_" << i << ".txt";
-		fplist_tsc[i].open(ss6.str().c_str());
-  	    for (it =  plist_tsc[i].begin(); it != plist_tsc[i].end(); ++it)
-			fplist_tsc[i] << *it << " ";
-		fplist_tsc[i].close();
-		
-		stringstream ss7;
-		ss7 << "Custom_ev4_core" << i << ".txt";
-		fplist4[i].open(ss7.str().c_str());
-  	    for (it =  plists4[i].begin(); it != plists4[i].end(); ++it)
-			fplist4[i] << *it << " ";
-		fplist4[i].close();
-
-		stringstream ss8;
-		ss8 << "Custom_ev5_core" << i << ".txt";
-		fplist5[i].open(ss8.str().c_str());
-  	    for (it =  plists5[i].begin(); it != plists5[i].end(); ++it)
-			fplist5[i] << *it << " ";
-		fplist5[i].close();
-
-		stringstream ss9;
-		ss9 << "Custom_ev6_core" << i << ".txt";
-		fplist6[i].open(ss9.str().c_str());
-  	    for (it =  plists6[i].begin(); it != plists6[i].end(); ++it)
-			fplist6[i] << *it << " ";
-		fplist6[i].close();
-
-		stringstream ss10;
-		ss10 << "Custom_ev7_core" << i << ".txt";
-		fplist7[i].open(ss10.str().c_str());
-  	    for (it =  plists7[i].begin(); it != plists7[i].end(); ++it)
-			fplist7[i] << *it << " ";
-		fplist7[i].close();
-
-
-
-	}
-	
-	stringstream ss_read;
-	ss_read << "MC_read.txt";
-	fplist_mcread[0].open(ss_read.str().c_str());	
-	for (it =  plist_mcread[0].begin(); it != plist_mcread[0].end(); ++it)
-		fplist_mcread[0] << *it << " ";
-	fplist_mcread[0].close();
-
-	stringstream ss_write;
-	ss_write << "MC_write.txt";
-	fplist_mcwrite[0].open(ss_write.str().c_str());  	
-	for (it =  plist_mcwrite[0].begin(); it != plist_mcwrite[0].end(); ++it)
-		fplist_mcwrite[0] << *it << " ";
-	fplist_mcwrite[0].close();
-	
-
-	stringstream ss_nrruns;
-	ss_nrruns << "nrruns.txt";
-	fplist_nrruns[0].open(ss_nrruns.str().c_str());  	
-	for (it =  plist_nrruns[0].begin(); it != plist_nrruns[0].end(); ++it)
-		fplist_nrruns[0] << *it << " ";
-	fplist_nrruns[0].close();
+    dumpResults(NULL);  //GO - decomposed the dumping and the cleanup
 
 	
 	PCM::getInstance()->cleanup();	

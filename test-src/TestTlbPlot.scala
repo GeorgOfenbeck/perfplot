@@ -1,3 +1,4 @@
+/*
 import org.scalatest.Suite
 
 import perfplot._
@@ -175,4 +176,4 @@ class TestTlbPlot extends Suite {
 
         plotService.plot(plot)
     }
-}
+}*/

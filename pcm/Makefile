@@ -48,7 +48,7 @@ cpucounterstest.o: cpucounterstest.cpp cpucounters.h pci.h msr.h  types.h
 	$(CC) $(OPT) -c cpucounterstest.cpp
 
 measuring_core.o: measuring_core.cpp cpucounters.h measuring_core.h cpuid_info.h dummyFunction.h
-	$(CC) $(OPT) -fasm-blocks -c measuring_core.cpp
+	$(CC) $(OPT) -c measuring_core.cpp
 
 pcm-power.o: pcm-power.cpp msr.h types.h pci.h cpucounters.h
 	$(CC) $(OPT) -c pcm-power.cpp

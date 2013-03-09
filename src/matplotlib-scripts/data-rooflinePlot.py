@@ -46,7 +46,7 @@ OUTPUT_FILE="data-rooflinePlot.pdf"
 TITLE="TITLE"
 X_LABEL="Operational Intensity [Flop/Byte]"
 Y_LABEL="Performance [Flop/Cycle]"
-ANNOTATE_POINTS=1
+ANNOTATE_POINTS=0
 AXIS_ASPECT_RATIO=log10(X_MAX/X_MIN)/log10(Y_MAX/Y_MIN)
 
 #series = ['444', '450','470','482','999' ]
@@ -55,6 +55,8 @@ AXIS_ASPECT_RATIO=log10(X_MAX/X_MIN)/log10(Y_MAX/Y_MIN)
 #series = ['dgemm-cold', 'dgemm-warm', 'dgemm-parallel-cold', 'dgemm-parallel-warm']
 #series = ['fft-MKL-warm', 'fft-MKL-cold',  'fft-MKL-parallel-cold', 'fft-MKL-parallel-warm']
 series = ['dgemv-cold', 'dgemv-warm', 'dgemv-parallel-cold', 'dgemv-parallel-warm']
+#series = ['444', '450','470','482','999' ]
+#series = ['daxpy-cold', 'daxpy-warm', 'daxpy-parallel-cold', 'daxpy-parallel-warm','fft-cold', 'fft-warm', 'fft-parallel-cold', 'fft-parallel-warm', 'dgemv-cold', 'dgemv-warm', 'dgemv-parallel-cold', 'dgemv-parallel-warm','dgemm-cold', 'dgemm-warm', 'dgemm-parallel-cold', 'dgemm-parallel-warm' ]
 colors=[(0.6,0.011,0.043), (0.258, 0.282, 0.725),(0.2117, 0.467, 0.216),'#CC0033' ,'#FFFF00' ]
 fig = plt.figure()
 # Returns the Axes instance

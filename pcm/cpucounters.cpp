@@ -80,7 +80,7 @@ int convertUnknownToInt(size_t size, char* value);
 #endif
 
 
-long g_offcore_response0, g_offcore_response1;
+unsigned long g_offcore_response0, g_offcore_response1;
 
 #ifdef _MSC_VER
 
@@ -1054,16 +1054,32 @@ PCM::ErrorCode PCM::program(PCM::ProgramMode mode_, void * parameter_)
     sem_post(numInstancesSemaphore);
     int curValue = 0;
     sem_getvalue(numInstancesSemaphore, &curValue);
+  
+  //VCA: Move this code here because it does not apply to APPLE
+  if (curValue > 1)  // already programmed since another instance exists
+  {
+    std::cout << "Number of PCM instances: " << curValue << std::endl;
+    return PCM::Success;
+  }
+//END of VCA
+  
 #else //if it is apple
-    uint32 curValue = PCM::incrementNumInstances();
+  //VCA: Original code
+   // uint32 curValue = PCM::incrementNumInstances();
+   // sem_post(numInstancesSemaphore);
+  if (sem_trywait(numInstancesSemaphore)!= 0 ) { // If I cannot lock it, release it
     sem_post(numInstancesSemaphore);
+    sem_post(numInstancesSemaphore);
+  }else{
+    sem_post(numInstancesSemaphore);
+    sem_post(numInstancesSemaphore);
+    std::cout << "Already programmed since another instance exists.... "<< std::endl;
+    return PCM::Success;
+  }
+  //End of VCA
 #endif // end ifndef __APPLE__
-
-    if (curValue > 1)  // already programmed since another instance exists
-    {
-        std::cout << "Number of PCM instances: " << curValue << std::endl;
-        if(!canUsePerf) return PCM::Success;
-    }
+//VCA: This now only applies to not-apply, so moved to line 1057
+  
 
 #endif // end ifdef _MSC_VER
 
@@ -1228,15 +1244,23 @@ numInst<=1 && canUsePerf==true -> we are first, perf will be used, *dont check*,
         // disable counters while programming
         MSR[i]->write(IA32_CR_PERF_GLOBAL_CTRL, 0);
         MSR[i]->read(IA32_CR_FIXED_CTR_CTRL, &ctrl_reg.value);
-
-		//GO: Change to program offcore response events
+				//GO: Change to program offcore response events
 		#define MSR_OFFCORE_RSP_0 (0x1A6)
 		#define MSR_OFFCORE_RSP_1 (0x1A7)
 
+		std::cout <<std::endl << "offcore response!" << g_offcore_response0 << std::endl;
 		if (g_offcore_response0 != 0)
+		{
+			std::cout <<"Programmed offcore response!"<< std::endl;
+			MSR[i]->write(MSR_OFFCORE_RSP_0, 0);
 			MSR[i]->write(MSR_OFFCORE_RSP_0, g_offcore_response0);
+			
+		}
 		if (g_offcore_response1 != 0)
+		{
+			MSR[i]->write(MSR_OFFCORE_RSP_1, 0);
 			MSR[i]->write(MSR_OFFCORE_RSP_1, g_offcore_response1);
+		}
 		//--GO End
 
 	if(EXT_CUSTOM_CORE_EVENTS == mode_ && pExtDesc && pExtDesc->fixedCfg)
@@ -1304,6 +1328,9 @@ numInst<=1 && canUsePerf==true -> we are first, perf will be used, *dont check*,
             else
 #endif              
             {
+				
+
+
               MSR[i]->write(IA32_PMC0 + j, 0);
               MSR[i]->write(IA32_PERFEVTSEL0_ADDR + j, event_select_reg.value);
             }
@@ -1321,7 +1348,12 @@ numInst<=1 && canUsePerf==true -> we are first, perf will be used, *dont check*,
         }
 
         // program uncore counters
-
+		//GO: start
+		if (cpu_model == SANDY_BRIDGE || cpu_model == IVY_BRIDGE)
+		{
+			programSandyBridgeUncore(i);
+		}
+		//GO: end
         if (cpu_model == NEHALEM_EP || cpu_model == WESTMERE_EP || cpu_model == CLARKDALE)
         {
             programNehalemEPUncore(i);
@@ -1355,6 +1387,136 @@ numInst<=1 && canUsePerf==true -> we are first, perf will be used, *dont check*,
 
     return PCM::Success;
 }
+
+
+void PCM::programSandyBridgeUncore (int32 core)
+{
+	UncoreGlobalControlRegisterSandy unc_control;
+	UncoreEventSelectRegisterSandy unc_event_select_reg;
+
+	core_gen_counter_width = 44;
+	//ARB0
+	MSR[core]->read(MSR_UNC_ARB_PERFEVTSEL0, &unc_event_select_reg.value);
+
+	unc_event_select_reg.fields.event_select = UNC_ARB_TRK_REQUEST_EVICTIONS_EVTNR;
+    unc_event_select_reg.fields.umask = UNC_ARB_TRK_REQUEST_EVICTIONS_UMASK;
+
+    unc_event_select_reg.fields.edge = 0; \
+    unc_event_select_reg.fields.enable_pmi = 0; \
+    unc_event_select_reg.fields.enable = 1; \
+    unc_event_select_reg.fields.invert = 0; \
+    unc_event_select_reg.fields.cmask = 0;
+
+    MSR[core]->write(MSR_UNC_ARB_PERFEVTSEL0, unc_event_select_reg.value);
+		
+	//ARB1
+	MSR[core]->read(MSR_UNC_ARB_PERFEVTSEL1, &unc_event_select_reg.value);
+
+	unc_event_select_reg.fields.event_select = UNC_ARB_TRK_REQUEST_WRITES_EVTNR;
+    unc_event_select_reg.fields.umask = UNC_ARB_TRK_REQUEST_WRITES_UMASK;
+
+    unc_event_select_reg.fields.edge = 0; \
+    unc_event_select_reg.fields.enable_pmi = 0; \
+    unc_event_select_reg.fields.enable = 1; \
+    unc_event_select_reg.fields.invert = 0; \
+    unc_event_select_reg.fields.cmask = 0;
+
+    MSR[core]->write(MSR_UNC_ARB_PERFEVTSEL1, unc_event_select_reg.value);
+
+	
+	//CBO0
+	MSR[core]->read(MSR_UNC_CBO_0_PERFEVTSEL0, &unc_event_select_reg.value);
+
+	unc_event_select_reg.fields.event_select = UNC_CBO_CACHE_LOOKUP_ANY_I_EVENTNR;
+    unc_event_select_reg.fields.umask = UNC_CBO_CACHE_LOOKUP_ANY_I_UMASK;
+
+    unc_event_select_reg.fields.edge = 0; \
+    unc_event_select_reg.fields.enable_pmi = 0; \
+    unc_event_select_reg.fields.enable = 1; \
+    unc_event_select_reg.fields.invert = 0; \
+    unc_event_select_reg.fields.cmask = 0;
+
+	MSR[core]->write(MSR_UNC_CBO_0_PERFEVTSEL0, unc_event_select_reg.value);
+
+	//CBO1
+	MSR[core]->read(MSR_UNC_CBO_1_PERFEVTSEL0, &unc_event_select_reg.value);
+
+	unc_event_select_reg.fields.event_select = UNC_CBO_CACHE_LOOKUP_ANY_I_EVENTNR;
+    unc_event_select_reg.fields.umask = UNC_CBO_CACHE_LOOKUP_ANY_I_UMASK;
+
+    unc_event_select_reg.fields.edge = 0; \
+    unc_event_select_reg.fields.enable_pmi = 0; \
+    unc_event_select_reg.fields.enable = 1; \
+    unc_event_select_reg.fields.invert = 0; \
+    unc_event_select_reg.fields.cmask = 0;
+
+	MSR[core]->write(MSR_UNC_CBO_1_PERFEVTSEL0, unc_event_select_reg.value);
+
+	//CBO2
+	MSR[core]->read(MSR_UNC_CBO_2_PERFEVTSEL0, &unc_event_select_reg.value);
+
+	unc_event_select_reg.fields.event_select = UNC_CBO_CACHE_LOOKUP_ANY_I_EVENTNR;
+    unc_event_select_reg.fields.umask = UNC_CBO_CACHE_LOOKUP_ANY_I_UMASK;
+
+    unc_event_select_reg.fields.edge = 0; \
+    unc_event_select_reg.fields.enable_pmi = 0; \
+    unc_event_select_reg.fields.enable = 1; \
+    unc_event_select_reg.fields.invert = 0; \
+    unc_event_select_reg.fields.cmask = 0;
+
+	MSR[core]->write(MSR_UNC_CBO_2_PERFEVTSEL0, unc_event_select_reg.value);
+
+
+	//CBO3
+	MSR[core]->read(MSR_UNC_CBO_3_PERFEVTSEL0, &unc_event_select_reg.value);
+
+	unc_event_select_reg.fields.event_select = UNC_CBO_CACHE_LOOKUP_ANY_I_EVENTNR;
+    unc_event_select_reg.fields.umask = UNC_CBO_CACHE_LOOKUP_ANY_I_UMASK;
+
+    unc_event_select_reg.fields.edge = 0; \
+    unc_event_select_reg.fields.enable_pmi = 0; \
+    unc_event_select_reg.fields.enable = 1; \
+    unc_event_select_reg.fields.invert = 0; \
+    unc_event_select_reg.fields.cmask = 0;
+
+	MSR[core]->write(MSR_UNC_CBO_3_PERFEVTSEL0, unc_event_select_reg.value);
+
+	
+	//enable all the uncore counters
+	MSR[core]->read(MSR_UNC_PERF_GLOBAL_CTRL, &unc_control.value);
+
+	unc_control.fields.enable = 1;
+	unc_control.fields.PMI_Sel_Core0 = 0;
+	unc_control.fields.PMI_Sel_Core1 = 0;
+	unc_control.fields.PMI_Sel_Core2 = 0;
+	unc_control.fields.PMI_Sel_Core3 = 0;
+	unc_control.fields.wakePMI = 0;
+	unc_control.fields.FREEZE = 0;
+
+
+	MSR[core]->write(MSR_UNC_PERF_GLOBAL_CTRL, unc_control.value);
+
+
+
+
+
+
+
+
+
+	// synchronise counters
+	MSR[core]->write(MSR_UNC_CBO_0_PER_CTR0, 0);
+	MSR[core]->write(MSR_UNC_CBO_1_PER_CTR0, 0);
+	MSR[core]->write(MSR_UNC_CBO_2_PER_CTR0, 0);
+	MSR[core]->write(MSR_UNC_CBO_3_PER_CTR0, 0);
+
+	MSR[core]->write(MSR_UNC_ARB_PER_CTR0, 0);
+	MSR[core]->write(MSR_UNC_ARB_PER_CTR1, 0);
+	
+
+}
+
+
 
 void PCM::programNehalemEPUncore(int32 core)
 {
@@ -1785,11 +1947,13 @@ void PCM::cleanup()
     SystemWideLock lock;
     
     if (!MSR) return;
-    
-    std::cout << "Cleaning up" << std::endl;
+  
 
-    if (decrementInstanceSemaphore())
-        cleanupPMU();
+  if (decrementInstanceSemaphore()){
+    std::cout << "Cleaning up" << std::endl;
+    cleanupPMU();
+  }
+        
 }
 
 #ifdef __APPLE__
@@ -1861,6 +2025,8 @@ bool PCM::decrementInstanceSemaphore()
         
 
         #elif __APPLE__
+  //VCA : Comment original code
+  /*
     sem_wait(numInstancesSemaphore);
     uint32 oldValue = PCM::getNumInstances();
     sem_post(numInstancesSemaphore);
@@ -1875,7 +2041,23 @@ bool PCM::decrementInstanceSemaphore()
     if(currValue == 0){
 	isLastInstance = true;
     }
-
+*/
+  //VCA 
+  // Want to know is the current value is already zero, that is, if the sempahore
+  if(sem_trywait(numInstancesSemaphore)==0){
+    if(sem_trywait(numInstancesSemaphore)==0){
+      if(sem_trywait(numInstancesSemaphore)==0){
+        sem_post(numInstancesSemaphore);
+        sem_post(numInstancesSemaphore);
+        return false;
+      }else{
+        isLastInstance = true;
+        //sem_close(PCM_NUM_INSTANCES_SEMAPHORE_NAME);
+      }
+    }
+  }
+  //End of VCA
+  
 	#else // if linux
     int oldValue = -1;
     sem_getvalue(numInstancesSemaphore, &oldValue);
@@ -2234,6 +2416,23 @@ void UncoreCounterState::readAndAggregate(MsrHandle * msr)
     case PCM::SANDY_BRIDGE:
     case PCM::IVY_BRIDGE:
     {
+		
+		uint64 cUncMCNormalReads = 0;
+		msr->read(MSR_UNC_CBO_0_PER_CTR0, &cUncMCNormalReads);		
+        UncMCNormalReads += m->extractUncoreGenCounterValue(cUncMCNormalReads);
+		msr->read(MSR_UNC_CBO_1_PER_CTR0, &cUncMCNormalReads);		
+        UncMCNormalReads += m->extractUncoreGenCounterValue(cUncMCNormalReads);
+		msr->read(MSR_UNC_CBO_2_PER_CTR0, &cUncMCNormalReads);		
+        UncMCNormalReads += m->extractUncoreGenCounterValue(cUncMCNormalReads);
+		msr->read(MSR_UNC_CBO_3_PER_CTR0, &cUncMCNormalReads);		
+        UncMCNormalReads += m->extractUncoreGenCounterValue(cUncMCNormalReads);
+		//std::cout << std::endl << "C0x: " << UncMCNormalReads << std::endl;
+		uint64 cUncMCFullWrites = 0;                         // really good approximation of
+        //msr->read(MSR_UNC_ARB_PER_CTR1, &cUncMCFullWrites);
+		msr->read(MSR_UNC_ARB_PER_CTR0, &cUncMCFullWrites);
+		//std::cout << std::endl << "C1: "<< cUncMCFullWrites << std::endl;
+        UncMCFullWrites += m->extractUncoreGenCounterValue(cUncMCFullWrites);
+		//std::cout << std::endl << "C1x: "<< UncMCFullWrites << std::endl;
     }
     break;
     default:;

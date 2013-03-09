@@ -2,7 +2,11 @@ all: calibration
 
 #CC=g++ -Wall
 CC=icpc -Wall
-OPT= -g -O3 -no-vec -no-ipo -no-ip -mkl=sequential
+OPT= -g -O3 -no-ipo -no-ip -mkl=sequential -openmp
+#OPT= -g -O3 -no-vec -no-ipo -no-ip -mkl=sequential -openmp
+#OPT= -g -O3 -no-vec -no-ipo -no-ip -mkl=sequential -openmp -S -fsource-asm
+#OPT= -g -O3 -no-vec -fno-inline-functions -no-ipo -no-ip -mkl=sequential -openmp
+#OPT= -g -O3 -fno-inline-functions -no-ipo -no-ip -mkl=sequential -openmp -S -fsource-asm
 
 UNAME:=$(shell uname)
 

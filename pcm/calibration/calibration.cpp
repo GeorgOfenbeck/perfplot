@@ -8,10 +8,13 @@
 #include <iostream>
 #include <fstream>
 #include <cstdlib>
+#include <cstdio>
 #include <ctime>
 #include <cmath>
-#include <x86intrin.h>
+//#include <x86intrin.h>
+#include <immintrin.h>
 #include <mkl_cblas.h>
+#include <omp.h>
 
 #include "../measuring_core.h"
 #include "../types.h"
@@ -20,7 +23,7 @@
 using namespace std;
 
 #define REP 2
-#define THRESHOLD 0.0005
+#define THRESHOLD 0.1
 
 long events[] = {	/* double Scalar */ 0x10, 0x80, /* double packed */ 0x10, 0x10, /*double AVX*/ 0x11, 0x02, ARCH_LLC_MISS_EVTNR, ARCH_LLC_MISS_UMASK };
 
@@ -152,9 +155,9 @@ void mmm(size_t n) {
 	_buildRandInit(&C, n, n, 4*1024);
 
 	size_t runs = 1;
-	double slope = THRESHOLD, max_slope = 1000*THRESHOLD;
-	double d;
-	for(size_t count = 0; runs <= (1 << 20); count++){
+	double slope = THRESHOLD;//, max_slope = 1000*THRESHOLD;
+//	double d;
+	for(; runs <= (1 << 20); runs *= 2){
 
 		measurement_start();
 		for(int i = 0; i < runs; i++)
@@ -163,17 +166,10 @@ void mmm(size_t n) {
 
 		_printM(C, n, n, "", devnull);
 
-		if(measurement_testDerivative(runs, slope, 1e7, 10, &d))
+		if(measurement_testRegressionX2(runs, slope))
 			break;
 		measurement_emptyLists(false); //don't clear the vector of runs
 
-		if (count >= 2) {
-			cout << "Runs = " << runs << " d = " << d << endl;
-
-			if (runs <= (1 << 10)) runs *= 2;
-			else if ((fabs(d) <= max_slope) && (slope*10 <= max_slope)) slope *= 10;
-			else runs += 10*count;
-		}
 	}
 
 #ifdef COLD
@@ -224,10 +220,11 @@ void mvm(size_t n) {
 	_buildRandInit(&y, n, 1, 4*1024);
 
 	size_t runs = 1;
-	double slope = THRESHOLD, max_slope = 1000*THRESHOLD;
-	double d;
+	double slope = THRESHOLD;//, max_slope = 1000*THRESHOLD;
+//	double d;
 
-	for(size_t count = 0; runs <= (1 << 20); count++){
+//	for(size_t count = 0; runs <= (1 << 20); count++){
+	for(; runs <= (1 << 20); runs *= 2){
 
 		measurement_start();
 		for(int i = 0; i < runs; i++)
@@ -236,25 +233,28 @@ void mvm(size_t n) {
 
 		_printM(y, n, 1, "", devnull);
 
-		if(measurement_testDerivative(runs, slope, 1e7, 10, &d))
+//		bool tder = measurement_testDerivative(runs, slope, 1e7, 10, &d);
+		bool treg = measurement_testRegressionX2(runs, slope);
+
+		if(treg)
 			break;
 		dumpMeans();
 		measurement_emptyLists(false); //don't clear the vector of runs
 
-		if (count >= 2) {
-			cout << "Runs = " << runs << " d = " << d << endl;
-
-			if (runs <= (1 << 10)) runs *= 2;
-			else if ((fabs(d) <= max_slope) && (slope*10 <= max_slope)) slope *= 10;
-			else runs += 10*count;
-		}
+//		if (count >= 2) {
+//			cout << "Runs = " << runs << " d = " << d << endl;
+//
+//			if (runs <= (1 << 10)) runs *= 2;
+//			else if ((fabs(d) <= max_slope) && (slope*10 <= max_slope)) slope *= 10;
+//			else runs += 10*count;
+//		}
 	}
 
 #ifdef COLD
 	_destroy(A); _destroy(x); _destroy(y);
 #endif
 
-	cout << "Out - Runs = " << runs << " d = " << d << endl;
+//	cout << "Out - Runs = " << runs << " d = " << d << endl;
 	cout << "\n\nUsing threshold " << slope << " value for RUNS: " << runs << endl;
 
 	dumpMeans();
@@ -292,64 +292,378 @@ void mvm(size_t n) {
 	_destroy(A); _destroy(x); _destroy(y);
 }
 
-//void daxpy(size_t n) {
-//
-//	ofstream devnull("/dev/null");
-//	double alpha = 1.1, * x, * y;
-//
-//	_buildRandInit(&x, n, 1, 4*1024);
-//	_buildRandInit(&y, n, 1, 4*1024);
-//
-//	size_t runs = 2;
-//	for(; runs <= (1 << 20); runs *= 2){
-//
-//		perfmon_start();
-//		for(int i = 0; i < runs; i++)
-//			cblas_daxpy(n, alpha, x, 1, y, 1);
-//		perfmon_stop(runs);
-//
-//		_printM(y, n, 1, "", devnull);
-//
-//		if(perfmon_testDerivative(runs, THRESHOLD))
-//			break;
-//		perfmon_emptyLists(false); //don't clear the vector of runs
+void daxpy(size_t n) {
+
+	ofstream devnull("/dev/null");
+	double alpha = 1.1, * x, * y;
+
+	_buildRandInit(&x, n, 1, 4*1024);
+	_buildRandInit(&y, n, 1, 4*1024);
+
+	size_t runs = 1;
+	double slope = THRESHOLD;
+
+	for(; runs <= (1 << 20); runs *= 2){
+
+		measurement_start();
+		for(int i = 0; i < runs; i++)
+			cblas_daxpy(n, alpha, x, 1, y, 1);
+		measurement_stop(runs);
+
+		_printM(y, n, 1, "", devnull);
+
+		if(measurement_testRegressionX2(runs, slope))
+			break;
+		measurement_emptyLists(false); //don't clear the vector of runs
+	}
+
+#ifdef COLD
+	_destroy(x); _destroy(y);
+#endif
+
+	cout << "\n\nUsing threshold " << THRESHOLD << " value for RUNS: " << runs << endl;
+
+	measurement_emptyLists();
+
+#ifdef COLD
+	size_t factor = measurement_getNumberOfShifts(2*n*sizeof(double), runs*REP);
+
+	_buildRandInit(&x, n, 1, 4*1024, factor);
+	_buildRandInit(&y, n, 1, 4*1024, factor);
+
+	size_t idx = 0, maxidx = n*factor;
+#endif
+
+	for(int r = 0; r < REP; r++) {
+		measurement_start();
+		for(int i = 0; i < runs; i++) {
+
+#ifdef COLD
+			cblas_daxpy(n, alpha, x+idx, 1, y+idx, 1);
+			idx+=n;  if (idx >= maxidx) idx = 0;
+#else
+			cblas_daxpy(n, alpha, x, 1, y, 1);
+#endif
+		}
+		measurement_stop(runs);
+		_printM(y, n, 1, "", devnull);
+	}
+
+
+	_destroy(x); _destroy(y);
+}
+
+void flushCacheLine(void *p){
+	__asm__ __volatile__ ("clflush %0" :: "m" (*(char*)p));
+}
+
+double read_array(size_t size, double * x) {
+
+	__m256d t0, t1; // ca. 5 B/c
+	__declspec(align(32)) double res[4];
+	for (size_t i=0; i < size; i+=8) {
+		t0 = _mm256_load_pd(x+i);
+		t1 = _mm256_load_pd(x+i+4);
+	}
+	_mm256_store_pd(res, _mm256_add_pd(t0,t1));
+
+	return res[0];
+
+//	double t0 = 0; // ca. 8.3 B/c
+//	double t1 = 0;
+//	double t2 = 0;
+//	double t3 = 0;
+//	for (size_t i=0; i < size; i+=4) {
+//		t0 = x[i];
+//		t1 = x[i+1];
+//		t2 = x[i+2];
+//		t3 = x[i+3];
 //	}
 //
-//#ifdef COLD
-//	_destroy(x); _destroy(y);
-//#endif
+//	return t0+t1+t2+t3;
 //
-//	cout << "\n\nUsing threshold " << THRESHOLD << " value for RUNS: " << runs << endl;
+//	#pragma ivdep // provides ca. 4.5 B/c
+//	for (size_t i=0; i < size; i++)
+//		t0 += x[i];
+//	return t0;
+
+//	__asm__ __volatile__ (
+//			"xorq %%rdi, %%rdi\n\t"
+//			"1:\n\t"
+//			"vmovapd (%%rax, %%rdi), %%ymm0\n\t"
+//			"vmovapd 32(%%rax, %%rdi), %%ymm1\n\t"
+//			"addq $64, %%rdi\n\t"
+//			"cmpq %%rdi, %%rdx\n\t"
+//			"jl 1b\n\t"
+//			: "=d" (t0)
+//			: "a" (x), "d" (size)
+//			: "%rdi"
+//	);
 //
-//	perfmon_emptyLists();
-//
-//#ifdef COLD
-//	size_t factor = getNumberOfShifts(2*n*sizeof(double), runs*REP);
-//
-//	_buildRandInit(&x, n, 1, 4*1024, factor);
-//	_buildRandInit(&y, n, 1, 4*1024, factor);
-//
-//	size_t idx = 0, maxidx = n*factor;
-//#endif
-//
-//	for(int r = 0; r < REP; r++) {
-//		perfmon_start();
-//		for(int i = 0; i < runs; i++) {
-//
-//#ifdef COLD
-//			cblas_daxpy(n, alpha, x+idx, 1, y+idx, 1);
-//			idx+=n;  if (idx >= maxidx) idx = 0;
-//#else
-//			cblas_daxpy(n, alpha, x, 1, y, 1);
-//#endif
-//		}
-//		perfmon_stop(runs);
-//		_printM(y, n, 1, "", devnull);
+//	return t0;
+
+}
+
+double par_read_array(size_t size, double * x) {
+
+	double t=0, t0;
+
+//#pragma omp parallel for reduction(+:t) schedule(static, size/4) // gives 5 B/s
+//	for (size_t i=0; i < size; i++) {
+//		t += x[i];
 //	}
-//
-//
-//	_destroy(x); _destroy(y);
-//}
+
+#pragma omp parallel private(t0) // gives > 5 B/s
+	{
+#pragma omp for schedule(static, size/4)
+		for (size_t i=0; i < size; i++) {
+			t0 = x[i];
+		}
+#pragma omp critical
+		t += t0;
+	}
+
+	return t;
+}
+
+void write_array(size_t size, double * x) {
+
+	double a = 1.1;
+//	asm volatile (
+//			"vbroadcastsd (%%rbx), %%ymm0\n\t"
+//			"vbroadcastsd (%%rbx), %%ymm1\n\t"
+//			"xorq %%rdi, %%rdi\n\t"
+//			"1:\n\t"
+//			"vmovapd %%ymm0, (%%rax, %%rdi)\n\t"
+//			"vmovapd %%ymm1, 32(%%rax, %%rdi)\n\t"
+//			"addq $64, %%rdi\n\t"
+//			"cmpq %%rdi, %%rdx\n\t"
+//			"jl 1b\n\t"
+//			:
+//			: "a" (x), "d" (size), "b" (&a)
+//			: "%rdi"
+//	);
+
+	__m256d t0 =  _mm256_broadcast_sd(&a), t1 = _mm256_broadcast_sd(&a); // 2.6 B/c
+	for (size_t i=0; i < size; i+=8) {
+		_mm256_store_pd(x+i, t0);
+		_mm256_store_pd(x+i+4, t1);
+	}
+
+}
+
+void par_write_array(size_t size, double * x) {
+
+	double a = 1.1;
+
+//	__m256d t0 =  _mm256_broadcast_sd(&a), t1 = _mm256_broadcast_sd(&a);
+//#pragma omp parallel for schedule(static, size/4)
+//	for (size_t i=0; i < size; i+=8) {
+//		_mm256_store_pd(x+i, t0);
+//		_mm256_store_pd(x+i+4, t1);
+//	}
+
+#pragma omp parallel for schedule(static, size/4) // gives 2.6 B/s
+	for (size_t i=0; i < size; i++) {
+		x[i] = a;
+	}
+
+}
+
+void copy(size_t size, double * x, double *y) {
+//	for (size_t i=0; i < size; i++) {
+//		y[i] = x[i];
+//	}
+
+//	asm volatile (
+//			"xorq %%rdi, %%rdi\n\t"
+//			"1:\n\t"
+//			"vmovapd (%%rax, %%rdi), %%ymm0\n\t"
+//			"vmovapd 32(%%rax, %%rdi), %%ymm1\n\t"
+//			"vmovapd %%ymm0, (%%rbx, %%rdi)\n\t"
+//			"vmovapd %%ymm1, 32(%%rbx, %%rdi)\n\t"
+//			"addq $64, %%rdi\n\t"
+//			"cmpq %%rdi, %%rdx\n\t"
+//			"jl 1b\n\t"
+//			:
+//			: "a" (x), "d" (size), "b" (y)
+//			: "%rdi"
+//	);
+	__m256d t0,t1;
+
+	for (size_t i=0; i < size; i+=8) {
+		t0 = _mm256_load_pd(x+i);
+		t1 = _mm256_load_pd(x+i+4);
+		_mm256_store_pd(y+i, t0);
+		_mm256_store_pd(y+i+4, t1);
+	}
+
+}
+
+void par_copy(size_t size, double * x, double *y) {
+//	for (size_t i=0; i < size; i++) {
+//		y[i] = x[i];
+//	}
+
+//	asm volatile (
+//			"xorq %%rdi, %%rdi\n\t"
+//			"1:\n\t"
+//			"vmovapd (%%rax, %%rdi), %%ymm0\n\t"
+//			"vmovapd 32(%%rax, %%rdi), %%ymm1\n\t"
+//			"vmovapd %%ymm0, (%%rbx, %%rdi)\n\t"
+//			"vmovapd %%ymm1, 32(%%rbx, %%rdi)\n\t"
+//			"addq $64, %%rdi\n\t"
+//			"cmpq %%rdi, %%rdx\n\t"
+//			"jl 1b\n\t"
+//			:
+//			: "a" (x), "d" (size), "b" (y)
+//			: "%rdi"
+//	);
+	__m256d t0,t1;
+
+#pragma omp parallel for private(t0,t1) schedule(static, size/4)
+	for (size_t i=0; i < size; i+=8) {
+		t0 = _mm256_load_pd(x+i);
+		t1 = _mm256_load_pd(x+i+4);
+		_mm256_store_pd(y+i, t0);
+		_mm256_store_pd(y+i+4, t1);
+	}
+
+}
+
+void dxpy(size_t size, double * x, double *y) {
+	__m256d t0x, t1x, t0y, t1y, t0o, t1o;
+
+	for (size_t i=0; i < size; i+=8) {
+		t0x = _mm256_load_pd(x+i);
+		t0y = _mm256_load_pd(y+i);
+		t1x = _mm256_load_pd(x+i+4);
+		t1y = _mm256_load_pd(y+i+4);
+		t0o = _mm256_add_pd(t0x, t0y);
+		t1o = _mm256_add_pd(t1x, t1y);
+		_mm256_store_pd(y+i, t0o);
+		_mm256_store_pd(y+i+4, t1o);
+	}
+
+}
+
+void par_dxpy(size_t size, double * x, double *y) {
+	__m256d t0x, t1x, t0y, t1y, t0o, t1o;
+
+#pragma omp parallel for private(t0x, t1x, t0y, t1y, t0o, t1o) schedule(static)
+	for (size_t i=0; i < size; i+=8) {
+		t0x = _mm256_load_pd(x+i);
+		t0y = _mm256_load_pd(y+i);
+		t1x = _mm256_load_pd(x+i+4);
+		t1y = _mm256_load_pd(y+i+4);
+		t0o = _mm256_add_pd(t0x, t0y);
+		t1o = _mm256_add_pd(t1x, t1y);
+		_mm256_store_pd(y+i, t0o);
+		_mm256_store_pd(y+i+4, t1o);
+	}
+
+}
+
+void triad(size_t size, double * x, double *y, double *z) {
+	__m256d t0x, t1x, t0y, t1y, t0z, t1z;
+
+	for (size_t i=0; i < size; i+=8) {
+		t0x = _mm256_load_pd(x+i);
+		t0y = _mm256_load_pd(y+i);
+		t1x = _mm256_load_pd(x+i+4);
+		t1y = _mm256_load_pd(y+i+4);
+		t0z = _mm256_add_pd(t0x, t0y);
+		t1z = _mm256_add_pd(t1x, t1y);
+		_mm256_store_pd(z+i, t0z);
+		_mm256_store_pd(z+i+4, t1z);
+	}
+
+}
+
+void par_triad(size_t size, double * x, double *y, double *z) {
+	__m256d t0x, t1x, t0y, t1y, t0z, t1z;
+
+#pragma omp parallel for private(t0x, t1x, t0y, t1y, t0z, t1z) schedule(static)
+	for (size_t i=0; i < size; i+=8) {
+		t0x = _mm256_load_pd(x+i);
+		t0y = _mm256_load_pd(y+i);
+		t1x = _mm256_load_pd(x+i+4);
+		t1y = _mm256_load_pd(y+i+4);
+		t0z = _mm256_add_pd(t0x, t0y);
+		t1z = _mm256_add_pd(t1x, t1y);
+		_mm256_store_pd(z+i, t0z);
+		_mm256_store_pd(z+i+4, t1z);
+	}
+
+}
+
+void mem(size_t n) {
+
+	ofstream devnull("/dev/null");
+	double * x, * y, * z, t = 0.;
+
+	_buildRandInit(&x, n, 1, 4*1024);
+	_buildRandInit(&y, n, 1, 4*1024);
+	_buildRandInit(&z, n, 1, 4*1024);
+
+	size_t runs = 1;
+	double slope = THRESHOLD;
+
+	for(; runs <= (1 << 20); runs *= 2){
+
+		measurement_start();
+		for(int i = 0; i < runs; i++)
+//			t += read_array(n, x);
+//			t = par_read_array(n, x);
+//			write_array(n, x);
+//			par_write_array(n, x);
+//			copy(n, x, y);
+//			par_copy(n, x, y);
+//			dxpy(n, x, y);
+//			par_dxpy(n, x, y);
+//			triad(n, x, y, z);
+			par_triad(n, x, y, z);
+//			for(size_t s = 0; s < n; s++)
+//				t += x[s];
+		measurement_stop(runs);
+//		_printM(&t, 1, 1, "", devnull);
+//		_printM(x, n, 1, "", devnull);
+		_printM(y, n, 1, "", devnull);
+
+		if(measurement_testRegressionX2(runs, slope))
+			break;
+		measurement_emptyLists(false); //don't clear the vector of runs
+	}
+
+	cout << "\n\nUsing threshold " << slope << " value for RUNS: " << runs << endl;
+
+	measurement_emptyLists();
+	t = 0.;
+
+	for(int r = 0; r < REP; r++) {
+		measurement_start();
+		for(int i = 0; i < runs; i++) {
+//			t += read_array(n, x);
+//			t = par_read_array(n, x);
+//			write_array(n, x);
+//			par_write_array(n, x);
+//			copy(n, x, y);
+//			par_copy(n, x, y);
+//			dxpy(n, x, y);
+//			par_dxpy(n, x, y);
+//			triad(n, x, y, z);
+//			par_triad(n, x, y, z);
+//			for(size_t s = 0; s < n; s++)
+//				t += x[s];
+		}
+		measurement_stop(runs);
+//		_printM(x, n, 1, "", devnull);
+		_printM(y, n, 1, "", devnull);
+//		_printM(&t, 1, 1, "", devnull);
+	}
+
+	_destroy(x); _destroy(y); _destroy(z);
+}
 
 int main(int argc, char** argv) {
 
@@ -359,9 +673,10 @@ int main(int argc, char** argv) {
 	size_t n = strtoul(argv[1], NULL, 0);
 
 //	reduction(n);
-	mmm(n);
+//	mmm(n);
 //	mvm(n);
 //	daxpy(n);
+	mem(n);
 
 	measurement_end();
 

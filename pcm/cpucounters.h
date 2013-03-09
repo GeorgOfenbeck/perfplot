@@ -303,6 +303,7 @@ private:
     bool checkModel();
     void programBecktonUncore(int core);
     void programNehalemEPUncore(int core);
+	void programSandyBridgeUncore(int core);
     void enableJKTWorkaround(bool enable);
 
 public:
@@ -594,9 +595,9 @@ public:
     {
         return !(
                   cpu_model == PCM::ATOM 
-               || cpu_model == PCM::SANDY_BRIDGE 
+               //|| cpu_model == PCM::SANDY_BRIDGE 
                || cpu_model == PCM::CLARKDALE 
-               || cpu_model == PCM::IVY_BRIDGE
+               //|| cpu_model == PCM::IVY_BRIDGE
                );
     }
 
@@ -1576,7 +1577,10 @@ inline double getCoreC1Residency(const CounterStateType & before, const CounterS
 template <class CounterStateType>
 uint64 getBytesReadFromMC(const CounterStateType & before, const CounterStateType & after)
 {
-    return (after.UncMCNormalReads - before.UncMCNormalReads) * 64;
+	if (after.UncMCNormalReads < before.UncMCNormalReads)
+		return 0;
+	else	
+		return (after.UncMCNormalReads - before.UncMCNormalReads) * 64;
 }
 
 /*! \brief Computes number of bytes written to DRAM memory controllers
@@ -1588,7 +1592,10 @@ uint64 getBytesReadFromMC(const CounterStateType & before, const CounterStateTyp
 template <class CounterStateType>
 uint64 getBytesWrittenToMC(const CounterStateType & before, const CounterStateType & after)
 {
-    return (after.UncMCFullWrites - before.UncMCFullWrites) * 64;
+	if ((after.UncMCFullWrites < before.UncMCFullWrites) * 64)
+		return 0;
+	else
+		return (after.UncMCFullWrites - before.UncMCFullWrites) * 64;
 }
 
 /*! \brief Returns the number of occured custom core events

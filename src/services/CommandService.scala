@@ -48,9 +48,20 @@ object CommandService {
       sRefCycleCounter: Array[Long],
       avgTSCCounter: Array[Long],
       mcread: Array[Long],
-      mcwrite: Array[Long]
+      mcwrite: Array[Long],
+      nrruns : Array[Long]
     )
   {
+
+    def getSCounter(i : Long)  =
+    {
+        i match {
+            case 0 =>  SCounter0
+            case 1 =>  SCounter1
+            case 2 =>  SCounter2
+            case 3 =>  SCounter3
+        }
+    }
 
 
     def getSCounter3():Array[Long] = SCounter3
@@ -108,11 +119,34 @@ object CommandService {
 
     def getFlops(r : Range): List[Long] = (for (i <- r) yield getFlops(i)).toList
 
+
+    def getnrruns(i: Int) = nrruns(i)
+
+
+    def getbytes_read (i: Int) : Long = mcread(i)
+    def getbytes_write (i: Int) : Long = mcwrite(i)
+
+    def getbytes_transferred (i: Int) : Long =
+    {
+      mcread(i) + mcwrite(i)
+    }
+
+
+
+    def getTSC (i: Int) : Long =
+    {
+      avgTSCCounter(i)
+    }
+
     def getFlops (i: Int) : Long =
     {
-      get_scalar_double_flops(i) + get_scalar_single_flops(i) +
-      get_sse_double_flops(i) + get_sse_single_flops(i) +
-      get_avx_double_flops(i) + get_avx_single_flops(i)
+      (
+        get_scalar_double_flops(i) + //+ get_scalar_single_flops(i) +
+      get_sse_double_flops(i) + get_avx_double_flops(i)
+        /*+ get_sse_single_flops(i) +
+     + get_avx_single_flops(i) */
+        )
+
     }
 
     def getFlops(core: Int, exp: Int) =
@@ -201,7 +235,7 @@ object CommandService {
           "%12d".format(Counter7(i)(j)) +
           "%12f".format(getPerformance(i,j).value)
         )
-      println("--------------------------------------------------------------------------------------------------------")
+      println(nrruns(j) + "--------------------------------------------------------------------------------------------------------")
       println(
         "%6d".format(-1) +
           "%12d".format(avgTSCCounter(j)) +
@@ -294,7 +328,7 @@ object CommandService {
       }
 
 
-      for (i <- 0 until avgTSCCounter.size) {
+      for (i <- 0 until avgTSCCounter.size) { //GO: TODO: should change this to max instead of average
         avgTSCCounter(i) = 0
         for (j <- 0 until nrcores)
           avgTSCCounter(i) = avgTSCCounter(i) + TSCCounter(j)(i)
@@ -316,6 +350,21 @@ object CommandService {
 
       val mcread = getFile(path.getPath + File.separator + "MC_read.txt").split(" ").map( x => x.toLong  ).reverse // /1024/1024 )
       val mcwrite = getFile(path.getPath + File.separator + "MC_write.txt").split(" ").map( x => x.toLong ).reverse // /1024/1024)
+      val nrruns = getFile(path.getPath + File.separator + "nrruns.txt").split(" ").map( x => x.toLong ).reverse // /1024/1024)
+
+
+
+      //everything read - delete it
+      if (Config.delete_temp_files){
+        val children = path.list()
+        for (i <- 0 until children.length)
+        {
+          val x = new File(path, children(i))
+          x.delete
+        }
+        // The directory is now empty so delete it
+        path.delete()
+      }
 
       new Counters(nrcores,
         Counter0,
@@ -341,7 +390,8 @@ object CommandService {
         sRefCycleCounter,
         avgTSCCounter,
         mcread,
-        mcwrite
+        mcwrite,
+        nrruns
       )
     }
   }
@@ -524,7 +574,7 @@ object CommandService {
       execute(" \"C:\\Program Files (x86)\\Intel\\Composer XE 2013\\bin\\compilervars.bat\" intel64 vs2012shell")
     }
     else
-      execute("icc " + codeFile +".cpp " + Config.MeasuringCore.getAbsolutePath + flags + "  -lpthread -lrt -o "+ codeFile + ".x")
+      execute("icc " + codeFile +".cpp " + Config.MeasuringCore.getAbsolutePath + flags + "  -lpthread -lrt -o "+ codeFile + ".x -Fa"+ codeFile + ".asm")
     //execute(compiler.getAbsolutePath + " -std=c99 -mkl -fasm-blocks " + codeFile +".cpp " + " pcm/MeasuringCore.lib -lpthread -lrt -o "+ codeFile + ".x")
   }
 
