@@ -13,6 +13,10 @@ import matplotlib.pyplot as plt
 import matplotlib.lines as lns
 from scipy import stats
 from matplotlib.patches import Polygon
+import matplotlib.font_manager as fm
+
+font = fm.FontProperties(
+        family = 'Gill Sans', fname = 'GillSans.ttc')
 
 
 background_color =(0.85,0.85,0.85) #'#C0C0C0'    
@@ -29,14 +33,14 @@ matplotlib.rc('xtick.major',size =0 )
 matplotlib.rc('xtick.minor',size =0 )
 matplotlib.rc('ytick.major',size =0 )
 matplotlib.rc('ytick.minor',size =0 )
-matplotlib.rc('font', family='serif')
+#matplotlib.rc('font', family='serif')
 
 X_MIN=0.01
 X_MAX=1000.0
 Y_MIN=0.01
-Y_MAX=10.0
-PEAK_PERF=4.0
-PEAK_BW=2.5
+Y_MAX=50.0
+PEAK_PERF=8.0
+PEAK_BW=11.95
 INVERSE_GOLDEN_RATIO=0.618
 OUTPUT_FILE="data-rooflinePlot.pdf"
 TITLE="TITLE"
@@ -45,8 +49,12 @@ Y_LABEL="Performance [Flop/Cycle]"
 ANNOTATE_POINTS=1
 AXIS_ASPECT_RATIO=log10(X_MAX/X_MIN)/log10(Y_MAX/Y_MIN)
 
-
-series = ['dgemv_cold']
+#series = ['444', '450','470','482','999' ]
+#series = ['daxpy-cold', 'daxpy-warm', 'daxpy-parallel-cold', 'daxpy-parallel-warm','fft-MKL-cold',  'fft-MKL-parallel-cold', 'fft-MKL-parallel-warm', 'dgemv-cold', 'dgemv-warm', 'dgemv-parallel-cold', 'dgemv-parallel-warm','dgemm-cold', 'dgemm-warm', 'dgemm-parallel-cold', 'dgemm-parallel-warm' ]
+#series = ['daxpy-cold', 'daxpy-warm', 'daxpy-parallel-cold', 'daxpy-parallel-warm']
+#series = ['dgemm-cold', 'dgemm-warm', 'dgemm-parallel-cold', 'dgemm-parallel-warm']
+#series = ['fft-MKL-warm', 'fft-MKL-cold',  'fft-MKL-parallel-cold', 'fft-MKL-parallel-warm']
+series = ['dgemv-cold', 'dgemv-warm', 'dgemv-parallel-cold', 'dgemv-parallel-warm']
 colors=[(0.6,0.011,0.043), (0.258, 0.282, 0.725),(0.2117, 0.467, 0.216),'#CC0033' ,'#FFFF00' ]
 fig = plt.figure()
 # Returns the Axes instance
@@ -58,8 +66,8 @@ ax.set_xscale('log')
 
 #formatting:
 ax.set_title(TITLE,fontsize=14,fontweight='bold')
-ax.set_xlabel(X_LABEL, fontsize=12)
-ax.set_ylabel(Y_LABEL, fontsize=12)
+ax.set_xlabel(X_LABEL, fontproperties = font, fontsize=12)
+ax.set_ylabel(Y_LABEL, fontproperties = font, fontsize=12)
 
 
 #x-y range
@@ -79,6 +87,8 @@ for i in range(minloc,maxloc):
     # Do not plot the first label, it is ugly in the corner
     if i==minloc:
 		newlabels.append('')
+    elif i==maxloc-1: #Do not plot the last label either
+        newlabels.append('')
     elif 10**i <= 100:
         newlabels.append(str(10**i))
     else:
@@ -105,7 +115,7 @@ yticks(newlocs, newlabels)
 pp = []
 ss=[]
 for serie,i in zip(series,range(len(series))):
-	
+	print serie
 	nCycles = []
     	file_in = open('tsc_'+serie+'.txt','r')
     	lines = file_in.readlines()
@@ -139,7 +149,13 @@ for serie,i in zip(series,range(len(series))):
 
 	xData =[]
     	for f,b in zip(nFLOPS,bytesTransferred):
-        	xData.append([float(vf)/float(vb) for vf, vb in zip(f,b) if vf != '' and vb != '' and float(vb)!= 0])
+			xDataTmp = []
+			for vf, vb in zip(f,b):
+				if vf != '' and vb != '' and float(vb)!= 0:
+					xDataTmp.append(float(vf)/float(vb))	
+				if float(vb)== 0:
+					xDataTmp.append(float(vf)/X_MAX)
+			xData.append(xDataTmp)
 
 	x=[]
 	xerr_low=[]
@@ -163,17 +179,17 @@ for serie,i in zip(series,range(len(series))):
 	yerr_low = [a - b for a, b in zip(y, yerr_low)]
 	yerr_high = [a - b for a, b in zip(yerr_high, y)]
 
-	#print x
+	print x
 	#print xerr_low
 	#print xerr_high
-	#print y
+	print y
 	#print yerr_low
 	#print yerr_high
 
 	p, =ax.plot(x, y, '-', color=colors[i],label=serie)
 	pp.append(p)
 	ss.append(serie);
-	ax.errorbar(x, y, yerr=[yerr_low, yerr_high], xerr=[xerr_low, xerr_high], color=colors[i])  
+	ax.errorbar(x, y, yerr=[yerr_low, yerr_high], xerr=[xerr_low, xerr_high], fmt='b.',elinewidth=0.6, ecolor = 'Black', capsize=0, color=colors[i])  
 
 	# Read sizes	
 	sizes = []
@@ -203,7 +219,7 @@ ax.legend(pp,ss, numpoints=1, loc='best',fontsize =6).get_frame().set_visible(Fa
 
 
 #Peak performance line and text
-ax.axhline(y=PEAK_PERF, linewidth=1, color='black')
+ax.axhline(y=PEAK_PERF, linewidth=0.75, color='black')
 #ax.text(X_MAX/10.0, PEAK_PERF+(PEAK_PERF)/10, "Peak Performance ("+str(PEAK_PERF)+" F/C)", fontsize=8)
 yCoordinateTransformed = (log(PEAK_PERF)-log(Y_MIN))/(log(Y_MAX/Y_MIN))
 ax.text(0.76,yCoordinateTransformed+0.01, "Peak Performance ("+str(PEAK_PERF)+" F/C)", fontsize=8, transform=ax.transAxes)
@@ -211,7 +227,7 @@ ax.text(0.76,yCoordinateTransformed+0.01, "Peak Performance ("+str(PEAK_PERF)+" 
 #BW line and text
 x = np.linspace(X_MIN, X_MAX, X_MAX)
 y = x*PEAK_BW 
-ax.plot(x, y, linewidth=1, color='black')
+ax.plot(x, y, linewidth=0.75, color='black')
 
 
 #l2 = array((0.01,X_MIN*PEAK_BW*(1/INVERSE_GOLDEN_RATIO)*log10(X_MAX/X_MIN)/log10(Y_MAX/Y_MIN)))
