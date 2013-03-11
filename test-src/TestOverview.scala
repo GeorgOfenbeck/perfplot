@@ -37,7 +37,7 @@ class TestOverview extends Suite{
 
   def test_dgemm_seq() =
   {
-    val sizes =  (for (i<-0 until 7) yield (i*500+100).toLong ).toList
+    val sizes =  (for (i<-1 until 10) yield (i*300+100).toLong ).toList
     CodeGeneration.run_kernel(folder,CodeGeneration.dgemm_MKL,sizes,"dgemm-warm",counters,true,true, seq)
     CodeGeneration.run_kernel(folder,CodeGeneration.dgemm_MKL,sizes,"dgemm-cold",counters,true,false, seq)
     CodeGeneration.run_kernel(folder,CodeGeneration.dgemm_MKL,sizes,"dgemm-parallel-warm",counters,true,true, parallel)
@@ -47,7 +47,7 @@ class TestOverview extends Suite{
 
   def test_daxpy_seq() =
   {
-    val sizes_2power =  (for (i<-1 until 6) yield (Math.pow(10,i).toLong)).toList
+    val sizes_2power =  (for (i<-1 until 10) yield (i.toLong*i*30000+10000).toLong ).toList
     CodeGeneration.run_kernel(folder,CodeGeneration.daxpy_MKL,sizes_2power,"daxpy-warm",counters,true,true, seq)
     CodeGeneration.run_kernel(folder,CodeGeneration.daxpy_MKL,sizes_2power,"daxpy-cold",counters,true,false, seq)
     CodeGeneration.run_kernel(folder,CodeGeneration.daxpy_MKL,sizes_2power,"daxpy-parallel-warm",counters,true,true, parallel)
@@ -67,7 +67,7 @@ class TestOverview extends Suite{
 
   def test_dgmev_seq() =
   {
-    val sizes_2power =  (for (i<-1 until 5) yield (Math.pow(10,i).toLong)).toList
+    val sizes_2power =  (for (i<-1 until 10) yield (i*300+100).toLong ).toList
     CodeGeneration.run_kernel(folder,CodeGeneration.dgemv_MKL,sizes_2power,"dgemv-warm",counters,true,true, seq)
     CodeGeneration.run_kernel(folder,CodeGeneration.dgemv_MKL,sizes_2power,"dgemv-cold",counters,true,false, seq)
     CodeGeneration.run_kernel(folder,CodeGeneration.dgemv_MKL,sizes_2power,"dgemv-parallel-warm",counters,true,true, parallel)
