@@ -1430,12 +1430,12 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
   }
 
 
-
-  def dgemm_MKL (sourcefile: PrintStream,sizes: List[Long], counters: Array[HWCounters.Counter], double_precision: Boolean = true, warmData: Boolean = false) =
+  def dgemm(sourcefile: PrintStream,sizes: List[Long], counters: Array[HWCounters.Counter], double_precision: Boolean = true, warmData: Boolean = false) =
   {
     def p(x: String) = sourcefile.println(x)
+
+
     val prec = if (double_precision) "double" else "float"
-    p("#include <mkl.h>")
     p("#include <iostream>")
     p("#include <iostream>\n#include <fstream>\n#include <cstdlib>\n#include <ctime>\n#include <cmath>\n")
     p(Config.MeasuringCoreH)
@@ -1456,7 +1456,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
     {
       p("{")
       p("double alpha = 1.1;")
-      p("unsigned long size = " +size + ";")
+      p("const int size = " +size + ";")
       //allocate
       p("double * A = (double *) _mm_malloc("+size*size+"*sizeof(double),page);")
       p("double * B = (double *) _mm_malloc("+size*size+"*sizeof(double),page);")
@@ -1472,7 +1472,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
       //Tune the number of runs
       p("std::cout << \"tuning\";")
       //tuneNrRuns(sourcefile,"cblas_dgemv(CblasRowMajor, CblasNoTrans,"+size+" ,"+size+", alpha, A, "+size+", x, 1, 0., y, 1);","" )
-      CodeGeneration.tuneNrRunsbyRunTime(sourcefile, "cblas_dgemm(CblasRowMajor,CblasNoTrans, CblasNoTrans, size, size , size,1,A, size,B, size,1,C, size);" ,"" )
+      CodeGeneration.tuneNrRunsbyRunTime(sourcefile, "cblas_dgemm(CblasRowMajor,CblasNoTrans, CblasNoTrans, size, size , size,1.0,A, size,B, size,1.0,C, size);" ,"" )
 
       //find out the number of shifts required
       //p("std::cout << runs << \"allocate\";")
@@ -1511,7 +1511,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
         p("for(int r = 0; r < " + Config.repeats + "; r++){")
         p("measurement_start();")
         p("for(int i = 0; i < runs; i++){")
-        p("cblas_dgemm(CblasRowMajor,CblasNoTrans, CblasNoTrans, size, size , size,1,A_array[i%numberofshifts], size,B_array[i%numberofshifts], size,1,C_array[i%numberofshifts], size);")
+        p("cblas_dgemm(CblasRowMajor,CblasNoTrans, CblasNoTrans, size, size , size,1.0,A_array[i%numberofshifts], size,B_array[i%numberofshifts], size,1.0,C_array[i%numberofshifts], size);")
         p("}")
         p( "measurement_stop(runs);")
         p( " }")
@@ -1540,6 +1540,25 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
     }
     p("measurement_end();")
     p("}")
+  }
+
+
+  def dgemm_Atlas(sourcefile: PrintStream,sizes: List[Long], counters: Array[HWCounters.Counter], double_precision: Boolean = true, warmData: Boolean = false) =
+  {
+
+    sourcefile.println("#ifdef __cplusplus\nextern \"C\" {\n#endif")
+    sourcefile.println("#include <cblas.h>")
+    sourcefile.println("#include <clapack.h>")
+
+    sourcefile.println("#ifdef __cplusplus\n}\n#endif")
+    dgemm(sourcefile ,sizes, counters, double_precision, warmData)
+  }
+
+
+  def dgemm_MKL (sourcefile: PrintStream,sizes: List[Long], counters: Array[HWCounters.Counter], double_precision: Boolean = true, warmData: Boolean = false) =
+  {
+    sourcefile.println("#include <mkl.h>")
+    dgemm(sourcefile ,sizes, counters, double_precision, warmData)
   }
 
 
