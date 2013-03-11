@@ -38,9 +38,9 @@ class TestOverview extends Suite{
   def test_dgemm_seq() =
   {
     val sizes =  (for (i<-1 until 10) yield (i*300+100).toLong ).toList
-    CodeGeneration.run_kernel(folder,CodeGeneration.dgemm_MKL,sizes,"dgemm-warm",counters,true,true, seq)
+//     CodeGeneration.run_kernel(folder,CodeGeneration.dgemm_MKL,sizes,"dgemm-warm",counters,true,true, seq)
     CodeGeneration.run_kernel(folder,CodeGeneration.dgemm_MKL,sizes,"dgemm-cold",counters,true,false, seq)
-    CodeGeneration.run_kernel(folder,CodeGeneration.dgemm_MKL,sizes,"dgemm-parallel-warm",counters,true,true, parallel)
+//     CodeGeneration.run_kernel(folder,CodeGeneration.dgemm_MKL,sizes,"dgemm-parallel-warm",counters,true,true, parallel)
     CodeGeneration.run_kernel(folder,CodeGeneration.dgemm_MKL,sizes,"dgemm-parallel-cold",counters,true,false, parallel)
   }
 
@@ -48,32 +48,32 @@ class TestOverview extends Suite{
   def test_daxpy_seq() =
   {
     val sizes_2power =  (for (i<-1 until 10) yield (i.toLong*i*30000+10000).toLong ).toList
-    CodeGeneration.run_kernel(folder,CodeGeneration.daxpy_MKL,sizes_2power,"daxpy-warm",counters,true,true, seq)
+//     CodeGeneration.run_kernel(folder,CodeGeneration.daxpy_MKL,sizes_2power,"daxpy-warm",counters,true,true, seq)
     CodeGeneration.run_kernel(folder,CodeGeneration.daxpy_MKL,sizes_2power,"daxpy-cold",counters,true,false, seq)
-    CodeGeneration.run_kernel(folder,CodeGeneration.daxpy_MKL,sizes_2power,"daxpy-parallel-warm",counters,true,true, parallel)
+//     CodeGeneration.run_kernel(folder,CodeGeneration.daxpy_MKL,sizes_2power,"daxpy-parallel-warm",counters,true,true, parallel)
     CodeGeneration.run_kernel(folder,CodeGeneration.daxpy_MKL,sizes_2power,"daxpy-parallel-cold",counters,true,false, parallel)
   }
 
 
-  def test_FFT_MKL_seq() =
-  {
-    val sizes_2power =  (for (i<-5 until 23) yield (Math.pow(2,i).toLong)).toList
-    CodeGeneration.run_kernel(folder,CodeGeneration.fft_MKL,sizes_2power,"fft-MKL-warm",counters,true,true, seq)
-    CodeGeneration.run_kernel(folder,CodeGeneration.fft_MKL,sizes_2power,"fft-MKL-cold",counters,true,false, seq)
-    CodeGeneration.run_kernel(folder,CodeGeneration.fft_MKL,sizes_2power,"fft-MKL-parallel-warm",counters,true,true, parallel)
-    CodeGeneration.run_kernel(folder,CodeGeneration.fft_MKL,sizes_2power,"fft-MKL-parallel-cold",counters,true,false, parallel)
-  }
-
-
-  def test_dgmev_seq() =
-  {
-    val sizes_2power =  (for (i<-1 until 10) yield (i*300+100).toLong ).toList
-    CodeGeneration.run_kernel(folder,CodeGeneration.dgemv_MKL,sizes_2power,"dgemv-warm",counters,true,true, seq)
-    CodeGeneration.run_kernel(folder,CodeGeneration.dgemv_MKL,sizes_2power,"dgemv-cold",counters,true,false, seq)
-    CodeGeneration.run_kernel(folder,CodeGeneration.dgemv_MKL,sizes_2power,"dgemv-parallel-warm",counters,true,true, parallel)
-    CodeGeneration.run_kernel(folder,CodeGeneration.dgemv_MKL,sizes_2power,"dgemv-parallel-cold",counters,true,false, parallel)
-
-  }
+//   def test_FFT_MKL_seq() =
+//   {
+//     val sizes_2power =  (for (i<-5 until 23) yield (Math.pow(2,i).toLong)).toList
+//     CodeGeneration.run_kernel(folder,CodeGeneration.fft_MKL,sizes_2power,"fft-MKL-warm",counters,true,true, seq)
+//     CodeGeneration.run_kernel(folder,CodeGeneration.fft_MKL,sizes_2power,"fft-MKL-cold",counters,true,false, seq)
+//     CodeGeneration.run_kernel(folder,CodeGeneration.fft_MKL,sizes_2power,"fft-MKL-parallel-warm",counters,true,true, parallel)
+//     CodeGeneration.run_kernel(folder,CodeGeneration.fft_MKL,sizes_2power,"fft-MKL-parallel-cold",counters,true,false, parallel)
+//   }
+// 
+// 
+//   def test_dgmev_seq() =
+//   {
+//     val sizes_2power =  (for (i<-1 until 10) yield (i*300+100).toLong ).toList
+//     CodeGeneration.run_kernel(folder,CodeGeneration.dgemv_MKL,sizes_2power,"dgemv-warm",counters,true,true, seq)
+//     CodeGeneration.run_kernel(folder,CodeGeneration.dgemv_MKL,sizes_2power,"dgemv-cold",counters,true,false, seq)
+//     CodeGeneration.run_kernel(folder,CodeGeneration.dgemv_MKL,sizes_2power,"dgemv-parallel-warm",counters,true,true, parallel)
+//     CodeGeneration.run_kernel(folder,CodeGeneration.dgemv_MKL,sizes_2power,"dgemv-parallel-cold",counters,true,false, parallel)
+// 
+//   }
 }
 
 

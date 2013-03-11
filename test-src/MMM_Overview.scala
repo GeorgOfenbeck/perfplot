@@ -33,12 +33,10 @@ class MMM_Overview extends Suite{
     Counter("11H","01H","SIMD_FP_256.PACKED_SINGLE","Counts 256-bit packed single-precision floating- point instructions.","")
   )
 
-  val sizes: List[Long] = USE THE SAME VALUES FOR OVERVIEW
+  val sizes: List[Long] = (for (i<-1 until 10) yield (i*300+100).toLong ).toList
 
   def test_tripple_loop() =
   {
-
-    //val sizes: List[Long] = List(1500)
     CodeGeneration.run_kernel(folder,CodeGeneration.tripple_loop,sizes,"tripple-cold",counters,true,false, seq)
   }
 
