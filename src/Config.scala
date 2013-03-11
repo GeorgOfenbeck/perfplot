@@ -25,7 +25,7 @@ object Config {
 
   val measurement_Threshold : Long = (0.1 * scala.math.pow(10,9)).toLong; //4giga cycles - TODO: GO: replace by seconds
   val testDerivate_Threshold =  0.0005
-  val repeats = 3
+  val repeats = 20
 
   def MeasuringCore: File = if (isWin)
                          new File("C:\\Users\\ofgeorg\\IdeaProjects\\perfplot\\pcm\\","MeasuringCore.lib")
