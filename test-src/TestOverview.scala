@@ -23,8 +23,8 @@ import scala.io._
 
 class TestOverview extends Suite{
 
-  val seq = Config.flag_c99 + Config.flag_hw + Config.flag_mkl_seq + Config.flag_no_optimization
-  val parallel = Config.flag_c99 + Config.flag_hw + Config.flag_mkl + Config.flag_no_optimization
+  val seq = Config.flag_c99 + Config.flag_hw + Config.flag_mkl_seq + Config.flag_optimization
+  val parallel = Config.flag_c99 + Config.flag_hw + Config.flag_mkl + Config.flag_optimization
   
   val folder = new File (Config.result_folder + File.separator + "overview" + File.separator)
 
