@@ -155,6 +155,200 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
  }
 */
 
+  def ninefold_loop(sourcefile: PrintStream,sizes: List[Long], counters: Array[HWCounters.Counter], double_precision: Boolean = true, warmData: Boolean = false) =
+  {
+    def p(x: String) = sourcefile.println(x)
+    val prec = if (double_precision) "double" else "float"
+
+    p("#include <iostream>")
+    p("#include <iostream>\n#include <fstream>\n#include <cstdlib>\n#include <ctime>\n#include <cmath>\n")
+    p(Config.MeasuringCoreH)
+    p("#define page 64")
+    p("#define THRESHOLD " + Config.testDerivate_Threshold)
+    p("#define NB 50")
+    p("using namespace std;")
+    val (counterstring, initstring ) = CodeGeneration.Counters2CCode(counters)
+    CodeGeneration.create_array_of_buffers(sourcefile)
+    CodeGeneration.destroy_array_of_buffers(sourcefile)
+    p("void _rands(double * m, size_t row, size_t col)\n{\n  for (size_t i = 0; i < row*col; ++i)  m[i] = (double)(rand())/RAND_MAX;;\n}")
+    p("void _ini1(double * m, size_t row, size_t col)\n{\n  for (size_t i = 0; i < row*col; ++i)  m[i] = (double)1.1;\n}")
+
+
+
+    p("void dgemm(double *A, double * B, double * C, unsigned long size) {")
+
+    p("int i=0, j=0, k=0;")
+    p("int ii, jj, kk;")
+
+    p("double cij, cij1, ci1j, ci1j1;")
+    p("double aik, aik1, ai1k, ai1k1, bkj, bk1j, bkj1, bk1j1;")
+    p("double t1, t2, t3;")
+
+    p("for (i = 0; i < size; i+=NB) {")
+    p("    for (j = 0; j < size; j+=NB) {")
+    p("        for (k = 0; k < size; k+=NB) {")
+    p("            for (ii = 0; ii < NB; ii+=2) {")
+    p("                for (jj = 0; jj < NB; jj+=2) {")
+
+    p("                    cij   = C[i*size + ii*size + j + jj];")
+    p("                    cij1  = C[i*size + ii*size + j + jj + 1];")
+    p("                    ci1j  = C[i*size + ii*size + size + j + jj];")
+    p("                    ci1j1 = C[i*size + ii*size + size + j + jj + 1];")
+
+    p("                    aik   = A[i*size + ii*size + k];")
+    p("                    ai1k  = A[i*size + ii*size + size + k];")
+    p("                    bkj   = B[k*size + j + jj];")
+    p("                    bkj1  = B[k*size + j + jj + 1];")
+
+    p("                    for (kk = 0; kk < NB-2; kk+=2) {")
+
+    p("                        t1    = aik*bkj;")
+    p("                        t2    = ai1k*bkj;")
+    p("                        bkj   = B[k*size + kk*size + size + j + jj];")
+    p("                        t3    = aik*bkj1;")
+    p("                        aik   = A[i*size + ii*size + k + kk + 1];")
+    p("                        cij   = cij   + t1;")
+    p("                        t1    = ai1k*bkj1;")
+    p("                        ai1k  = A[i*size + ii*size + size + k + kk + 1];")
+    p("                        bkj1  = B[k*size + kk*size + size + j + jj + 1];")
+    p("                        ci1j  = ci1j  + t2;")
+    p("                        t2    = aik*bkj;")
+    p("                        cij1  = cij1  + t3;")
+    p("                        t3    = ai1k*bkj;")
+    p("                        bkj   = B[k*size + kk*size + 2*size + j + jj];")
+    p("                        ci1j1 = ci1j1 + t1;")
+    p("                        t1    = aik*bkj1;")
+    p("                        aik   = A[i*size + ii*size + k + kk + 2];")
+    p("                        cij   = cij   + t2;")
+    p("                        t2    = ai1k*bkj1;")
+    p("                        ai1k  = A[i*size + ii*size + size + k + kk + 2];")
+    p("                        bkj1  = B[k*size + kk*size + 2*size + j + jj + 1];")
+    p("                        ci1j  = ci1j  + t3;")
+    p("                        cij1  = cij1  + t1;")
+    p("                        ci1j1 = ci1j1 + t2;")
+
+    p("                    }")
+
+    p("                    t1    = aik*bkj;")
+    p("                    t2    = ai1k*bkj;")
+    p("                    bkj   = B[k*size + NB*size - size + j + jj];")
+    p("                    t3    = aik*bkj1;")
+    p("                    aik   = A[i*size + ii*size + k + NB - 1];")
+    p("                    cij   = cij   + t1;")
+    p("                    t1    = ai1k*bkj1;")
+    p("                    ai1k  = A[i*size + ii*size + size + k + NB - 1];")
+    p("                    bkj1  = B[k*size + NB*size - size + j + jj + 1];")
+    p("                    ci1j  = ci1j  + t2;")
+    p("                    t2    = aik*bkj;")
+    p("                    cij1  = cij1  + t3;")
+    p("                    t3    = ai1k*bkj;")
+    p("                    ci1j1 = ci1j1 + t1;")
+    p("                    t1    = aik*bkj1;")
+    p("                    cij   = cij   + t2;")
+    p("                    t2    = ai1k*bkj1;")
+    p("                    ci1j  = ci1j  + t3;")
+    p("                    cij1  = cij1  + t1;")
+    p("                    ci1j1 = ci1j1 + t2;")
+
+    p("                    C[i*size + ii*size + j + jj]   = cij;")
+    p("                    C[i*size + ii*size + j + jj + 1]  = cij1;")
+    p("                    C[i*size + ii*size + size + j + jj]  = ci1j;")
+    p("                    C[i*size + ii*size + size + j + jj + 1] = ci1j1;")
+    p("                }")
+    p("            }")
+    p("        }")
+    p("    }")
+    p("}")
+
+    p("}")
+
+    p("int main () { ")
+    p("srand(1984);")
+
+    p(counterstring)
+    p(initstring)
+    for (size <- sizes)
+    {
+      p("{")
+      p("double alpha = 1.1;")
+      p("unsigned long size = " +size + ";")
+      //allocate
+      p("double * A = (double *) _mm_malloc("+size*size+"*sizeof(double),page);")
+      p("double * B = (double *) _mm_malloc("+size*size+"*sizeof(double),page);")
+      p("double * C = (double *) _mm_malloc("+size*size+"*sizeof(double),page);")
+
+      p("_ini1(A,"+size+" ,"+size+");")
+      p("_ini1(B,"+size+" ,"+size+");")
+      p("_ini1(C,"+size+" ,"+size+");")
+
+      p("int n = " +size + ";")
+      //Tune the number of runs
+      p("std::cout << \"tuning\";")
+      //tuneNrRuns(sourcefile,"cblas_dgemv(CblasRowMajor, CblasNoTrans,"+size+" ,"+size+", alpha, A, "+size+", x, 1, 0., y, 1);","" )
+      CodeGeneration.tuneNrRunsbyRunTime(sourcefile, "dgemm(A,B,C,size);" ,"" )
+
+      //find out the number of shifts required
+      //p("std::cout << runs << \"allocate\";")
+      //allocate the buffers
+      //p("std::cout << \"run\";")
+      if (!warmData)
+      {
+        p("_mm_free(A);")
+        p("_mm_free(B);")
+        p("_mm_free(C);")
+        //allocate
+        //p("long numberofshifts =  measurement_getNumberOfShifts(" + (size*size*3)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
+        p("long numberofshifts = (100 * 1024 * 1024 / (" + (3*size*size)+ "* sizeof(" + prec + ")));")
+        p("if (numberofshifts < 2) numberofshifts = 2;") 
+	      p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
+
+        p("double ** A_array = (double **) CreateBuffers("+size*size+"* sizeof(" + prec + "),numberofshifts);")
+        p("double ** B_array = (double **) CreateBuffers("+size*size+"* sizeof(" + prec + "),numberofshifts);")
+        p("double ** C_array = (double **) CreateBuffers("+size*size+"* sizeof(" + prec + "),numberofshifts);")
+
+
+        p("for(int i = 0; i < numberofshifts; i++){")
+        p("_ini1(A_array[i],"+size+" ,"+size+");")
+        p("_ini1(B_array[i],"+size+" ,"+size+");")
+        p("_ini1(C_array[i],"+size+" ,"+size+");")
+        p("}")
+
+
+
+        p("for(int r = 0; r < " + Config.repeats + "; r++){")
+	p("measurement_start();")
+        p("for(int i = 0; i < runs; i++){")
+        p("dgemm(A_array[i%numberofshifts], B_array[i%numberofshifts],C_array[i%numberofshifts], size);")
+        p("}")
+        p( "measurement_stop(runs);")
+        p( " }")
+        p("DestroyBuffers( (void **) A_array, numberofshifts);")
+        p("DestroyBuffers( (void **) B_array, numberofshifts);")
+        p("DestroyBuffers( (void **) C_array, numberofshifts);")
+      }
+      else
+      {
+        //run it
+        p("for(int r = 0; r < " + Config.repeats + "; r++){")
+        p("measurement_start();")
+        p("for(int i = 0; i < runs; i++){")
+        p("dgemm(A,B,C, size);")
+        //p("cblas_dgemm(CblasRowMajor, CblasNoTrans,"+size+" ,"+size+", alpha, A, "+size+", B, 1, 0., C, 1);")
+        p("}")
+        p( "measurement_stop(runs);")
+        p( " }")
+        p("std::cout << \"deallocate\";")
+        //deallocate the buffers
+        p("_mm_free(A);")
+        p("_mm_free(B);")
+        p("_mm_free(C);")
+      }
+      p("}")
+    }
+    p("measurement_end();")
+    p("}")
+  }
+
   def sixfold_loop(sourcefile: PrintStream,sizes: List[Long], counters: Array[HWCounters.Counter], double_precision: Boolean = true, warmData: Boolean = false) =
   {
     def p(x: String) = sourcefile.println(x)
