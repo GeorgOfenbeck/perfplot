@@ -32,26 +32,26 @@ class bandwidth extends Suite{
     Counter("11H","01H","SIMD_FP_256.PACKED_SINGLE","Counts 256-bit packed single-precision floating- point instructions.","")
   )
 
-    val sizes : List[Long] = List(16*8*1024*1024)
+    val sizes : List[Long] = List(128*1024*1024)
 
-//   def test_read_loop() =
-//   {
-//     CodeGeneration.run_kernel(folder,CodeGeneration.read_loop,sizes,"readloop",counters,false,false, seq) // First bool value enables/disables parallelism
-//   }
+   def test_read_loop() =
+   {
+     CodeGeneration.run_kernel(folder,CodeGeneration.read_loop,sizes,"readloop",counters,false,false, seq) // First bool value enables/disables parallelism
+   }
 
-  def test_read_loop_par() =
-  {
-    CodeGeneration.run_kernel(folder,CodeGeneration.read_loop,sizes,"readloop-par",counters,true,false, seq + " -openmp ")
-  }
+//  def test_read_loop_par() =
+//  {
+//    CodeGeneration.run_kernel(folder,CodeGeneration.read_loop,sizes,"readloop-par",counters,true,false, seq + " -openmp ")
+//  }
 
-//   def test_copy_loop() =
-//   {
-//     CodeGeneration.run_kernel(folder,CodeGeneration.copy_loop,sizes,"copy",counters,true,false, seq + Config.flag_mkl_seq)
-//   }
-// 
-//   def test_copy_loop_par() =
-//   {
-//     CodeGeneration.run_kernel(folder,CodeGeneration.copy_loop,sizes,"copy-par",counters,true,false, seq + Config.flag_mkl)
-//   }
+   def test_copy_loop() =
+   {
+     CodeGeneration.run_kernel(folder,CodeGeneration.copy_loop,sizes,"copy",counters,true,false, seq + Config.flag_mkl_seq)
+   }
+ 
+   def test_copy_loop_par() =
+   {
+     CodeGeneration.run_kernel(folder,CodeGeneration.copy_loop,sizes,"copy-par",counters,true,false, seq + Config.flag_mkl)
+   }
 
 }
