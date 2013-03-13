@@ -37,7 +37,7 @@ class Validation extends Suite{
   {
     val sizes =  (for (i<-1 until 7) yield (i*100).toLong ).toList
     CodeGeneration.run_kernel(folder,CodeGeneration.dgemm_MKL,sizes,"dgemm-cold",counters,true,false, seq)
-    CodeGeneration.run_kernel(folder,CodeGeneration.sixfold_loop,sizes,"6fold-cold",counters,true,false, seq)
+    //CodeGeneration.run_kernel(folder,CodeGeneration.sixfold_loop,sizes,"6fold-cold",counters,true,false, seq)
     CodeGeneration.run_kernel(folder,CodeGeneration.tripple_loop,sizes,"triple",counters,true,false, seq)
   }
 

@@ -502,14 +502,15 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
 
     p("void dgemm(double *A, double * B, double * C, unsigned long size) {")
     p("long wtf = 0;")
+    p("for (int k = 0; k < size; k++)")
     p("for (int i = 0; i < size; i++)")
-    p("for (int j = 0; j < size; j++)")
-    p("for (int k = 0; k < size; k++){")
+    p("for (int j = 0; j < size; j++){")
+
     //p("C[i][j] += A[i][k]*B[k][j];")
     p("C[i*size+j] += A[i*size+k]*B[k*size+j];")
-    p("wtf++;")
+
     p("}")
-    p("std::cout << \" loopits: \" << wtf << \" --\"; ")
+
     p("}")
 
     p("int main () { ")
@@ -566,7 +567,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
 
 
         p("for(int r = 0; r < " + Config.repeats + "; r++){")
-	p("measurement_start();")
+	      p("measurement_start();")
         p("for(int i = 0; i < runs; i++){")
         p("dgemm(A_array[i%numberofshifts], B_array[i%numberofshifts],C_array[i%numberofshifts], size);")
         p("}")
@@ -673,7 +674,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
 
 
         p("for(int r = 0; r < " + Config.repeats + "; r++){")
-	p("measurement_start();")
+	      p("measurement_start();")
         p("for(int i = 0; i < runs; i++){")
         p("daxpy(x_array[i%numberofshifts], y_array[i%numberofshifts], size);")
         p("}")
@@ -1248,6 +1249,10 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
 
       if (!warmData)
       {
+        p("long size_per_run = " + 2*size + "* sizeof(" + prec + ");")
+        p("if(runs * size_per_run < (100 * 1024 * 1024)")
+        p("runs = (100 * 1024 * 1024)/size_per_run;")
+
         p("_mm_free(in);")
         p("_mm_free(out);")
         //allocate
@@ -1264,7 +1269,10 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
         p("_ini1(out_array[i],"+2*size+" ,1);")
         p("}")
 
-
+        //corpse
+        p("for(int i = 0; i < runs; i++){")
+        p("status = spiral_fft_double("+ size + ", 1, in_array[i%numberofshifts], out_array[i%numberofshifts]);")
+        p("}")
 
         p("for(int r = 0; r < " + Config.repeats + "; r++){")
         p("measurement_start();")
@@ -1367,6 +1375,11 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
 
       if (!warmData)
       {
+        p("long size_per_run = " + 2*size + "* sizeof(fftw_complex);")
+        p("if(runs * size_per_run < (100 * 1024 * 1024)")
+        p("runs = (100 * 1024 * 1024)/size_per_run;")
+
+
         p("fftw_free(in);")
 	      p("fftw_free(out);")
         //allocate
@@ -1380,6 +1393,11 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
         p("_ini1((double*) in_array[i],"+2*size+" ,1);")
         p("_ini1((double*) out_array[i],"+2*size+" ,1);")
 
+        p("}")
+
+        //corpse
+        p("for(int i = 0; i < runs; i++){")
+        p("fftw_execute_dft(fftwPlan,in_array[i%numberofshifts],out_array[i%numberofshifts]);")
         p("}")
 
 
@@ -1455,6 +1473,10 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
 
         if (!warmData)
         {
+          p("long size_per_run = " + 2*size+1 + "* sizeof(" + prec + ");")
+          p("if(runs * size_per_run < (100 * 1024 * 1024)")
+          p("runs = (100 * 1024 * 1024)/size_per_run;")
+
           p("_mm_free(x);")
           //allocate
           //p("long numberofshifts =  measurement_getNumberOfShifts(" + (2*size+1)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
@@ -1466,6 +1488,11 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
           p("for(int i = 0; i < numberofshifts; i++){")
           p("_ini1(x_array[i],"+2*size+1+" ,1);")
           p("}")
+
+          p("for(int i = 0; i < runs; i++){")
+          p("four1(x_array[i%numberofshifts],"+size+",1);")
+          p("}")
+
 
           p("for(int r = 0; r < " + Config.repeats + "; r++){")
           p("measurement_start();")
@@ -1802,6 +1829,11 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
         p("_mm_free(A);")
         p("_mm_free(B);")
         p("_mm_free(C);")
+
+        p("long size_per_run = " + 3*size*size*size + "* sizeof(" + prec + ");")
+        p("if(runs * size_per_run < (100 * 1024 * 1024)")
+        p("runs = (100 * 1024 * 1024)/size_per_run;")
+
         //allocate
         //p("long numberofshifts =  measurement_getNumberOfShifts(" + (size*size*3)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
         p("long numberofshifts = (100 * 1024 * 1024 / (" + (size*size*3)+ "* sizeof(" + prec + ")));")
@@ -1826,6 +1858,10 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
         p("_ini1(C_array[i],"+size+" ,"+size+");")
         p("}")
 
+        //corpses
+        p("for(int i = 0; i < runs; i++){")
+        p("cblas_dgemm(CblasRowMajor,CblasNoTrans, CblasNoTrans, size, size , size,1.0,A_array[i%numberofshifts], size,B_array[i%numberofshifts], size,1.0,C_array[i%numberofshifts], size);")
+        p("}")
 
         p("for(int r = 0; r < " + Config.repeats + "; r++){")
         p("measurement_start();")
@@ -1932,6 +1968,10 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
       if (!warmData)
       {
 
+        p("long size_per_run = " + 2*size + "* sizeof(" + prec + ");")
+        p("if(runs * size_per_run < (100 * 1024 * 1024)")
+        p("runs = (100 * 1024 * 1024)/size_per_run;")
+
         p("_mm_free(x);")
         p("_mm_free(y);")
         //allocate
@@ -1951,8 +1991,15 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
         p("_ini1(y_array[i],"+size+" ,1);")
         p("}")
 
+
+
+        //corpses
+        p("for(int i = 0; i < runs; i++){")
+        p("cblas_daxpy("+size+", alpha, x_array[i%numberofshifts], 1, y_array[i%numberofshifts], 1);")
+        p("}")
+
         p("for(int r = 0; r < " + Config.repeats + "; r++){")
-	 p("measurement_start();")
+	      p("measurement_start();")
         p("for(int i = 0; i < runs; i++){")
         p("cblas_daxpy("+size+", alpha, x_array[i%numberofshifts], 1, y_array[i%numberofshifts], 1);")
         p("}")
@@ -2036,6 +2083,10 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
       //p("std::cout << \"run\";")
       if (!warmData)
       {
+        p("long size_per_run = " + 2*size+size*size + "* sizeof(" + prec + ");")
+        p("if(runs * size_per_run < (100 * 1024 * 1024)")
+        p("runs = (100 * 1024 * 1024)/size_per_run;")
+
         p("_mm_free(A);")
         p("_mm_free(x);")
         p("_mm_free(y);")
@@ -2062,10 +2113,15 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
         p("_ini1(y_array[i],"+size+" ,1);")
         p("}")
 
+        //corpse
+        p("for(int i = 0; i < runs; i++){")
+        p("cblas_dgemv(CblasRowMajor, CblasNoTrans,"+size+" ,"+size+", alpha, A_array[i%numberofshifts], "+size+", x_array[i%numberofshifts], 1, 1.1, y_array[i%numberofshifts], 1);")
+        p("}")
+
         p("for(int r = 0; r < " + Config.repeats + "; r++){")
         p("measurement_start();")
         p("for(int i = 0; i < runs; i++){")
-        p("cblas_dgemv(CblasRowMajor, CblasNoTrans,"+size+" ,"+size+", alpha, A_array[i%numberofshifts], "+size+", x_array[i%numberofshifts], 1, 1., y_array[i%numberofshifts], 1);")
+        p("cblas_dgemv(CblasRowMajor, CblasNoTrans,"+size+" ,"+size+", alpha, A_array[i%numberofshifts], "+size+", x_array[i%numberofshifts], 1, 1.1, y_array[i%numberofshifts], 1);")
         p("}")
         p( "measurement_stop(runs);")
         p( " }")
@@ -2140,6 +2196,10 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
       {
         p("_mm_free(x);")
         p("_mm_free(y);")
+        p("long size_per_run = " + 4*size + "* sizeof(" + prec + ");")
+        p("if(runs * size_per_run < (100 * 1024 * 1024)")
+        p("runs = (100 * 1024 * 1024)/size_per_run;")
+
         //allocate
         //p("long numberofshifts =  measurement_getNumberOfShifts(" + (2*size)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
         p("long numberofshifts = (100 * 1024 * 1024 / (" + (2*size)+ "*2* sizeof(" + prec + ")));")
@@ -2150,6 +2210,10 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
         p("for(int i = 0; i < numberofshifts; i++){")
         p("_ini1(x_array[i],"+2*size+" ,1);")
         p("_ini1(y_array[i],"+2*size+" ,1);")
+        p("}")
+
+        p("for(int i = 0; i < runs; i++){")
+        p("status = DftiComputeForward(mklDescriptor, x_array[i%numberofshifts], y_array[i%numberofshifts]);\n\tif (status != 0) {\n\t\t std::cout << \"status -1\";\nreturn -1;\n\t}")
         p("}")
 
         p("for(int r = 0; r < " + Config.repeats + "; r++){")
@@ -2236,6 +2300,12 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
         p("for(int i = 0; i < numberofshifts; i++){")
         p("_ini1(x_array[i],"+2*size+" ,1);")
         p("}")
+
+        //corpse
+        p("for(int i = 0; i < runs; i++){")
+        p("status = DftiComputeForward(mklDescriptor, x_array[i%numberofshifts]);\n\tif (status != 0) {\n\t\t std::cout << \"status -1\";\nreturn -1;\n\t}")
+        p("}")
+
 
         p("for(int r = 0; r < " + Config.repeats + "; r++){")
         p("measurement_start();")
