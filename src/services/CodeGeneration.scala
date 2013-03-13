@@ -283,7 +283,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
 
       p("int n = " +size + ";")
       //Tune the number of runs
-      p("std::cout << \"tuning\";")
+      //p("std::cout << \"tuning\";")
       //tuneNrRuns(sourcefile,"cblas_dgemv(CblasRowMajor, CblasNoTrans,"+size+" ,"+size+", alpha, A, "+size+", x, 1, 0., y, 1);","" )
       CodeGeneration.tuneNrRunsbyRunTime(sourcefile, "dgemm(A,B,C,size);" ,"" )
 
@@ -300,7 +300,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
         //p("long numberofshifts =  measurement_getNumberOfShifts(" + (size*size*3)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
         p("long numberofshifts = (100 * 1024 * 1024 / (" + (3*size*size)+ "* sizeof(" + prec + ")));")
         p("if (numberofshifts < 2) numberofshifts = 2;") 
-	      p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
+	      //p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
 
         p("double ** A_array = (double **) CreateBuffers("+size*size+"* sizeof(" + prec + "),numberofshifts);")
         p("double ** B_array = (double **) CreateBuffers("+size*size+"* sizeof(" + prec + "),numberofshifts);")
@@ -316,7 +316,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
 
 
         p("for(int r = 0; r < " + Config.repeats + "; r++){")
-	p("measurement_start();")
+	      p("measurement_start();")
         p("for(int i = 0; i < runs; i++){")
         p("dgemm(A_array[i%numberofshifts], B_array[i%numberofshifts],C_array[i%numberofshifts], size);")
         p("}")
@@ -337,7 +337,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
         p("}")
         p( "measurement_stop(runs);")
         p( " }")
-        p("std::cout << \"deallocate\";")
+        //p("std::cout << \"deallocate\";")
         //deallocate the buffers
         p("_mm_free(A);")
         p("_mm_free(B);")
@@ -415,7 +415,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
 
       p("int n = " +size + ";")
       //Tune the number of runs
-      p("std::cout << \"tuning\";")
+     //p("std::cout << \"tuning\";")
       //tuneNrRuns(sourcefile,"cblas_dgemv(CblasRowMajor, CblasNoTrans,"+size+" ,"+size+", alpha, A, "+size+", x, 1, 0., y, 1);","" )
       CodeGeneration.tuneNrRunsbyRunTime(sourcefile, "dgemm(A,B,C,size);" ,"" )
 
@@ -432,7 +432,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
         //p("long numberofshifts =  measurement_getNumberOfShifts(" + (size*size*3)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
         p("long numberofshifts = (100 * 1024 * 1024 / (" + (3*size*size)+ "* sizeof(" + prec + ")));")
         p("if (numberofshifts < 2) numberofshifts = 2;") 
-	      p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
+	      //p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
 
         p("double ** A_array = (double **) CreateBuffers("+size*size+"* sizeof(" + prec + "),numberofshifts);")
         p("double ** B_array = (double **) CreateBuffers("+size*size+"* sizeof(" + prec + "),numberofshifts);")
@@ -469,7 +469,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
         p("}")
         p( "measurement_stop(runs);")
         p( " }")
-        p("std::cout << \"deallocate\";")
+        //p("std::cout << \"deallocate\";")
         //deallocate the buffers
         p("_mm_free(A);")
         p("_mm_free(B);")
@@ -502,10 +502,10 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
 
     p("void dgemm(double *A, double * B, double * C, unsigned long size) {")
     p("long wtf = 0;")
-    p("for (int k = 0; k < size; k++)")
-    p("for (int i = 0; i < size; i++)")
-    p("for (int j = 0; j < size; j++){")
 
+    p("for (int i = 0; i < size; i++)")
+    p("for (int j = 0; j < size; j++)")
+    p("for (int k = 0; k < size; k++){")
     //p("C[i][j] += A[i][k]*B[k][j];")
     p("C[i*size+j] += A[i*size+k]*B[k*size+j];")
 
@@ -522,7 +522,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
     {
       p("{")
       p("double alpha = 1.1;")
-      p("unsigned long size = " +size + ";")
+      p("int size = " +size + ";")
       //allocate
       p("double * A = (double *) _mm_malloc("+size*size+"*sizeof(double),page);")
       p("double * B = (double *) _mm_malloc("+size*size+"*sizeof(double),page);")
@@ -534,9 +534,10 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
 
       p("int n = " +size + ";")
       //Tune the number of runs
-      p("std::cout << \"tuning\";")
+      //p("std::cout << \"tuning\";")
       //tuneNrRuns(sourcefile,"cblas_dgemv(CblasRowMajor, CblasNoTrans,"+size+" ,"+size+", alpha, A, "+size+", x, 1, 0., y, 1);","" )
       CodeGeneration.tuneNrRunsbyRunTime(sourcefile, "dgemm(A,B,C,size);" ,"" )
+      //p("long runs = 2;")
 
       //find out the number of shifts required
       //p("std::cout << runs << \"allocate\";")
@@ -544,14 +545,23 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
       //p("std::cout << \"run\";")
       if (!warmData)
       {
+        p("long size_per_run = " +size + ";")
+        p(" size_per_run = size_per_run *  size_per_run * 3 * sizeof(" + prec + ");")
+        p("if(runs * size_per_run < (100 * 1024 * 1024))")
+        p("runs = ceil((100 * 1024 * 1024)/size_per_run);")
+
+
         p("_mm_free(A);")
         p("_mm_free(B);")
         p("_mm_free(C);")
         //allocate
         //p("long numberofshifts =  measurement_getNumberOfShifts(" + (size*size*3)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
+
         p("long numberofshifts = (100 * 1024 * 1024 / (" + (3*size*size)+ "* sizeof(" + prec + ")));")
-        p("if (numberofshifts < 2) numberofshifts = 2;") 
-	      p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
+
+        p("if (numberofshifts < 2) numberofshifts = 2;")
+	      //p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
+        p("__asm cpuid;")
 
         p("double ** A_array = (double **) CreateBuffers("+size*size+"* sizeof(" + prec + "),numberofshifts);")
         p("double ** B_array = (double **) CreateBuffers("+size*size+"* sizeof(" + prec + "),numberofshifts);")
@@ -566,29 +576,49 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
 
 
 
+
         p("for(int r = 0; r < " + Config.repeats + "; r++){")
 	      p("measurement_start();")
         p("for(int i = 0; i < runs; i++){")
         p("dgemm(A_array[i%numberofshifts], B_array[i%numberofshifts],C_array[i%numberofshifts], size);")
+        /*p("for (int i = 0; i < size; i++)")
+        p("for (int j = 0; j < size; j++)")
+        p("for (int k = 0; k < size; k++){")
+        //p("C[i][j] += A[i][k]*B[k][j];")
+        p("C[i*size+j] += A[i*size+k]*B[k*size+j];")
+        //p("C[i*size+j] = A[i*size+k];")*/
         p("}")
         p( "measurement_stop(runs);")
+        p("__asm cpuid;")
         p( " }")
+        /*p("_mm_free(A);")
+        p("_mm_free(B);")
+        p("_mm_free(C);") */
+
         p("DestroyBuffers( (void **) A_array, numberofshifts);")
         p("DestroyBuffers( (void **) B_array, numberofshifts);")
         p("DestroyBuffers( (void **) C_array, numberofshifts);")
+
       }
       else
       {
         //run it
+        //p("const int size = "+ size+ ";");
         p("for(int r = 0; r < " + Config.repeats + "; r++){")
         p("measurement_start();")
-        p("for(int i = 0; i < runs; i++){")
-        p("dgemm(A,B,C, size);")
+        //p("for(int i = 0; i < runs; i++){")
+        //p("dgemm(A,B,C, size);")
+        p("for (int i = 0; i < size; i++)")
+        p("for (int j = 0; j < size; j++)")
+        p("for (int k = 0; k < size; k++){")
+        //p("C[i][j] += A[i][k]*B[k][j];")
+        p("C[i*size+j] += A[i*size+k]*B[k*size+j];")
         //p("cblas_dgemm(CblasRowMajor, CblasNoTrans,"+size+" ,"+size+", alpha, A, "+size+", B, 1, 0., C, 1);")
         p("}")
-        p( "measurement_stop(runs);")
+        //p( "measurement_stop(runs);")
+        p( "measurement_stop(1);")
         p( " }")
-        p("std::cout << \"deallocate\";")
+        //p("std::cout << \"deallocate\";")
         //deallocate the buffers
         p("_mm_free(A);")
         p("_mm_free(B);")
@@ -644,7 +674,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
 
       p("int n = " +size + ";")
       //Tune the number of runs
-      p("std::cout << \"tuning\";")
+      //p("std::cout << \"tuning\";")
       //tuneNrRuns(sourcefile,"cblas_dgemv(CblasRowMajor, CblasNoTrans,"+size+" ,"+size+", alpha, A, "+size+", x, 1, 0., y, 1);","" )
       CodeGeneration.tuneNrRunsbyRunTime(sourcefile, "daxpy(x,y,size);" ,"" )
 
@@ -660,7 +690,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
         //p("long numberofshifts =  measurement_getNumberOfShifts(" + (size*size*3)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
         p("long numberofshifts = (100 * 1024 * 1024 / (" + (2*size)+ "* sizeof(" + prec + ")));")
         p("if (numberofshifts < 2) numberofshifts = 2;") 
-	      p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
+	      //p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
 
         p("double ** x_array = (double **) CreateBuffers("+size+"* sizeof(" + prec + "),numberofshifts);")
         p("double ** y_array = (double **) CreateBuffers("+size+"* sizeof(" + prec + "),numberofshifts);")
@@ -755,7 +785,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
 
       p("int n = " +size + ";")
       //Tune the number of runs
-      p("std::cout << \"tuning\";")
+      //p("std::cout << \"tuning\";")
       //tuneNrRuns(sourcefile,"cblas_dgemv(CblasRowMajor, CblasNoTrans,"+size+" ,"+size+", alpha, A, "+size+", x, 1, 0., y, 1);","" )
       CodeGeneration.tuneNrRunsbyRunTime(sourcefile, "dgemv(y,A,x,size);" ,"" )
 
@@ -772,7 +802,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
         //p("long numberofshifts =  measurement_getNumberOfShifts(" + (size*size*3)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
         p("long numberofshifts = (100 * 1024 * 1024 / (" + (2*size)+ "* sizeof(" + prec + ")));")
         p("if (numberofshifts < 2) numberofshifts = 2;")
-        p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
+        //p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
 
         p("double ** x_array = (double **) CreateBuffers("+size+"* sizeof(" + prec + "),numberofshifts);")
         p("double ** y_array = (double **) CreateBuffers("+size+"* sizeof(" + prec + "),numberofshifts);")
@@ -862,12 +892,12 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
       p("_ini1(y,"+size+" , 1);")
 
         p("for(int r = 0; r < " + Config.repeats + "; r++){")
-	p("measurement_start();")
+	    p("measurement_start();")
         p("for(int i = 0; i < runs; i++){")
         p("cblas_dcopy(size, x, 1, y, 1);")
         p("}")
         p( "measurement_stop(runs);")
- 	p("std::cout << y[rand()%size] << \"\\n\";")
+ 	  //p("std::cout << y[rand()%size] << \"\\n\";")
         p( " }")
         p("_mm_free(x);")
         p("_mm_free(y);")
@@ -955,7 +985,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
 	}
         p("}")
         p( "measurement_stop(runs);")
- 	p("std::cout << y[rand()%size] << \"\\n\";")
+ 	//p("std::cout << y[rand()%size] << \"\\n\";")
         p( " }")
         p("_mm_free(x);")
         p("_mm_free(y);")
@@ -1010,7 +1040,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
 
       p("int n = " +size + ";")
       //Tune the number of runs
-      p("std::cout << \"tuning\";")
+      //p("std::cout << \"tuning\";")
       CodeGeneration.tuneNrRunsbyRunTime(sourcefile, "daxpy(x,y,size);" ,"" )
 
       //find out the number of shifts required
@@ -1025,7 +1055,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
         //p("long numberofshifts =  measurement_getNumberOfShifts(" + (size*size*3)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
         p("long numberofshifts = (100 * 1024 * 1024 / (" + (2*size)+ "* sizeof(" + prec + ")));")
         p("if (numberofshifts < 2) numberofshifts = 2;") 
-	      p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
+	      //p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
 
         p("double ** x_array = (double **) CreateBuffers("+size+"* sizeof(" + prec + "),numberofshifts);")
         p("double ** y_array = (double **) CreateBuffers("+size+"* sizeof(" + prec + "),numberofshifts);")
@@ -1038,9 +1068,9 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
 
 
 
-        p( "std::cout << \"ENTERING\\n\";")
+        //p( "std::cout << \"ENTERING\\n\";")
         p("for(int r = 0; r < " + Config.repeats + "; r++){")
-        p( "std::cout << runs << \"\\n\";")
+        //p( "std::cout << runs << \"\\n\";")
 	p("measurement_start();")
         p("for(int i = 0; i < runs; i++){")
         p("daxpy(x_array[i%numberofshifts], y_array[i%numberofshifts], size);")
@@ -1119,7 +1149,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
 
       p("int n = " +size + ";")
       //Tune the number of runs
-      p("std::cout << \"tuning\";")
+      //p("std::cout << \"tuning\";")
       //tuneNrRuns(sourcefile,"cblas_dgemv(CblasRowMajor, CblasNoTrans,"+size+" ,"+size+", alpha, A, "+size+", x, 1, 0., y, 1);","" )
       CodeGeneration.tuneNrRunsbyRunTime(sourcefile, "daxpy(x,y,size);" ,"" )
 
@@ -1135,7 +1165,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
         //p("long numberofshifts =  measurement_getNumberOfShifts(" + (size*size*3)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
         p("long numberofshifts = (100 * 1024 * 1024 / (" + (2*size)+ "* sizeof(" + prec + ")));")
         p("if (numberofshifts < 2) numberofshifts = 2;") 
-	      p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
+	      //p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
 
         p("double ** x_array = (double **) CreateBuffers("+size+"* sizeof(" + prec + "),numberofshifts);")
         p("double ** y_array = (double **) CreateBuffers("+size+"* sizeof(" + prec + "),numberofshifts);")
@@ -1250,7 +1280,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
       if (!warmData)
       {
         p("long size_per_run = " + 2*size + "* sizeof(" + prec + ");")
-        p("if(runs * size_per_run < (100 * 1024 * 1024)")
+        p("if(runs * size_per_run < (100 * 1024 * 1024))")
         p("runs = (100 * 1024 * 1024)/size_per_run;")
 
         p("_mm_free(in);")
@@ -1280,7 +1310,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
         p("status = spiral_fft_double("+ size + ", 1, in_array[i%numberofshifts], out_array[i%numberofshifts]);")
         p("}")
         p( "measurement_stop(runs);")
-        p("std::cout << out_array[0][0];")
+        //p("std::cout << out_array[0][0];")
         p("  switch (status) {\n    case SPIRAL_SIZE_NOT_SUPPORTED:\n    statusStr = \"SIZE_NOT_SUPPORTED\";\n    break;\n    case SPIRAL_INVALID_PARAM:\n      statusStr = \"SPIRAL_INVALID_PARAM\";\n    break;\n    case SPIRAL_OUT_OF_MEMORY:\n      statusStr = \"SPIRAL_OUT_OF_MEMORY\";\n    break;\n    case SPIRAL_OK:\n      statusStr = \"worked!\";\n    break;\n  }")
         p( " }")
         p("DestroyBuffers( (void **) in_array, numberofshifts);")
@@ -1295,10 +1325,10 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
         p("status = spiral_fft_double("+ size + ", 1, in, out);")
         p("}")
         p( "measurement_stop(runs);")
-        p("std::cout << out[0];")
+        //p("std::cout << out[0];")
         p("  switch (status) {\n    case SPIRAL_SIZE_NOT_SUPPORTED:\n    statusStr = \"SIZE_NOT_SUPPORTED\";\n    break;\n    case SPIRAL_INVALID_PARAM:\n      statusStr = \"SPIRAL_INVALID_PARAM\";\n    break;\n    case SPIRAL_OUT_OF_MEMORY:\n      statusStr = \"SPIRAL_OUT_OF_MEMORY\";\n    break;\n    case SPIRAL_OK:\n      statusStr = \"worked!\";\n    break;\n  }")
         p( " }")
-        p("std::cout << \"deallocate\";")
+        //p("std::cout << \"deallocate\";")
         //deallocate the buffers
         p("_mm_free(in);")
         p("_mm_free(out);")
@@ -1357,13 +1387,13 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
       p("fftw_plan fftwPlan;")
       p("fftw_complex * in;")
       p("fftw_complex * out;")
-      p("std::cout << \"before fftwmalloc\";");
+      //p("std::cout << \"before fftwmalloc\";");
       p("in =  (fftw_complex*) fftw_malloc("+size+ " * sizeof(fftw_complex));")
       p("out =  (fftw_complex*) fftw_malloc("+size+ " * sizeof(fftw_complex));")
-      p("std::cout << \"before plan\";");
+      //p("std::cout << \"before plan\";");
       p("fftwPlan = fftw_plan_dft_1d("+size+", in, out, FFTW_FORWARD, FFTW_MEASURE);")
 
-      p("std::cout << \"before tune\";");
+      //p("std::cout << \"before tune\";");
       p("_ini1((double*)in,"+2*size+" ,1);")
       p("_ini1((double*)out,"+2*size+" ,1);")
       //tune nr runs
@@ -1376,7 +1406,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
       if (!warmData)
       {
         p("long size_per_run = " + 2*size + "* sizeof(fftw_complex);")
-        p("if(runs * size_per_run < (100 * 1024 * 1024)")
+        p("if(runs * size_per_run < (100 * 1024 * 1024))")
         p("runs = (100 * 1024 * 1024)/size_per_run;")
 
 
@@ -1415,7 +1445,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
       else
       {
         //run it
-        p("std::cout << \"before repeats\";");
+        //p("std::cout << \"before repeats\";");
 
         p("for(int r = 0; r < " + Config.repeats + "; r++){")
         	p("measurement_start();")
@@ -1424,7 +1454,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
 	        p("}")
         	p( "measurement_stop(runs);")
         p( " }")
-        p("std::cout << \"deallocate\";")
+        //p("std::cout << \"deallocate\";")
         //deallocate the buffers
         p("fftw_free(in);")
 	p("fftw_free(out);") 
@@ -1474,7 +1504,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
         if (!warmData)
         {
           p("long size_per_run = " + 2*size+1 + "* sizeof(" + prec + ");")
-          p("if(runs * size_per_run < (100 * 1024 * 1024)")
+          p("if(runs * size_per_run < (100 * 1024 * 1024))")
           p("runs = (100 * 1024 * 1024)/size_per_run;")
 
           p("_mm_free(x);")
@@ -1482,7 +1512,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
           //p("long numberofshifts =  measurement_getNumberOfShifts(" + (2*size+1)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
           p("long numberofshifts =   (100 * 1024 * 1024 / (" + (2*size+1)+ "* sizeof(" + prec + ")));")
 
-          p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
+          //p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
           p("double ** x_array = (double **) CreateBuffers("+2*size+1+"* sizeof(" + prec + "),numberofshifts);")
 
           p("for(int i = 0; i < numberofshifts; i++){")
@@ -1513,7 +1543,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
           p("}")
           p( "measurement_stop(runs);")
           p( " }")
-          p("std::cout << \"deallocate\";")
+          //p("std::cout << \"deallocate\";")
           //deallocate the buffers
           p("_mm_free(x);")
 
@@ -1816,7 +1846,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
 
       p("int n = " +size + ";")
       //Tune the number of runs
-      p("std::cout << \"tuning\";")
+      //p("std::cout << \"tuning\";")
       //tuneNrRuns(sourcefile,"cblas_dgemv(CblasRowMajor, CblasNoTrans,"+size+" ,"+size+", alpha, A, "+size+", x, 1, 0., y, 1);","" )
       CodeGeneration.tuneNrRunsbyRunTime(sourcefile, "cblas_dgemm(CblasRowMajor,CblasNoTrans, CblasNoTrans, size, size , size,1.0,A, size,B, size,1.0,C, size);" ,"" )
 
@@ -1830,16 +1860,17 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
         p("_mm_free(B);")
         p("_mm_free(C);")
 
-        p("long size_per_run = " + 3*size*size*size + "* sizeof(" + prec + ");")
-        p("if(runs * size_per_run < (100 * 1024 * 1024)")
-        p("runs = (100 * 1024 * 1024)/size_per_run;")
+        p("long size_per_run = " +size + ";")
+        p(" size_per_run = size_per_run *  size_per_run * 3 * sizeof(" + prec + ");")
+        p("if(runs * size_per_run < (100 * 1024 * 1024))")
+        p("runs = ceil((100 * 1024 * 1024)/size_per_run);")
 
         //allocate
         //p("long numberofshifts =  measurement_getNumberOfShifts(" + (size*size*3)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
         p("long numberofshifts = (100 * 1024 * 1024 / (" + (size*size*3)+ "* sizeof(" + prec + ")));")
         p("if (numberofshifts < 2) numberofshifts = 2;")
 
-        p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
+        //p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
 
         p("double ** A_array = (double **) CreateBuffers("+size*size+"* sizeof(" + prec + "),numberofshifts);")
         p("double ** B_array = (double **) CreateBuffers("+size*size+"* sizeof(" + prec + "),numberofshifts);")
@@ -1885,7 +1916,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
         p("}")
         p( "measurement_stop(runs);")
         p( " }")
-        p("std::cout << \"deallocate\";")
+        //p("std::cout << \"deallocate\";")
         //deallocate the buffers
         p("_mm_free(A);")
         p("_mm_free(B);")
@@ -1957,7 +1988,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
 
       p("int n = " +size + ";")
       //Tune the number of runs
-      p("std::cout << \"tuning\";")
+      //p("std::cout << \"tuning\";")
       //tuneNrRuns(sourcefile,"cblas_dgemv(CblasRowMajor, CblasNoTrans,"+size+" ,"+size+", alpha, A, "+size+", x, 1, 0., y, 1);","" )
       CodeGeneration.tuneNrRunsbyRunTime(sourcefile,"cblas_daxpy("+size+", alpha, x, 1, y, 1);","" )
 
@@ -1968,8 +1999,8 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
       if (!warmData)
       {
 
-        p("long size_per_run = " + 2*size + "* sizeof(" + prec + ");")
-        p("if(runs * size_per_run < (100 * 1024 * 1024)")
+        p("long size_per_run = " + 2*size + "l* sizeof(" + prec + ");")
+        p("if(runs * size_per_run < (100 * 1024 * 1024))")
         p("runs = (100 * 1024 * 1024)/size_per_run;")
 
         p("_mm_free(x);")
@@ -2018,7 +2049,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
         p("}")
         p( "measurement_stop(runs);")
         p( " }")
-        p("std::cout << \"deallocate\";")
+      //  p("std::cout << \"deallocate\";")
         //deallocate the buffers
         p("_mm_free(x);")
         p("_mm_free(y);")
@@ -2074,7 +2105,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
 
 
       //Tune the number of runs
-      p("std::cout << \"tuning\";")
+      //p("std::cout << \"tuning\";")
       //tuneNrRuns(sourcefile,"cblas_dgemv(CblasRowMajor, CblasNoTrans,"+size+" ,"+size+", alpha, A, "+size+", x, 1, 0., y, 1);","" )
       CodeGeneration.tuneNrRunsbyRunTime(sourcefile,"cblas_dgemv(CblasRowMajor, CblasNoTrans,"+size+" ,"+size+", alpha, A, "+size+", x, 1, 1., y, 1);","" )
       //find out the number of shifts required
@@ -2084,7 +2115,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
       if (!warmData)
       {
         p("long size_per_run = " + 2*size+size*size + "* sizeof(" + prec + ");")
-        p("if(runs * size_per_run < (100 * 1024 * 1024)")
+        p("if(runs * size_per_run < (100 * 1024 * 1024))")
         p("runs = (100 * 1024 * 1024)/size_per_run;")
 
         p("_mm_free(A);")
@@ -2094,7 +2125,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
         //p("long numberofshifts =  100*measurement_getNumberOfShifts(" + (size*size+size+size)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
         p("long numberofshifts = (100 * 1024 * 1024 / ( " + (size*size+size+size)+ "* sizeof(" + prec + ")));")
         p("if (numberofshifts < 2) numberofshifts = 2;")
-        p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
+        //p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
 
         p("double ** A_array = (double **) CreateBuffers("+size*size+"* sizeof(" + prec + "),numberofshifts);")
         p("double ** x_array = (double **) CreateBuffers("+size+"* sizeof(" + prec + "),numberofshifts);")
@@ -2139,7 +2170,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
         p("}")
         p( "measurement_stop(runs);")
         p( " }")
-        p("std::cout << \"deallocate\";")
+        //p("std::cout << \"deallocate\";")
         //deallocate the buffers
         p("_mm_free(A);")
         p("_mm_free(x);")
@@ -2197,14 +2228,14 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
         p("_mm_free(x);")
         p("_mm_free(y);")
         p("long size_per_run = " + 4*size + "* sizeof(" + prec + ");")
-        p("if(runs * size_per_run < (100 * 1024 * 1024)")
+        p("if(runs * size_per_run < (100 * 1024 * 1024))")
         p("runs = (100 * 1024 * 1024)/size_per_run;")
 
         //allocate
         //p("long numberofshifts =  measurement_getNumberOfShifts(" + (2*size)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
         p("long numberofshifts = (100 * 1024 * 1024 / (" + (2*size)+ "*2* sizeof(" + prec + ")));")
         p("if (numberofshifts < 2) numberofshifts = 2;")
-        p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
+        //p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
         p("double ** x_array = (double **) CreateBuffers("+2*size+"* sizeof(" + prec + "),numberofshifts);")
         p("double ** y_array = (double **) CreateBuffers("+2*size+"* sizeof(" + prec + "),numberofshifts);")
         p("for(int i = 0; i < numberofshifts; i++){")
@@ -2235,7 +2266,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
         p("}")
         p( "measurement_stop(runs);")
         p( " }")
-        p("std::cout << \"deallocate\";")
+        //p("std::cout << \"deallocate\";")
         //deallocate the buffers
         p("_mm_free(x);")
 
@@ -2294,7 +2325,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
         //p("long numberofshifts =  measurement_getNumberOfShifts(" + (2*size)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
         p("long numberofshifts = (100 * 1024 * 1024 / (" + (2*size)+ "* sizeof(" + prec + ")));")
         p("if (numberofshifts < 2) numberofshifts = 2;")
-        p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
+        //p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
         p("double ** x_array = (double **) CreateBuffers("+2*size+"*2* sizeof(" + prec + "),numberofshifts);")
 
         p("for(int i = 0; i < numberofshifts; i++){")
@@ -2326,7 +2357,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
         p("}")
         p( "measurement_stop(runs);")
         p( " }")
-        p("std::cout << \"deallocate\";")
+        //p("std::cout << \"deallocate\";")
         //deallocate the buffers
         p("_mm_free(x);")
 

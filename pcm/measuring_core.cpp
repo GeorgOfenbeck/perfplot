@@ -257,9 +257,9 @@ void flushDCache()
 
 
 
-int measurement_init(long * custom_counters, unsigned long offcore_response0, unsigned long offcore_response1)
-{
-    
+int measurement_init(long * custom_counters, const unsigned long offcore_response0, unsigned long offcore_response1)
+{	
+	/*
 	flog.open("log.txt");	 
 	coutbuf = std::cout.rdbuf(); //save old buf
 	std::cout.rdbuf(flog.rdbuf());
@@ -268,7 +268,7 @@ int measurement_init(long * custom_counters, unsigned long offcore_response0, un
 	f_error.open("error_stream.txt");	 
 	cerrtbuf = std::cerr.rdbuf(); //save old buf
 	std::cerr.rdbuf(f_error.rdbuf());
-
+	*/
 	
 
 	cout << "Starting log - v2.35\n";
@@ -827,8 +827,8 @@ void measurement_end()
 	delete sstate2;
 	flog.close();
 	f_error.close();
-	std::cout.rdbuf(coutbuf);
-	std::cerr.rdbuf(cerrtbuf);
+	//std::cout.rdbuf(coutbuf);
+	//std::cerr.rdbuf(cerrtbuf);
 }
 
 
