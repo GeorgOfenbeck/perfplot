@@ -297,6 +297,12 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
         p("_mm_free(B);")
         p("_mm_free(C);")
         //allocate
+
+        p("long size_per_run = " +size + ";")
+        p(" size_per_run = size_per_run *  size_per_run * 3 * sizeof(" + prec + ");")
+        p("if(runs * size_per_run < (100 * 1024 * 1024))")
+        p("runs = ceil((100 * 1024 * 1024)/size_per_run);")
+
         //p("long numberofshifts =  measurement_getNumberOfShifts(" + (size*size*3)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
         p("long numberofshifts = (100 * 1024 * 1024 / (" + (3*size*size)+ "* sizeof(" + prec + ")));")
         p("if (numberofshifts < 2) numberofshifts = 2;") 
@@ -428,6 +434,12 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
         p("_mm_free(A);")
         p("_mm_free(B);")
         p("_mm_free(C);")
+
+        p("long size_per_run = " +size + ";")
+        p(" size_per_run = size_per_run *  size_per_run * 3 * sizeof(" + prec + ");")
+        p("if(runs * size_per_run < (100 * 1024 * 1024))")
+        p("runs = ceil((100 * 1024 * 1024)/size_per_run);")
+
         //allocate
         //p("long numberofshifts =  measurement_getNumberOfShifts(" + (size*size*3)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
         p("long numberofshifts = (100 * 1024 * 1024 / (" + (3*size*size)+ "* sizeof(" + prec + ")));")
@@ -446,9 +458,11 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
         p("}")
 
 
-
+        p("for(int i = 0; i < runs; i++){")
+        p("dgemm(A_array[i%numberofshifts], B_array[i%numberofshifts],C_array[i%numberofshifts], size);")
+        p("}")
         p("for(int r = 0; r < " + Config.repeats + "; r++){")
-	p("measurement_start();")
+	      p("measurement_start();")
         p("for(int i = 0; i < runs; i++){")
         p("dgemm(A_array[i%numberofshifts], B_array[i%numberofshifts],C_array[i%numberofshifts], size);")
         p("}")
@@ -574,8 +588,9 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
         p("_ini1(C_array[i],"+size+" ,"+size+");")
         p("}")
 
-
-
+        p("for(int i = 0; i < runs; i++){")
+        p("dgemm(A_array[i%numberofshifts], B_array[i%numberofshifts],C_array[i%numberofshifts], size);")
+        p("}")
 
         p("for(int r = 0; r < " + Config.repeats + "; r++){")
 	      p("measurement_start();")
@@ -686,6 +701,12 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
       {
         p("_mm_free(x);")
         p("_mm_free(y);")
+
+        p("long size_per_run = " +size + ";")
+        p(" size_per_run = size_per_run * 2 * sizeof(" + prec + ");")
+        p("if(runs * size_per_run < (100 * 1024 * 1024))")
+        p("runs = ceil((100 * 1024 * 1024)/size_per_run);")
+
         //allocate
         //p("long numberofshifts =  measurement_getNumberOfShifts(" + (size*size*3)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
         p("long numberofshifts = (100 * 1024 * 1024 / (" + (2*size)+ "* sizeof(" + prec + ")));")
@@ -798,6 +819,13 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
         p("_mm_free(x);")
         p("_mm_free(y);")
         p("_mm_free(A);")
+
+        p("long size_per_run = " +size + ";")
+        p(" size_per_run = (size_per_run *  size_per_run +  size_per_run * 2) * sizeof(" + prec + ");")
+        p("if(runs * size_per_run < (100 * 1024 * 1024))")
+        p("runs = ceil((100 * 1024 * 1024)/size_per_run);")
+
+
         //allocate
         //p("long numberofshifts =  measurement_getNumberOfShifts(" + (size*size*3)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
         p("long numberofshifts = (100 * 1024 * 1024 / (" + (2*size)+ "* sizeof(" + prec + ")));")
