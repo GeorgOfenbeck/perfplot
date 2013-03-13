@@ -21,7 +21,7 @@ import scala.io._
 
 class Validation extends Suite{
 
-  val seq = Config.flag_c99 + Config.flag_hw + Config.flag_mkl_seq + Config.flag_optimization
+  val seq = Config.flag_c99 + Config.flag_hw + Config.flag_mkl_seq + Config.flag_optimization + Config.flag_novec
   val parallel = Config.flag_c99 + Config.flag_hw + Config.flag_mkl + Config.flag_optimization
 
   val folder = new File (Config.result_folder + File.separator + "validate" + File.separator)
@@ -47,7 +47,7 @@ class Validation extends Suite{
     val sizes_2power =  (for (i<-1 until 7) yield (i*1000000).toLong ).toList
 
     CodeGeneration.run_kernel(folder,CodeGeneration.daxpy_MKL,sizes_2power,"daxpy-cold",counters,true,false, seq)
-
+    CodeGeneration.run_kernel(folder,CodeGeneration.daxpy_loop,sizes_2power,"daxpy-naive",counters,true,false, seq)
 
   }
 
@@ -56,6 +56,7 @@ class Validation extends Suite{
     val sizes_2power =  (for (i<-1 until 7) yield (i*100).toLong ).toList
 
     CodeGeneration.run_kernel(folder,CodeGeneration.dgemv_MKL,sizes_2power,"dgemv-cold",counters,true,false, seq)
+    CodeGeneration.run_kernel(folder,CodeGeneration.dgemv_loop,sizes_2power,"dgemv-naive",counters,true,false, seq)
 
 
   }
