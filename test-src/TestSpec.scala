@@ -4,7 +4,7 @@
  * Date: 3/6/13
  * Time: 3:33 PM
  * To change this template use File | Settings | File Templates.
- */
+apply */
 
 
 
@@ -34,43 +34,60 @@ class TestSpec extends Suite{
     Counter("11H","02H","SIMD_FP_256.PACKED_DOUBLE","Counts 256-bit packed double-precision floating- point instructions.",""),
     Counter("B7H","01H","Custom_all","",     "0x3F80400FFF")
   )
-
 /*
+
   def test_spec_433 =
   {
-
+    
     run_spec("433",folder, new File("/Users/Victoria/ETH-VICTORIA/BENCHMARKS/SPEC2006/433.milc/run.sh") )
-  }*/
-
+  }
+ */
+/*
   def test_spec_444 =
   {
-    run_spec("444",folder,new File("/Users/Victoria/ETH-VICTORIA/BENCHMARKS/SPEC2006/444.namd/run.sh"))
-  }
+ // val args: List[String] = List("--input /Users/Victoria/ETH-VICTORIA/BENCHMARKS/SPEC2006/444.namd/data/all/input/namd.input --iterations 1 --output namd.out","--input /Users/Victoria/ETH-VICTORIA/BENCHMARKS/SPEC2006/444.namd/data/all/input/namd.input --iterations 37 --output namd.out")
+  val args: List[String] = List("--input /Users/Victoria/ETH-VICTORIA/BENCHMARKS/SPEC2006/444.namd/data/all/input/namd.input --iterations 37 --output namd.out")
+//  val args: List[String] = List("--input /Users/Victoria/ETH-VICTORIA/BENCHMARKS/SPEC2006/444.namd/data/all/input/namd.input --iterations 1 --output namd.out")
+  run_spec("444",folder, new File("/Users/Victoria/ETH-VICTORIA/BENCHMARKS/SPEC2006/444.namd/bin/x86_64/namd-Wall-c-pg-O3-m64"), true, args)
+
+ }
+ */
 
   def test_spec_450 =
   {
-    run_spec("450",folder,new File("/Users/Victoria/ETH-VICTORIA/BENCHMARKS/SPEC2006/450.soplex/run.sh"))
+ // val args: List[String] = List("-m10000 /Users/Victoria/ETH-VICTORIA/BENCHMARKS/SPEC2006/450.soplex/data/test/input/test.mps")
+  val args: List[String] = List("-m3500 /Users/Victoria/ETH-VICTORIA/BENCHMARKS/SPEC2006/450.soplex/data//ref/input/ref.mps")
+  run_spec("450",folder,new File("/Users/Victoria/ETH-VICTORIA/BENCHMARKS/SPEC2006/450.soplex/bin/x86_64/soplex-Wall-c-pg-O3-m64"), true, args)
   }
 
-  def test_spec_470 =
+/*  def test_spec_470 =
   {
-    run_spec("470",folder,new File("/Users/Victoria/ETH-VICTORIA/BENCHMARKS/SPEC2006/470.lbm/run.sh"))
+  //val args: List[String] = List("20 /Users/Victoria/ETH-VICTORIA/BENCHMARKS/SPEC2006/470.lbm/data/test/input/reference.dat 0 1 /Users/Victoria/ETH-VICTORIA/BENCHMARKS/SPEC2006/470.lbm/data/test/input/100_100_130_cf_a.of")
+  val args: List[String] = List("3000 /Users/Victoria/ETH-VICTORIA/BENCHMARKS/SPEC2006/470.lbm/data/ref/input/reference.dat 0 0 /Users/Victoria/ETH-VICTORIA/BENCHMARKS/SPEC2006/470.lbm/data/ref/input/100_100_130_ldc.of")
+
+    run_spec("470",folder,new File("//Users/Victoria/ETH-VICTORIA/BENCHMARKS/SPEC2006/470.lbm/bin/x86_64/lbm-Wall-c-pg-O3-m64"), true, args)
 
   }
+ */
 
+/*
   def test_spec_482 =
   {
-    run_spec("482",folder,new File("/Users/Victoria/ETH-VICTORIA/BENCHMARKS/SPEC2006/482.sphinx3/run.sh"))
+  val args: List[String] = List("ctlfile . args.an4")
+    run_spec("482",folder,new File("/Users/Victoria/ETH-VICTORIA/BENCHMARKS/SPEC2006/482.sphinx3/data/ref/sphinx3-Wall-c-pg-O3-m64 "), true, args)
 
   }
-
+ */
+/*
   def test_spec_999 =
   {
-    run_spec("999",folder,new File("/Users/Victoria/ETH-VICTORIA/BENCHMARKS/SPEC2006/999.specrand/run.sh"))
+//  val args: List[String] = List("324342 24239")
+  val args: List[String] = List("1255432124 234923")
+    run_spec("999",folder,new File("/Users/Victoria/ETH-VICTORIA/BENCHMARKS/SPEC2006/999.specrand/bin/x86_64/specrand-Wall-c-pg-O3-m64"), true, args)
   }
+*/
 
-
-  def prep_spec (exefile: File): Counters =
+  def prep_spec (exefile: File, arg: String): Counters =
   {
 
     //val tempdir = CommandService.getTempDir(filename)
@@ -78,21 +95,21 @@ class TestSpec extends Suite{
     //CommandService.compile(tempdir.getPath + File.separator +  filename, flags)
 
     System.out.println("executing ...")
-    CommandService.execute(exefile.toString, exefile.getParentFile)
-    System.out.println("gather results ..." + exefile.getPath)
+    CommandService.execute(exefile.toString + " "+arg, exefile.getParentFile)
+  //  CommandService.execute(exefile.toString)
+    System.out.println("gather results ..." )
     val c = Counters.apply(exefile.getParentFile)
     System.out.println("return results ...")
-    c
+   c 
   }
 
 
 
 
-  def run_spec (name: String, path: File, exe: File,  small : Boolean = true) =
+  def run_spec (name: String, path: File ,exe: File,  small : Boolean = true, args: List[String]) =
   {
 
-    val s = if (small) 0 else 1
-    val file = new File(path.getPath + File.separator +"flop_"+ name + ".txt")
+       val file = new File(path.getPath + File.separator +"flop_"+ name + ".txt")
     if(!file.exists())
     {
       val outputFile1 = new PrintStream(path.getPath + File.separator +"flop_"+ name + ".txt")
@@ -105,20 +122,19 @@ class TestSpec extends Suite{
       var first1 = true
 
 
-      val tmpfile = new PrintStream("/Users/Victoria/.LARGE_INPUT")
-      tmpfile.print("0")
-      tmpfile.close()
+     
+      for (i <- 0 until 1)
+     {
+  
 
-      for (i <- 0 until 2)
-      {
         //this way we do a single measurment setup for each size
 
-        val  kernel_res = prep_spec(exe)
+        val  kernel_res = prep_spec(exe, args(i))
         //val kernel_res = CommandService.fromScratch(name, single_kernel, flags)
         kernel_res.prettyprint()
 
         var first = true
-        for (i <- 0 until Config.repeats)
+        for (s <- 0 until Config.repeats)
         {
           if (!first)
           {
@@ -152,10 +168,8 @@ class TestSpec extends Suite{
         else
           outputFile3.print(" " + i)
 
-        val tmpfile2 = new PrintStream("/Users/Victoria/.LARGE_INPUT")
-        tmpfile2.print("1")
-        tmpfile2.close()
-      }
+       
+     }
       //dgemv_res.prettyprint()
       outputFile1.close()
       outputFile2.close()
