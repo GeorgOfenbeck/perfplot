@@ -1084,7 +1084,8 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
       if (Config.isWin)
         p("#include \"C:\\Users\\ofgeorg\\fft_sse\\spiral_fft.h\"\n    #include \"C:\\Users\\ofgeorg\\fft_sse\\spiral_private.h\"\n    #include \"C:\\Users\\ofgeorg\\fft_sse\\spiral_private.c\"\n    #include \"C:\\Users\\ofgeorg\\fft_sse\\spiral_fft_double.c\"")
       else
-        p("#include \""+Config.home+"/fft_sse/spiral_fft.h\"\n    #include \""+Config.home+"/fft_sse/spiral_private.h\"\n    #include \""+Config.home+"/fft_sse/spiral_private.c\"\n    #include \""+Config.home+"/fft_sse/spiral_fft_double.c\"")
+        //p("#include \""+Config.home+"/fft_sse/spiral_fft.h\"\n    #include \""+Config.home+"/fft_sse/spiral_private.h\"\n    #include \""+Config.home+"/fft_sse/spiral_private.c\"\n    #include \""+Config.home+"/fft_sse/spiral_fft_double.c\"")
+        p("#include \"/tmp/fft_sse/spiral_fft.h\"\n    #include \"/tmp/fft_sse/spiral_private.h\"\n    #include \"/tmp/fft_sse/spiral_private.c\"\n    #include \"/tmp/fft_sse/spiral_fft_double.c\"")
 
     }
     else
@@ -1092,7 +1093,9 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
       if (Config.isWin)
         p("#include \"C:\\Users\\ofgeorg\\fft_scalar\\spiral_fft.h\"\n    #include \"C:\\Users\\ofgeorg\\fft_scalar\\spiral_private.h\"\n    #include \"C:\\Users\\ofgeorg\\fft_scalar\\spiral_private.c\"\n    #include \"C:\\Users\\ofgeorg\\fft_scalar\\spiral_fft_double.c\"")
       else
-        p("#include \""+Config.home+"/fft_scalar/spiral_fft.h\"\n    #include \""+Config.home+"/fft_scalar/spiral_private.h\"\n    #include \""+Config.home+"/fft_scalar/spiral_private.c\"\n    #include \""+Config.home+"/fft_scalar/spiral_fft_double.c\"")
+        //p("#include \""+Config.home+"/fft_scalar/spiral_fft.h\"\n    #include \""+Config.home+"/fft_scalar/spiral_private.h\"\n    #include \""+Config.home+"/fft_scalar/spiral_private.c\"\n    #include \""+Config.home+"/fft_scalar/spiral_fft_double.c\"")
+        p("#include \"/tmp/fft_scalar/spiral_fft.h\"\n    #include \"/tmp/fft_scalar/spiral_private.h\"\n    #include \"/tmp/fft_scalar/spiral_private.c\"\n    #include \"/tmp/fft_scalar/spiral_fft_double.c\"")
+
     }
     val (counterstring, initstring ) = CodeGeneration.Counters2CCode(counters)
     CodeGeneration.create_array_of_buffers(sourcefile)
@@ -1254,9 +1257,14 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
 
         p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
         p("fftw_complex ** in_array = (fftw_complex **) CreateBuffers("+size+"* sizeof(fftw_complex),numberofshifts);")
-	      p("fftw_complex ** out_array = (fftw_complex **) CreateBuffers("+size+"* sizeof(fftw_complex),numberofshifts);")
+        p("fftw_complex ** out_array = (fftw_complex **) CreateBuffers("+size+"* sizeof(fftw_complex),numberofshifts);")
+
+        p("for(int i = 0; i < numberofshifts; i++){")
         p("_ini1((double*) in_array[i],"+2*size+" ,1);")
         p("_ini1((double*) out_array[i],"+2*size+" ,1);")
+
+        p("}")
+
 
         p("for(int r = 0; r < " + Config.repeats + "; r++){")
         p("measurement_start();")
@@ -2017,7 +2025,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
         p("_mm_free(y);")
         //allocate
         //p("long numberofshifts =  measurement_getNumberOfShifts(" + (2*size)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
-        p("long numberofshifts = (100 * 1024 * 1024 / (" + (2*size)+ "*2 sizeof(" + prec + ")));")
+        p("long numberofshifts = (100 * 1024 * 1024 / (" + (2*size)+ "*2* sizeof(" + prec + ")));")
         p("if (numberofshifts < 2) numberofshifts = 2;")
         p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
         p("double ** x_array = (double **) CreateBuffers("+2*size+"* sizeof(" + prec + "),numberofshifts);")
@@ -2106,7 +2114,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
         p("long numberofshifts = (100 * 1024 * 1024 / (" + (2*size)+ "* sizeof(" + prec + ")));")
         p("if (numberofshifts < 2) numberofshifts = 2;")
         p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
-        p("double ** x_array = (double **) CreateBuffers("+2*size+"* sizeof(" + prec + "),numberofshifts);")
+        p("double ** x_array = (double **) CreateBuffers("+2*size+"*2* sizeof(" + prec + "),numberofshifts);")
 
         p("for(int i = 0; i < numberofshifts; i++){")
         p("_ini1(x_array[i],"+2*size+" ,1);")
