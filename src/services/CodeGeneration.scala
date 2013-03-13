@@ -381,73 +381,11 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
     p("for (i = 0; i < size; i+=NB) {")
     p("    for (j = 0; j < size; j+=NB) {")
     p("        for (k = 0; k < size; k+=NB) {")
-    p("            for (ii = 0; ii < NB; ii+=2) {")
-    p("                for (jj = 0; jj < NB; jj+=2) {")
-
-    p("                    cij   = C[i*size + ii*size + j + jj];")
-    p("                    cij1  = C[i*size + ii*size + j + jj + 1];")
-    p("                    ci1j  = C[i*size + ii*size + size + j + jj];")
-    p("                    ci1j1 = C[i*size + ii*size + size + j + jj + 1];")
-
-    p("                    aik   = A[i*size + ii*size + k];")
-    p("                    ai1k  = A[i*size + ii*size + size + k];")
-    p("                    bkj   = B[k*size + j + jj];")
-    p("                    bkj1  = B[k*size + j + jj + 1];")
-
-    p("                    for (kk = 0; kk < NB-2; kk+=2) {")
-
-    p("                        t1    = aik*bkj;")
-    p("                        t2    = ai1k*bkj;")
-    p("                        bkj   = B[k*size + kk*size + size + j + jj];")
-    p("                        t3    = aik*bkj1;")
-    p("                        aik   = A[i*size + ii*size + k + kk + 1];")
-    p("                        cij   = cij   + t1;")
-    p("                        t1    = ai1k*bkj1;")
-    p("                        ai1k  = A[i*size + ii*size + size + k + kk + 1];")
-    p("                        bkj1  = B[k*size + kk*size + size + j + jj + 1];")
-    p("                        ci1j  = ci1j  + t2;")
-    p("                        t2    = aik*bkj;")
-    p("                        cij1  = cij1  + t3;")
-    p("                        t3    = ai1k*bkj;")
-    p("                        bkj   = B[k*size + kk*size + 2*size + j + jj];")
-    p("                        ci1j1 = ci1j1 + t1;")
-    p("                        t1    = aik*bkj1;")
-    p("                        aik   = A[i*size + ii*size + k + kk + 2];")
-    p("                        cij   = cij   + t2;")
-    p("                        t2    = ai1k*bkj1;")
-    p("                        ai1k  = A[i*size + ii*size + size + k + kk + 2];")
-    p("                        bkj1  = B[k*size + kk*size + 2*size + j + jj + 1];")
-    p("                        ci1j  = ci1j  + t3;")
-    p("                        cij1  = cij1  + t1;")
-    p("                        ci1j1 = ci1j1 + t2;")
-
-    p("                    }")
-
-    p("                    t1    = aik*bkj;")
-    p("                    t2    = ai1k*bkj;")
-    p("                    bkj   = B[k*size + NB*size - size + j + jj];")
-    p("                    t3    = aik*bkj1;")
-    p("                    aik   = A[i*size + ii*size + k + NB - 1];")
-    p("                    cij   = cij   + t1;")
-    p("                    t1    = ai1k*bkj1;")
-    p("                    ai1k  = A[i*size + ii*size + size + k + NB - 1];")
-    p("                    bkj1  = B[k*size + NB*size - size + j + jj + 1];")
-    p("                    ci1j  = ci1j  + t2;")
-    p("                    t2    = aik*bkj;")
-    p("                    cij1  = cij1  + t3;")
-    p("                    t3    = ai1k*bkj;")
-    p("                    ci1j1 = ci1j1 + t1;")
-    p("                    t1    = aik*bkj1;")
-    p("                    cij   = cij   + t2;")
-    p("                    t2    = ai1k*bkj1;")
-    p("                    ci1j  = ci1j  + t3;")
-    p("                    cij1  = cij1  + t1;")
-    p("                    ci1j1 = ci1j1 + t2;")
-
-    p("                    C[i*size + ii*size + j + jj]   = cij;")
-    p("                    C[i*size + ii*size + j + jj + 1]  = cij1;")
-    p("                    C[i*size + ii*size + size + j + jj]  = ci1j;")
-    p("                    C[i*size + ii*size + size + j + jj + 1] = ci1j1;")
+    p("            for (ii = 0; ii < NB; ii+=1) {")
+    p("                for (jj = 0; jj < NB; jj+=1) {")
+    p("                  for (kk = 0; kk < NB; kk+=1) {")
+    p("                 	C[i*size+ii*size+j+jj] += A[i*size+ii*size+k+kk]*B[k*size+kk*size+j+jj];")
+    p("               	 }")
     p("                }")
     p("            }")
     p("        }")
@@ -563,12 +501,16 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
 
 
     p("void dgemm(double *A, double * B, double * C, unsigned long size) {")
-
-    p("for (int i = 0; i < size; i++)")
-    p("for (int j = 0; j < size; j++)")
+    p("long wtf = 0;")
     p("for (int k = 0; k < size; k++)")
+    p("for (int i = 0; i < size; i++)")
+    p("for (int j = 0; j < size; j++){")
+
     //p("C[i][j] += A[i][k]*B[k][j];")
     p("C[i*size+j] += A[i*size+k]*B[k*size+j];")
+
+    p("}")
+
     p("}")
 
     p("int main () { ")
@@ -625,7 +567,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
 
 
         p("for(int r = 0; r < " + Config.repeats + "; r++){")
-	p("measurement_start();")
+	      p("measurement_start();")
         p("for(int i = 0; i < runs; i++){")
         p("dgemm(A_array[i%numberofshifts], B_array[i%numberofshifts],C_array[i%numberofshifts], size);")
         p("}")
@@ -732,7 +674,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
 
 
         p("for(int r = 0; r < " + Config.repeats + "; r++){")
-	p("measurement_start();")
+	      p("measurement_start();")
         p("for(int i = 0; i < runs; i++){")
         p("daxpy(x_array[i%numberofshifts], y_array[i%numberofshifts], size);")
         p("}")
@@ -767,7 +709,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
   }
 
 
-  def copy_loop(sourcefile: PrintStream,sizes: List[Long], counters: Array[HWCounters.Counter], double_precision: Boolean = true, warmData: Boolean = false) =
+  def dgemv_loop(sourcefile: PrintStream,sizes: List[Long], counters: Array[HWCounters.Counter], double_precision: Boolean = true, warmData: Boolean = false) =
   {
     def p(x: String) = sourcefile.println(x)
     val prec = if (double_precision) "double" else "float"
@@ -786,10 +728,11 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
 
 
 
-    p("void daxpy(double *x, double * y, unsigned long size) {")
+    p("void dgemv(double *y, double *A, double * x, unsigned long size) {")
 
     p("for (int i = 0; i < size; i++)")
-    p("y[i] = x[i];")
+    p("for (int j = 0; j< size; j++)")
+    p("y[i]+=( A[i*size+j]*x[j]);")
     p("}")
 
     p("int main () { ")
@@ -805,15 +748,16 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
       //allocate
       p("double * x = (double *) _mm_malloc("+size+"*sizeof(double),page);")
       p("double * y = (double *) _mm_malloc("+size+"*sizeof(double),page);")
-
+      p("double * A = (double *) _mm_malloc("+size*size+"*sizeof(double),page);")
       p("_ini1(x,"+size+" , 1);")
       p("_ini1(y,"+size+" , 1);")
+      p("_ini1(A,"+size+" ,"+size+");")
 
       p("int n = " +size + ";")
       //Tune the number of runs
       p("std::cout << \"tuning\";")
       //tuneNrRuns(sourcefile,"cblas_dgemv(CblasRowMajor, CblasNoTrans,"+size+" ,"+size+", alpha, A, "+size+", x, 1, 0., y, 1);","" )
-      CodeGeneration.tuneNrRunsbyRunTime(sourcefile, "daxpy(x,y,size);" ,"" )
+      CodeGeneration.tuneNrRunsbyRunTime(sourcefile, "dgemv(y,A,x,size);" ,"" )
 
       //find out the number of shifts required
       //p("std::cout << runs << \"allocate\";")
@@ -823,27 +767,30 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
       {
         p("_mm_free(x);")
         p("_mm_free(y);")
+        p("_mm_free(A);")
         //allocate
         //p("long numberofshifts =  measurement_getNumberOfShifts(" + (size*size*3)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
         p("long numberofshifts = (100 * 1024 * 1024 / (" + (2*size)+ "* sizeof(" + prec + ")));")
-        p("if (numberofshifts < 2) numberofshifts = 2;") 
-	      p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
+        p("if (numberofshifts < 2) numberofshifts = 2;")
+        p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
 
         p("double ** x_array = (double **) CreateBuffers("+size+"* sizeof(" + prec + "),numberofshifts);")
         p("double ** y_array = (double **) CreateBuffers("+size+"* sizeof(" + prec + "),numberofshifts);")
+        p("double ** A_array = (double **) CreateBuffers("+size*size+"* sizeof(" + prec + "),numberofshifts);")
 
 
         p("for(int i = 0; i < numberofshifts; i++){")
         p("_ini1(x_array[i],"+size+" , 1);")
         p("_ini1(y_array[i],"+size+" , 1);")
+        p("_ini1(A_array[i],"+size+" ,"+size+");")
         p("}")
 
 
 
         p("for(int r = 0; r < " + Config.repeats + "; r++){")
-	p("measurement_start();")
+        p("measurement_start();")
         p("for(int i = 0; i < runs; i++){")
-        p("daxpy(x_array[i%numberofshifts], y_array[i%numberofshifts], size);")
+        p("dgemv(y_array[i%numberofshifts],A_array[i%numberofshifts], y_array[i%numberofshifts], size);")
         p("}")
         p( "measurement_stop(runs);")
         p( " }")
@@ -852,22 +799,166 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
       }
       else
       {
-/*
-        //run ity        p("for(int r = 0; r < " + Config.repeats + "; r++){")
-        p("measurement_start();")
+        /*
+                //run ity        p("for(int r = 0; r < " + Config.repeats + "; r++){")
+                p("measurement_start();")
+                p("for(int i = 0; i < runs; i++){")
+                p("dgemm(A,B,C, size);")
+                //p("cblas_dgemm(CblasRowMajor, CblasNoTrans,"+size+" ,"+size+", alpha, A, "+size+", B, 1, 0., C, 1);")
+                p("}")
+                p( "measurement_stop(runs);")
+                p( " }")
+                p("std::cout << \"deallocate\";")
+                //deallocate the buffers
+                p("_mm_free(A);")
+                p("_mm_free(B);")
+                p("_mm_free(C);")
+        */
+      }
+      p("}")
+
+    }
+    p("measurement_end();")
+    p("}")
+  }
+
+
+  def copy_loop(sourcefile: PrintStream,sizes: List[Long], counters: Array[HWCounters.Counter], double_precision: Boolean = true, warmData: Boolean = false) =
+  {
+    def p(x: String) = sourcefile.println(x)
+    val prec = if (double_precision) "double" else "float"
+
+     p("#include <mkl.h>")
+    p("#include <iostream>")
+    p("#include <iostream>\n#include <fstream>\n#include <cstdlib>\n#include <ctime>\n#include <cmath>\n")
+//     p("#include <immintrin.h>")
+    p(Config.MeasuringCoreH)
+    p("#define page 64")
+    p("#define THRESHOLD " + Config.testDerivate_Threshold)
+    p("using namespace std;")
+    val (counterstring, initstring ) = CodeGeneration.Counters2CCode(counters)
+    CodeGeneration.create_array_of_buffers(sourcefile)
+    CodeGeneration.destroy_array_of_buffers(sourcefile)
+    p("void _rands(double * m, size_t row, size_t col)\n{\n  for (size_t i = 0; i < row*col; ++i)  m[i] = (double)(rand())/RAND_MAX;;\n}")
+    p("void _ini1(double * m, size_t row, size_t col)\n{\n  for (size_t i = 0; i < row*col; ++i)  m[i] = (double)1.1;\n}")
+
+
+
+    p("int main () { ")
+    p("srand(1984);")
+
+    p(counterstring)
+    p(initstring)
+    for (size <- sizes)
+    {
+      p("{")
+      p("unsigned long size = " + size + ";")
+      p("unsigned long runs = 10;")
+      //allocate
+      p("double * x = (double *) _mm_malloc("+size+"*sizeof(double),page);")
+      p("double * y = (double *) _mm_malloc("+size+"*sizeof(double),page);")
+
+      p("_ini1(x,"+size+" , 1);")
+      p("_ini1(y,"+size+" , 1);")
+
+        p("for(int r = 0; r < " + Config.repeats + "; r++){")
+	p("measurement_start();")
         p("for(int i = 0; i < runs; i++){")
-        p("dgemm(A,B,C, size);")
-        //p("cblas_dgemm(CblasRowMajor, CblasNoTrans,"+size+" ,"+size+", alpha, A, "+size+", B, 1, 0., C, 1);")
+        p("cblas_dcopy(size, x, 1, y, 1);")
         p("}")
         p( "measurement_stop(runs);")
+ 	p("std::cout << y[rand()%size] << \"\\n\";")
         p( " }")
-        p("std::cout << \"deallocate\";")
-        //deallocate the buffers
-        p("_mm_free(A);")
-        p("_mm_free(B);")
-        p("_mm_free(C);")
-*/
-      }
+        p("_mm_free(x);")
+        p("_mm_free(y);")
+      p("}")
+
+    }
+    p("measurement_end();")
+    p("}")
+  }
+
+  def read_loop(sourcefile: PrintStream,sizes: List[Long], counters: Array[HWCounters.Counter], par: Boolean = true, warmData: Boolean = false) =
+  {
+    def p(x: String) = sourcefile.println(x)
+    
+    if(par) p("#include <omp.h>")
+    p("#include <immintrin.h>")
+    p("#include <iostream>")
+    p("#include <iostream>\n#include <fstream>\n#include <cstdlib>\n#include <ctime>\n#include <cmath>\n")
+//     p("#include <immintrin.h>")
+    p(Config.MeasuringCoreH)
+    p("#define page 64")
+    p("#define THRESHOLD " + Config.testDerivate_Threshold)
+    p("using namespace std;")
+    val (counterstring, initstring ) = CodeGeneration.Counters2CCode(counters)
+    CodeGeneration.create_array_of_buffers(sourcefile)
+    CodeGeneration.destroy_array_of_buffers(sourcefile)
+    p("void _rands(double * m, size_t row, size_t col)\n{\n  for (size_t i = 0; i < row*col; ++i)  m[i] = (double)(rand())/RAND_MAX;;\n}")
+    p("void _ini1(double * m, size_t row, size_t col)\n{\n  for (size_t i = 0; i < row*col; ++i)  m[i] = (double)1.1;\n}")
+    
+    if(!par) {
+      p("double read_array(size_t size, double * x) {")
+
+      p("	__m256d t0, t1;")
+      p("	__declspec(align(32)) double res[4];")
+      p("	for (size_t i=0; i < size; i+=8) {")
+      p("		t0 = _mm256_load_pd(x+i);")
+      p("		t1 = _mm256_load_pd(x+i+4);")
+      p("	}")
+      p("	_mm256_store_pd(res, _mm256_add_pd(t0,t1));")
+
+      p("	return res[0];")
+      p("}")
+    } else {
+      p("double read_array_par(size_t size, double * x) {")
+
+      p("	double t=0, t0;")
+
+      p("#pragma omp parallel private(t0)")
+      p("	{")
+      p("#pragma omp for schedule(static, size/4)")
+      p("		for (size_t i=0; i < size; i++) {")
+      p("			t0 = x[i];")
+      p("		}")
+      p("		t += t0;")
+      p("	}")
+      p("	return t;")
+
+      p("}")
+    }
+
+    p("int main () { ")
+    p("srand(1984);")
+
+    p(counterstring)
+    p(initstring)
+    for (size <- sizes)
+    {
+      p("{")
+      p("unsigned long size = " + size + ";")
+      p("unsigned long runs = 10;")
+      //allocate
+      p("double * x = (double *) _mm_malloc("+size+"*sizeof(double),page);")
+      p("double * y = (double *) _mm_malloc("+size+"*sizeof(double),page);")
+
+      p("_ini1(x,"+size+" , 1);")
+      p("_ini1(y,"+size+" , 1);")
+
+        p("for(int r = 0; r < " + Config.repeats + "; r++){")
+	p("measurement_start();")
+        p("for(int i = 0; i < runs; i++){")
+	if(!par) {
+	  p("read_array(size, x);")
+	} else {
+	  p("read_array_par(size, x);")
+	}
+        p("}")
+        p( "measurement_stop(runs);")
+ 	p("std::cout << y[rand()%size] << \"\\n\";")
+        p( " }")
+        p("_mm_free(x);")
+        p("_mm_free(y);")
       p("}")
 
     }
@@ -1104,14 +1195,15 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
     p("#include <mkl.h>")
     p("#include <iostream>")
     p(Config.MeasuringCoreH)
-    p("#define page 4096")
+    p("#define page 64")
 
     if (vectorized)
     {
       if (Config.isWin)
         p("#include \"C:\\Users\\ofgeorg\\fft_sse\\spiral_fft.h\"\n    #include \"C:\\Users\\ofgeorg\\fft_sse\\spiral_private.h\"\n    #include \"C:\\Users\\ofgeorg\\fft_sse\\spiral_private.c\"\n    #include \"C:\\Users\\ofgeorg\\fft_sse\\spiral_fft_double.c\"")
       else
-        p("#include \""+Config.home+"/fft_sse/spiral_fft.h\"\n    #include \""+Config.home+"/fft_sse/spiral_private.h\"\n    #include \""+Config.home+"/fft_sse/spiral_private.c\"\n    #include \""+Config.home+"/fft_sse/spiral_fft_double.c\"")
+        //p("#include \""+Config.home+"/fft_sse/spiral_fft.h\"\n    #include \""+Config.home+"/fft_sse/spiral_private.h\"\n    #include \""+Config.home+"/fft_sse/spiral_private.c\"\n    #include \""+Config.home+"/fft_sse/spiral_fft_double.c\"")
+        p("#include \"/tmp/fft_sse/spiral_fft.h\"\n    #include \"/tmp/fft_sse/spiral_private.h\"\n    #include \"/tmp/fft_sse/spiral_private.c\"\n    #include \"/tmp/fft_sse/spiral_fft_double.c\"")
 
     }
     else
@@ -1119,11 +1211,14 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
       if (Config.isWin)
         p("#include \"C:\\Users\\ofgeorg\\fft_scalar\\spiral_fft.h\"\n    #include \"C:\\Users\\ofgeorg\\fft_scalar\\spiral_private.h\"\n    #include \"C:\\Users\\ofgeorg\\fft_scalar\\spiral_private.c\"\n    #include \"C:\\Users\\ofgeorg\\fft_scalar\\spiral_fft_double.c\"")
       else
-        p("#include \""+Config.home+"/fft_scalar/spiral_fft.h\"\n    #include \""+Config.home+"/fft_scalar/spiral_private.h\"\n    #include \""+Config.home+"/fft_scalar/spiral_private.c\"\n    #include \""+Config.home+"/fft_scalar/spiral_fft_double.c\"")
+        //p("#include \""+Config.home+"/fft_scalar/spiral_fft.h\"\n    #include \""+Config.home+"/fft_scalar/spiral_private.h\"\n    #include \""+Config.home+"/fft_scalar/spiral_private.c\"\n    #include \""+Config.home+"/fft_scalar/spiral_fft_double.c\"")
+        p("#include \"/tmp/fft_scalar/spiral_fft.h\"\n    #include \"/tmp/fft_scalar/spiral_private.h\"\n    #include \"/tmp/fft_scalar/spiral_private.c\"\n    #include \"/tmp/fft_scalar/spiral_fft_double.c\"")
+
     }
     val (counterstring, initstring ) = CodeGeneration.Counters2CCode(counters)
     CodeGeneration.create_array_of_buffers(sourcefile)
     CodeGeneration.destroy_array_of_buffers(sourcefile)
+    p("void _ini1(double * m, size_t row, size_t col)\n{\n  for (size_t i = 0; i < row*col; ++i)  m[i] = (double)1.1;\n}")
     p("int main () { ")
     p(counterstring)
     p(initstring)
@@ -1144,6 +1239,8 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
 
       p(prec + " * in = (" + prec + "*) _mm_malloc(" + 2*size + "* sizeof(" + prec + "),page);" )
       p(prec + " * out = (" + prec + "*) _mm_malloc(" + 2*size + "* sizeof(" + prec + "),page);" )
+      p("_ini1(in,"+2*size+" ,1);")
+      p("_ini1(out,"+2*size+" ,1);")
       CodeGeneration.tuneNrRunsbyRunTime(sourcefile,"status = spiral_fft_double("+ size + ", 1, in, out);", "std::cout << out[0];" )
       //find out the number of shifts required
       //p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
@@ -1152,13 +1249,31 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
 
       if (!warmData)
       {
+        p("long size_per_run = " + 2*size + "* sizeof(" + prec + ");")
+        p("if(runs * size_per_run < (100 * 1024 * 1024)")
+        p("runs = (100 * 1024 * 1024)/size_per_run;")
+
         p("_mm_free(in);")
         p("_mm_free(out);")
         //allocate
-        p("long numberofshifts =  measurement_getNumberOfShifts(" + (2*2*size)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
+        //p("long numberofshifts =  measurement_getNumberOfShifts(" + (2*2*size)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
+        p("long numberofshifts = (100 * 1024 * 1024 / (" + (2 * 2 * size) + "* sizeof(" + prec + ")));")
+
         p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
+
         p("double ** in_array = (double **) CreateBuffers("+2*size+"* sizeof(" + prec + "),numberofshifts);")
         p("double ** out_array = (double **) CreateBuffers("+2*size+"* sizeof(" + prec + "),numberofshifts);")
+
+        p("for(int i = 0; i < numberofshifts; i++){")
+        p("_ini1(in_array[i],"+2*size+" ,1);")
+        p("_ini1(out_array[i],"+2*size+" ,1);")
+        p("}")
+
+        //corpse
+        p("for(int i = 0; i < runs; i++){")
+        p("status = spiral_fft_double("+ size + ", 1, in_array[i%numberofshifts], out_array[i%numberofshifts]);")
+        p("}")
+
         p("for(int r = 0; r < " + Config.repeats + "; r++){")
         p("measurement_start();")
         p("for(int i = 0; i < runs; i++){")
@@ -1207,7 +1322,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
     sourcefile.println("#include <cstdio>")
     sourcefile.println("#include <stdlib.h>")
 
-    p("#define page 4096")
+    p("#define page 64")
     val (counterstring, initstring ) = CodeGeneration.Counters2CCode(counters)
     //CodeGeneration.create_array_of_buffers(sourcefile) //special for FFTW
 
@@ -1231,7 +1346,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
     p(" fftw_free(bench_buffer[i]);")
     p("_mm_free(bench_buffer);")
     p("}")
-
+    p("void _ini1(double * m, size_t row, size_t col)\n{\n  for (size_t i = 0; i < row*col; ++i)  m[i] = (double)1.1;\n}")
     p("int main () { ")
     p(counterstring)
     p(initstring)
@@ -1249,6 +1364,8 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
       p("fftwPlan = fftw_plan_dft_1d("+size+", in, out, FFTW_FORWARD, FFTW_MEASURE);")
 
       p("std::cout << \"before tune\";");
+      p("_ini1((double*)in,"+2*size+" ,1);")
+      p("_ini1((double*)out,"+2*size+" ,1);")
       //tune nr runs
       CodeGeneration.tuneNrRunsbyRunTime(sourcefile,"fftw_execute_dft(fftwPlan,in,out);", "std::cout << out[1];" )
       //find out the number of shifts required
@@ -1258,6 +1375,11 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
 
       if (!warmData)
       {
+        p("long size_per_run = " + 2*size + "* sizeof(fftw_complex);")
+        p("if(runs * size_per_run < (100 * 1024 * 1024)")
+        p("runs = (100 * 1024 * 1024)/size_per_run;")
+
+
         p("fftw_free(in);")
 	      p("fftw_free(out);")
         //allocate
@@ -1265,7 +1387,20 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
 
         p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
         p("fftw_complex ** in_array = (fftw_complex **) CreateBuffers("+size+"* sizeof(fftw_complex),numberofshifts);")
-	p("fftw_complex ** out_array = (fftw_complex **) CreateBuffers("+size+"* sizeof(fftw_complex),numberofshifts);")
+        p("fftw_complex ** out_array = (fftw_complex **) CreateBuffers("+size+"* sizeof(fftw_complex),numberofshifts);")
+
+        p("for(int i = 0; i < numberofshifts; i++){")
+        p("_ini1((double*) in_array[i],"+2*size+" ,1);")
+        p("_ini1((double*) out_array[i],"+2*size+" ,1);")
+
+        p("}")
+
+        //corpse
+        p("for(int i = 0; i < runs; i++){")
+        p("fftw_execute_dft(fftwPlan,in_array[i%numberofshifts],out_array[i%numberofshifts]);")
+        p("}")
+
+
         p("for(int r = 0; r < " + Config.repeats + "; r++){")
         p("measurement_start();")
         p("for(int i = 0; i < runs; i++){")
@@ -1314,10 +1449,11 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
       p(Config.MeasuringCoreH)
 
       p("/************************************************\n* FFT code from the book Numerical Recipes in C *\n* Visit www.nr.com for the licence.             *\n************************************************/\n\n// The following line must be defined before including math.h to correctly define M_PI\n#define _USE_MATH_DEFINES\n#include <math.h>\n#include <stdio.h>\n#include <stdlib.h>\n\n#define PI\tM_PI\t/* pi to machine precision, defined in math.h */\n#define TWOPI\t(2.0*PI)\n\n/*\n FFT/IFFT routine. (see pages 507-508 of Numerical Recipes in C)\n\n Inputs:\n\tdata[] : array of complex* data points of size 2*NFFT+1.\n\t\tdata[0] is unused,\n\t\t* the n'th complex number x(n), for 0 <= n <= length(x)-1, is stored as:\n\t\t\tdata[2*n+1] = real(x(n))\n\t\t\tdata[2*n+2] = imag(x(n))\n\t\tif length(Nx) < NFFT, the remainder of the array must be padded with zeros\n\n\tnn : FFT order NFFT. This MUST be a power of 2 and >= length(x).\n\tisign:  if set to 1, \n\t\t\t\tcomputes the forward FFT\n\t\t\tif set to -1, \n\t\t\t\tcomputes Inverse FFT - in this case the output values have\n\t\t\t\tto be manually normalized by multiplying with 1/NFFT.\n Outputs:\n\tdata[] : The FFT or IFFT results are stored in data, overwriting the input.\n*/\n\nvoid four1(double data[], int nn, int isign)\n{\n    int n, mmax, m, j, istep, i;\n    double wtemp, wr, wpr, wpi, wi, theta;\n    double tempr, tempi;\n    \n    n = nn << 1;\n    j = 1;\n    for (i = 1; i < n; i += 2) {\n\tif (j > i) {\n\t    tempr = data[j];     data[j] = data[i];     data[i] = tempr;\n\t    tempr = data[j+1]; data[j+1] = data[i+1]; data[i+1] = tempr;\n\t}\n\tm = n >> 1;\n\twhile (m >= 2 && j > m) {\n\t    j -= m;\n\t    m >>= 1;\n\t}\n\tj += m;\n    }\n    mmax = 2;\n    while (n > mmax) {\n\tistep = 2*mmax;\n\ttheta = TWOPI/(isign*mmax);\n\twtemp = sin(0.5*theta);\n\twpr = -2.0*wtemp*wtemp;\n\twpi = sin(theta);\n\twr = 1.0;\n\twi = 0.0;\n\tfor (m = 1; m < mmax; m += 2) {\n\t    for (i = m; i <= n; i += istep) {\n\t\tj =i + mmax;\n\t\ttempr = wr*data[j]   - wi*data[j+1];\n\t\ttempi = wr*data[j+1] + wi*data[j];\n\t\tdata[j]   = data[i]   - tempr;\n\t\tdata[j+1] = data[i+1] - tempi;\n\t\tdata[i] += tempr;\n\t\tdata[i+1] += tempi;\n\t    }\n\t    wr = (wtemp = wr)*wpr - wi*wpi + wr;\n\t    wi = wi*wpr + wtemp*wpi + wi;\n\t}\n\tmmax = istep;\n    }\n}")
-      p("#define page 4096")
+      p("#define page 64")
       val (counterstring, initstring ) = CodeGeneration.Counters2CCode(counters)
       CodeGeneration.create_array_of_buffers(sourcefile)
       CodeGeneration.destroy_array_of_buffers(sourcefile)
+      p("void _ini1(double * m, size_t row, size_t col)\n{\n  for (size_t i = 0; i < row*col; ++i)  m[i] = (double)1.1;\n}")
       p("int main () { ")
       p(counterstring)
       p(initstring)
@@ -1328,7 +1464,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
 
         //Tune the number of runs
         p(prec + " * x = (" + prec + "*) _mm_malloc(" + 2*size+1 + "* sizeof(" + prec + "),page);" ) //Note the +1 - strange NR behaviour
-
+        p("_ini1(x,"+2*size+1+" ,1);")
         CodeGeneration.tuneNrRunsbyRunTime(sourcefile,"four1(x,"+size+",1);", "std::cout << x[1];" )
         //find out the number of shifts required
         //p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
@@ -1337,11 +1473,27 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
 
         if (!warmData)
         {
+          p("long size_per_run = " + 2*size+1 + "* sizeof(" + prec + ");")
+          p("if(runs * size_per_run < (100 * 1024 * 1024)")
+          p("runs = (100 * 1024 * 1024)/size_per_run;")
+
           p("_mm_free(x);")
           //allocate
-          p("long numberofshifts =  measurement_getNumberOfShifts(" + (2*size+1)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
+          //p("long numberofshifts =  measurement_getNumberOfShifts(" + (2*size+1)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
+          p("long numberofshifts =   (100 * 1024 * 1024 / (" + (2*size+1)+ "* sizeof(" + prec + ")));")
+
           p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
-          p("double ** x_array = (double **) CreateBuffers("+2*size+"* sizeof(" + prec + "),numberofshifts);")
+          p("double ** x_array = (double **) CreateBuffers("+2*size+1+"* sizeof(" + prec + "),numberofshifts);")
+
+          p("for(int i = 0; i < numberofshifts; i++){")
+          p("_ini1(x_array[i],"+2*size+1+" ,1);")
+          p("}")
+
+          p("for(int i = 0; i < runs; i++){")
+          p("four1(x_array[i%numberofshifts],"+size+",1);")
+          p("}")
+
+
           p("for(int r = 0; r < " + Config.repeats + "; r++){")
           p("measurement_start();")
           p("for(int i = 0; i < runs; i++){")
@@ -1677,6 +1829,11 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
         p("_mm_free(A);")
         p("_mm_free(B);")
         p("_mm_free(C);")
+
+        p("long size_per_run = " + 3*size*size*size + "* sizeof(" + prec + ");")
+        p("if(runs * size_per_run < (100 * 1024 * 1024)")
+        p("runs = (100 * 1024 * 1024)/size_per_run;")
+
         //allocate
         //p("long numberofshifts =  measurement_getNumberOfShifts(" + (size*size*3)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
         p("long numberofshifts = (100 * 1024 * 1024 / (" + (size*size*3)+ "* sizeof(" + prec + ")));")
@@ -1701,6 +1858,10 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
         p("_ini1(C_array[i],"+size+" ,"+size+");")
         p("}")
 
+        //corpses
+        p("for(int i = 0; i < runs; i++){")
+        p("cblas_dgemm(CblasRowMajor,CblasNoTrans, CblasNoTrans, size, size , size,1.0,A_array[i%numberofshifts], size,B_array[i%numberofshifts], size,1.0,C_array[i%numberofshifts], size);")
+        p("}")
 
         p("for(int r = 0; r < " + Config.repeats + "; r++){")
         p("measurement_start();")
@@ -1807,6 +1968,10 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
       if (!warmData)
       {
 
+        p("long size_per_run = " + 2*size + "* sizeof(" + prec + ");")
+        p("if(runs * size_per_run < (100 * 1024 * 1024)")
+        p("runs = (100 * 1024 * 1024)/size_per_run;")
+
         p("_mm_free(x);")
         p("_mm_free(y);")
         //allocate
@@ -1826,8 +1991,15 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
         p("_ini1(y_array[i],"+size+" ,1);")
         p("}")
 
+
+
+        //corpses
+        p("for(int i = 0; i < runs; i++){")
+        p("cblas_daxpy("+size+", alpha, x_array[i%numberofshifts], 1, y_array[i%numberofshifts], 1);")
+        p("}")
+
         p("for(int r = 0; r < " + Config.repeats + "; r++){")
-	 p("measurement_start();")
+	      p("measurement_start();")
         p("for(int i = 0; i < runs; i++){")
         p("cblas_daxpy("+size+", alpha, x_array[i%numberofshifts], 1, y_array[i%numberofshifts], 1);")
         p("}")
@@ -1911,6 +2083,10 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
       //p("std::cout << \"run\";")
       if (!warmData)
       {
+        p("long size_per_run = " + 2*size+size*size + "* sizeof(" + prec + ");")
+        p("if(runs * size_per_run < (100 * 1024 * 1024)")
+        p("runs = (100 * 1024 * 1024)/size_per_run;")
+
         p("_mm_free(A);")
         p("_mm_free(x);")
         p("_mm_free(y);")
@@ -1937,10 +2113,15 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
         p("_ini1(y_array[i],"+size+" ,1);")
         p("}")
 
+        //corpse
+        p("for(int i = 0; i < runs; i++){")
+        p("cblas_dgemv(CblasRowMajor, CblasNoTrans,"+size+" ,"+size+", alpha, A_array[i%numberofshifts], "+size+", x_array[i%numberofshifts], 1, 1.1, y_array[i%numberofshifts], 1);")
+        p("}")
+
         p("for(int r = 0; r < " + Config.repeats + "; r++){")
         p("measurement_start();")
         p("for(int i = 0; i < runs; i++){")
-        p("cblas_dgemv(CblasRowMajor, CblasNoTrans,"+size+" ,"+size+", alpha, A_array[i%numberofshifts], "+size+", x_array[i%numberofshifts], 1, 1., y_array[i%numberofshifts], 1);")
+        p("cblas_dgemv(CblasRowMajor, CblasNoTrans,"+size+" ,"+size+", alpha, A_array[i%numberofshifts], "+size+", x_array[i%numberofshifts], 1, 1.1, y_array[i%numberofshifts], 1);")
         p("}")
         p( "measurement_stop(runs);")
         p( " }")
@@ -1969,6 +2150,103 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
     p("measurement_end();")
     p("}")
   }
+
+  def fft_MKL_outplace (sourcefile: PrintStream,sizes: List[Long], counters: Array[HWCounters.Counter], double_precision: Boolean = true, warmData: Boolean = false) =
+  {
+    def p(x: String) = sourcefile.println(x)
+    val prec = if (double_precision) "double" else "float"
+
+    p("#include <mkl.h>")
+    p("#include <iostream>")
+    p(Config.MeasuringCoreH)
+    p("#define page 64")
+    val (counterstring, initstring ) = CodeGeneration.Counters2CCode(counters)
+    CodeGeneration.create_array_of_buffers(sourcefile)
+    CodeGeneration.destroy_array_of_buffers(sourcefile)
+    p("void _rands(double * m, size_t row, size_t col)\n{\n  for (size_t i = 0; i < row*col; ++i)  m[i] = (double)(rand())/RAND_MAX;;\n}")
+    p("void _ini1(double * m, size_t row, size_t col)\n{\n  for (size_t i = 0; i < row*col; ++i)  m[i] = (double)1.1;\n}")
+    p("int main () { ")
+    p("srand(1984);")
+    p(counterstring)
+    p(initstring)
+
+    for (size <- sizes)
+    {
+      p("{")
+      p("DFTI_DESCRIPTOR_HANDLE mklDescriptor;")
+      p("MKL_LONG status;")
+      val dfti_prec = if (double_precision) "DFTI_DOUBLE" else "DFTI_SINGLE"
+      p("status = DftiCreateDescriptor( &mklDescriptor, " + dfti_prec+ ",DFTI_COMPLEX, 1,"+ size + ");")
+      p("if (status != 0) {\n    return -1;\n\t}\n\n\tstatus = DftiCommitDescriptor(mklDescriptor);\n\tif (status != 0) {\n\t\tstd::cout << \"status -1\";\nreturn -1;\n\t}")
+
+
+      //Tune the number of runs
+      p(prec + " * x = (" + prec + "*) _mm_malloc(" + 2*size + "* sizeof(" + prec + "),page);" )
+      p(prec + " * y = (" + prec + "*) _mm_malloc(" + 2*size + "* sizeof(" + prec + "),page);" )
+      p("_ini1(x,"+2*size+" ,1);")
+      p("_ini1(y,"+2*size+" ,1);")
+
+      CodeGeneration.tuneNrRunsbyRunTime(sourcefile,"status = DftiComputeForward(mklDescriptor, x);\n\tif (status != 0) {\n\t\tstd::cout << \"status -1\";\nreturn -1;\n\t}", "std::cout << x[0];" )
+      //find out the number of shifts required
+      //p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
+
+
+
+      if (!warmData)
+      {
+        p("_mm_free(x);")
+        p("_mm_free(y);")
+        p("long size_per_run = " + 4*size + "* sizeof(" + prec + ");")
+        p("if(runs * size_per_run < (100 * 1024 * 1024)")
+        p("runs = (100 * 1024 * 1024)/size_per_run;")
+
+        //allocate
+        //p("long numberofshifts =  measurement_getNumberOfShifts(" + (2*size)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
+        p("long numberofshifts = (100 * 1024 * 1024 / (" + (2*size)+ "*2* sizeof(" + prec + ")));")
+        p("if (numberofshifts < 2) numberofshifts = 2;")
+        p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
+        p("double ** x_array = (double **) CreateBuffers("+2*size+"* sizeof(" + prec + "),numberofshifts);")
+        p("double ** y_array = (double **) CreateBuffers("+2*size+"* sizeof(" + prec + "),numberofshifts);")
+        p("for(int i = 0; i < numberofshifts; i++){")
+        p("_ini1(x_array[i],"+2*size+" ,1);")
+        p("_ini1(y_array[i],"+2*size+" ,1);")
+        p("}")
+
+        p("for(int i = 0; i < runs; i++){")
+        p("status = DftiComputeForward(mklDescriptor, x_array[i%numberofshifts], y_array[i%numberofshifts]);\n\tif (status != 0) {\n\t\t std::cout << \"status -1\";\nreturn -1;\n\t}")
+        p("}")
+
+        p("for(int r = 0; r < " + Config.repeats + "; r++){")
+        p("measurement_start();")
+        p("for(int i = 0; i < runs; i++){")
+        p("status = DftiComputeForward(mklDescriptor, x_array[i%numberofshifts], y_array[i%numberofshifts]);\n\tif (status != 0) {\n\t\t std::cout << \"status -1\";\nreturn -1;\n\t}")
+        p("}")
+        p( "measurement_stop(runs);")
+        p( " }")
+        p("DestroyBuffers( (void **) x_array, numberofshifts);")
+      }
+      else
+      {
+        //run it
+        p("for(int r = 0; r < " + Config.repeats + "; r++){")
+        p("measurement_start();")
+        p("for(int i = 0; i < runs; i++){")
+        p("status = DftiComputeForward(mklDescriptor, x,y);\n\tif (status != 0) {\n\t\tstd::cout << \"status -1\";\nreturn -1;\n\t}")
+        p("}")
+        p( "measurement_stop(runs);")
+        p( " }")
+        p("std::cout << \"deallocate\";")
+        //deallocate the buffers
+        p("_mm_free(x);")
+
+      }
+      p("}")
+    }
+    p("measurement_end();")
+    p("}")
+  }
+
+
 
   def fft_MKL (sourcefile: PrintStream,sizes: List[Long], counters: Array[HWCounters.Counter], double_precision: Boolean = true, warmData: Boolean = false) =
   {
@@ -2017,11 +2295,17 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
         p("long numberofshifts = (100 * 1024 * 1024 / (" + (2*size)+ "* sizeof(" + prec + ")));")
         p("if (numberofshifts < 2) numberofshifts = 2;")
         p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
-        p("double ** x_array = (double **) CreateBuffers("+2*size+"* sizeof(" + prec + "),numberofshifts);")
+        p("double ** x_array = (double **) CreateBuffers("+2*size+"*2* sizeof(" + prec + "),numberofshifts);")
 
         p("for(int i = 0; i < numberofshifts; i++){")
         p("_ini1(x_array[i],"+2*size+" ,1);")
         p("}")
+
+        //corpse
+        p("for(int i = 0; i < runs; i++){")
+        p("status = DftiComputeForward(mklDescriptor, x_array[i%numberofshifts]);\n\tif (status != 0) {\n\t\t std::cout << \"status -1\";\nreturn -1;\n\t}")
+        p("}")
+
 
         p("for(int r = 0; r < " + Config.repeats + "; r++){")
         p("measurement_start();")
@@ -2252,6 +2536,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
 	//p("std::cout << runs << \" runs\";")
     //p("std::cout << multiplier<< \" multiplier\";")
     p("}while (multiplier > 2);")
+    p("measurement_emptyLists(true); //don't clear the vector of runs")
     //p("std::cout << runs << \" runs\";")
  
  }

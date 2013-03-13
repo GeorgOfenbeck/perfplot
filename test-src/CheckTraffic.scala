@@ -65,6 +65,7 @@ def mydaxpy(sourcefile: PrintStream,sizes: List[Long], counters: Array[HWCounter
   p("result += x[i] + y[i] + z[i]; }")
 
 
+  p("void _ini1(double * m, size_t row, size_t col)\n{\n  for (size_t i = 0; i < row*col; ++i)  m[i] = (double)1.1;\n}")
   p("int main () { ")
   p(counterstring)
   p(initstring)
@@ -90,13 +91,28 @@ def mydaxpy(sourcefile: PrintStream,sizes: List[Long], counters: Array[HWCounter
     {
 
       //allocate
-      p("long numberofshifts =  2*measurement_getNumberOfShifts(" + (size+size+size)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
+      p("long numberofshifts =  10*measurement_getNumberOfShifts(" + (size+size+size)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
       p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
       p("double ** x_array = (double **) CreateBuffers("+size+"* sizeof(" + prec + "),numberofshifts);")
       p("double ** y_array = (double **) CreateBuffers("+size+"* sizeof(" + prec + "),numberofshifts);")
       p("double ** z_array = (double **) CreateBuffers("+size+"* sizeof(" + prec + "),numberofshifts);")
-      p("for(int i = 0; i < runs; i++){")
-      p("mydaxpy(x_array[i%numberofshifts],y_array[i%numberofshifts], z_array[i%numberofshifts],"+size+ ");")
+
+
+      p("for(int i = 0; i < numberofshifts; i++){")
+      p("_ini1(x_array[i],"+size+" ,1);")
+      p("}")
+
+      p("for(int i = 0; i < numberofshifts; i++){")
+      p("_ini1(y_array[i],"+size+" ,1);")
+      p("}")
+
+      p("for(int i = 0; i < numberofshifts; i++){")
+      p("_ini1(z_array[i],"+size+" ,1);")
+      p("}")
+
+
+      p("for(int i = 0; i < numberofshifts; i++){")
+        p("mydaxpy(x_array[i%numberofshifts],y_array[i%numberofshifts], z_array[i%numberofshifts],"+size+ ");")
       p("}")
       p("for(int r = 0; r < " + Config.repeats + "; r++){")
       p("measurement_start();")
