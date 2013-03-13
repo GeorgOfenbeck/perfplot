@@ -501,12 +501,15 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
 
 
     p("void dgemm(double *A, double * B, double * C, unsigned long size) {")
-
+    p("long wtf = 0;")
     p("for (int i = 0; i < size; i++)")
     p("for (int j = 0; j < size; j++)")
-    p("for (int k = 0; k < size; k++)")
+    p("for (int k = 0; k < size; k++){")
     //p("C[i][j] += A[i][k]*B[k][j];")
     p("C[i*size+j] += A[i*size+k]*B[k*size+j];")
+    p("wtf++;")
+    p("}")
+    p("std::cout << \" loopits: \" << wtf << \" --\"; ")
     p("}")
 
     p("int main () { ")
@@ -696,6 +699,120 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
         p("_mm_free(B);")
         p("_mm_free(C);")
 */
+      }
+      p("}")
+
+    }
+    p("measurement_end();")
+    p("}")
+  }
+
+
+  def dgemv_loop(sourcefile: PrintStream,sizes: List[Long], counters: Array[HWCounters.Counter], double_precision: Boolean = true, warmData: Boolean = false) =
+  {
+    def p(x: String) = sourcefile.println(x)
+    val prec = if (double_precision) "double" else "float"
+
+    p("#include <iostream>")
+    p("#include <iostream>\n#include <fstream>\n#include <cstdlib>\n#include <ctime>\n#include <cmath>\n")
+    p(Config.MeasuringCoreH)
+    p("#define page 64")
+    p("#define THRESHOLD " + Config.testDerivate_Threshold)
+    p("using namespace std;")
+    val (counterstring, initstring ) = CodeGeneration.Counters2CCode(counters)
+    CodeGeneration.create_array_of_buffers(sourcefile)
+    CodeGeneration.destroy_array_of_buffers(sourcefile)
+    p("void _rands(double * m, size_t row, size_t col)\n{\n  for (size_t i = 0; i < row*col; ++i)  m[i] = (double)(rand())/RAND_MAX;;\n}")
+    p("void _ini1(double * m, size_t row, size_t col)\n{\n  for (size_t i = 0; i < row*col; ++i)  m[i] = (double)1.1;\n}")
+
+
+
+    p("void dgemv(double *y, double *A, double * x, unsigned long size) {")
+
+    p("for (int i = 0; i < size; i++)")
+    p("for (int j = 0; j< size; j++)")
+    p("y[i]+=( A[i*size+j]*x[j]);")
+    p("}")
+
+    p("int main () { ")
+    p("srand(1984);")
+
+    p(counterstring)
+    p(initstring)
+    for (size <- sizes)
+    {
+      p("{")
+      p("double alpha = 1.1;")
+      p("unsigned long size = " +size + ";")
+      //allocate
+      p("double * x = (double *) _mm_malloc("+size+"*sizeof(double),page);")
+      p("double * y = (double *) _mm_malloc("+size+"*sizeof(double),page);")
+      p("double * A = (double *) _mm_malloc("+size*size+"*sizeof(double),page);")
+      p("_ini1(x,"+size+" , 1);")
+      p("_ini1(y,"+size+" , 1);")
+      p("_ini1(A,"+size+" ,"+size+");")
+
+      p("int n = " +size + ";")
+      //Tune the number of runs
+      p("std::cout << \"tuning\";")
+      //tuneNrRuns(sourcefile,"cblas_dgemv(CblasRowMajor, CblasNoTrans,"+size+" ,"+size+", alpha, A, "+size+", x, 1, 0., y, 1);","" )
+      CodeGeneration.tuneNrRunsbyRunTime(sourcefile, "dgemv(y,A,x,size);" ,"" )
+
+      //find out the number of shifts required
+      //p("std::cout << runs << \"allocate\";")
+      //allocate the buffers
+      //p("std::cout << \"run\";")
+      if (!warmData)
+      {
+        p("_mm_free(x);")
+        p("_mm_free(y);")
+        p("_mm_free(A);")
+        //allocate
+        //p("long numberofshifts =  measurement_getNumberOfShifts(" + (size*size*3)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
+        p("long numberofshifts = (100 * 1024 * 1024 / (" + (2*size)+ "* sizeof(" + prec + ")));")
+        p("if (numberofshifts < 2) numberofshifts = 2;")
+        p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
+
+        p("double ** x_array = (double **) CreateBuffers("+size+"* sizeof(" + prec + "),numberofshifts);")
+        p("double ** y_array = (double **) CreateBuffers("+size+"* sizeof(" + prec + "),numberofshifts);")
+        p("double ** A_array = (double **) CreateBuffers("+size*size+"* sizeof(" + prec + "),numberofshifts);")
+
+
+        p("for(int i = 0; i < numberofshifts; i++){")
+        p("_ini1(x_array[i],"+size+" , 1);")
+        p("_ini1(y_array[i],"+size+" , 1);")
+        p("_ini1(A_array[i],"+size+" ,"+size+");")
+        p("}")
+
+
+
+        p("for(int r = 0; r < " + Config.repeats + "; r++){")
+        p("measurement_start();")
+        p("for(int i = 0; i < runs; i++){")
+        p("dgemv(y_array[i%numberofshifts],A_array[i%numberofshifts], y_array[i%numberofshifts], size);")
+        p("}")
+        p( "measurement_stop(runs);")
+        p( " }")
+        p("DestroyBuffers( (void **) x_array, numberofshifts);")
+        p("DestroyBuffers( (void **) y_array, numberofshifts);")
+      }
+      else
+      {
+        /*
+                //run ity        p("for(int r = 0; r < " + Config.repeats + "; r++){")
+                p("measurement_start();")
+                p("for(int i = 0; i < runs; i++){")
+                p("dgemm(A,B,C, size);")
+                //p("cblas_dgemm(CblasRowMajor, CblasNoTrans,"+size+" ,"+size+", alpha, A, "+size+", B, 1, 0., C, 1);")
+                p("}")
+                p( "measurement_stop(runs);")
+                p( " }")
+                p("std::cout << \"deallocate\";")
+                //deallocate the buffers
+                p("_mm_free(A);")
+                p("_mm_free(B);")
+                p("_mm_free(C);")
+        */
       }
       p("}")
 
@@ -2349,6 +2466,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
 	//p("std::cout << runs << \" runs\";")
     //p("std::cout << multiplier<< \" multiplier\";")
     p("}while (multiplier > 2);")
+    p("measurement_emptyLists(true); //don't clear the vector of runs")
     //p("std::cout << runs << \" runs\";")
  
  }
