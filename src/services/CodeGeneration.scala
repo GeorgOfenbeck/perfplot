@@ -664,11 +664,20 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
 
 
 
-    p("void daxpy(double *x, double * y, unsigned long size) {")
+    p("void daxpy(double *x, double * y, double alpha, unsigned long size) {")
 
+    p("double tmp = 1;")
     p("for (int i = 0; i < size; i++)")
-    p("y[i] += 1.1*x[i];")
+    //p("tmp += tmp;")
+    p("y[i] = x[i]*1.1 + y[i];")
+    //p("a = _mm256_load_pd(")
+
+    //p("y[i] += 1.1*x[i];")
+
+    //p("y[i] = x[i];")
+    p("x[0] = tmp;")
     p("}")
+
 
     p("int main () { ")
     p("srand(1984);")
@@ -691,7 +700,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
       //Tune the number of runs
       //p("std::cout << \"tuning\";")
       //tuneNrRuns(sourcefile,"cblas_dgemv(CblasRowMajor, CblasNoTrans,"+size+" ,"+size+", alpha, A, "+size+", x, 1, 0., y, 1);","" )
-      CodeGeneration.tuneNrRunsbyRunTime(sourcefile, "daxpy(x,y,size);" ,"" )
+      CodeGeneration.tuneNrRunsbyRunTime(sourcefile, "daxpy(x,y,3.0,size);" ,"" )
 
       //find out the number of shifts required
       //p("std::cout << runs << \"allocate\";")
@@ -722,12 +731,14 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
         p("_ini1(y_array[i],"+size+" , 1);")
         p("}")
 
-
+        p("for(int i = 0; i < runs; i++){")
+        p("daxpy(x_array[i%numberofshifts], y_array[i%numberofshifts], 3.1, size);")
+        p("}")
 
         p("for(int r = 0; r < " + Config.repeats + "; r++){")
 	      p("measurement_start();")
         p("for(int i = 0; i < runs; i++){")
-        p("daxpy(x_array[i%numberofshifts], y_array[i%numberofshifts], size);")
+        p("daxpy(x_array[i%numberofshifts], y_array[i%numberofshifts], 3.1,size);")
         p("}")
         p( "measurement_stop(runs);")
         p( " }")
@@ -844,6 +855,9 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
         p("}")
 
 
+        p("for(int i = 0; i < runs; i++){")
+        p("dgemv(y_array[i%numberofshifts],A_array[i%numberofshifts], y_array[i%numberofshifts], size);")
+        p("}")
 
         p("for(int r = 0; r < " + Config.repeats + "; r++){")
         p("measurement_start();")
@@ -854,6 +868,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
         p( " }")
         p("DestroyBuffers( (void **) x_array, numberofshifts);")
         p("DestroyBuffers( (void **) y_array, numberofshifts);")
+        p("DestroyBuffers( (void **) A_array, numberofshifts);")
       }
       else
       {
@@ -935,6 +950,99 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
     p("measurement_end();")
     p("}")
   }
+
+
+  def write_loop(sourcefile: PrintStream,sizes: List[Long], counters: Array[HWCounters.Counter], par: Boolean = true, warmData: Boolean = false) =
+  {
+    def p(x: String) = sourcefile.println(x)
+
+    if(par) p("#include <omp.h>")
+    p("#include <immintrin.h>")
+    p("#include <iostream>")
+    p("#include <iostream>\n#include <fstream>\n#include <cstdlib>\n#include <ctime>\n#include <cmath>\n")
+    //     p("#include <immintrin.h>")
+    p(Config.MeasuringCoreH)
+    p("#define page 64")
+    p("#define THRESHOLD " + Config.testDerivate_Threshold)
+    p("using namespace std;")
+    val (counterstring, initstring ) = CodeGeneration.Counters2CCode(counters)
+    CodeGeneration.create_array_of_buffers(sourcefile)
+    CodeGeneration.destroy_array_of_buffers(sourcefile)
+    p("void _rands(double * m, size_t row, size_t col)\n{\n  for (size_t i = 0; i < row*col; ++i)  m[i] = (double)(rand())/RAND_MAX;;\n}")
+    p("void _ini1(double * m, size_t row, size_t col)\n{\n  for (size_t i = 0; i < row*col; ++i)  m[i] = (double)1.1;\n}")
+
+    if(!par) {
+      p("double write_array(size_t size, double * x) {")
+
+      p("	__m256d t0, t1;")
+      p("		t0 = _mm256_load_pd(x);")
+      p("		t1 = _mm256_load_pd(x+4);")
+      p("	__declspec(align(32)) double res[4];")
+      p("	for (size_t i=0; i < size; i+=8) {")
+      p("		 _mm256_stream_pd(x+i,t0);")
+      p("		 _mm256_stream_pd(x+i+4,t1);")
+      p("	}")
+      //p("	_mm256_store_pd(res, _mm256_add_pd(t0,t1));")
+
+      p("	return res[0];")
+      p("}")
+    } else {
+      p("double write_array_par(size_t size, double * x) {")
+
+      p("	double t=0, t0;")
+
+      p("#pragma omp parallel private(t0)")
+      p("	{")
+      p("#pragma omp for schedule(static, size/4)")
+      p("		for (size_t i=0; i < size; i++) {")
+      p("			x[i] = p;")
+      p("		}")
+      p("		t += t0;")
+      p("	}")
+      p("	return t;")
+
+      p("}")
+    }
+
+    p("int main () { ")
+    p("srand(1984);")
+
+    p(counterstring)
+    p(initstring)
+    for (size <- sizes)
+    {
+      p("{")
+      p("unsigned long size = " + size + ";")
+      p("unsigned long runs = 10;")
+      //allocate
+      p("double * x = (double *) _mm_malloc("+size+"*sizeof(double),page);")
+      p("double * y = (double *) _mm_malloc("+size+"*sizeof(double),page);")
+
+      p("_ini1(x,"+size+" , 1);")
+      p("_ini1(y,"+size+" , 1);")
+
+      p("for(int r = 0; r < " + Config.repeats + "; r++){")
+      p("measurement_start();")
+      p("for(int i = 0; i < runs; i++){")
+      if(!par) {
+        p("write_array(size, x);")
+      } else {
+        p("write_array_par(size, x);")
+      }
+      p("}")
+      p( "measurement_stop(runs);")
+      //p("std::cout << y[rand()%size] << \"\\n\";")
+      p( " }")
+      p("_mm_free(x);")
+      p("_mm_free(y);")
+      p("}")
+
+    }
+    p("measurement_end();")
+    p("}")
+  }
+
+
 
   def read_loop(sourcefile: PrintStream,sizes: List[Long], counters: Array[HWCounters.Counter], par: Boolean = true, warmData: Boolean = false) =
   {
@@ -2162,15 +2270,11 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
 
         p("for(int i = 0; i < numberofshifts; i++){")
         p("_ini1(A_array[i],"+size+" ,"+size+");")
-        p("}")
-
-        p("for(int i = 0; i < numberofshifts; i++){")
         p("_ini1(x_array[i],"+size+" ,1);")
-        p("}")
-
-        p("for(int i = 0; i < numberofshifts; i++){")
         p("_ini1(y_array[i],"+size+" ,1);")
         p("}")
+
+
 
         //corpse
         p("for(int i = 0; i < runs; i++){")
@@ -2192,9 +2296,10 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
       {
         //run it
         p("for(int r = 0; r < " + Config.repeats + "; r++){")
+        p("runs = 1;")
         p("measurement_start();")
         p("for(int i = 0; i < runs; i++){")
-        p("cblas_dgemv(CblasRowMajor, CblasNoTrans,"+size+" ,"+size+", alpha, A, "+size+", x, 1, 1., y, 1);")
+        p("cblas_dgemv(CblasRowMajor, CblasNoTrans,"+size+" ,"+size+", alpha, A, "+size+", x, 1, 1.1, y, 1);")
         p("}")
         p( "measurement_stop(runs);")
         p( " }")
