@@ -45,6 +45,7 @@ class CodeGeneration{
   val avoid_DCE: String //optional code that makes sure that deadcode elimination doesnt happen (not relevant for funciton call)
 
   val repeats : Int
+  val threshold : Long
   val counters: Array[HWCounters.Counter]
 
 
@@ -68,6 +69,7 @@ class CodeGeneration{
     p(kernel_header)
 
     p("int main (){")
+    p("unsigned long runs = 1; //start of with a single run for sample")
     p(counterstring) //creates array of counters to be used
     p(initstring)    //initalizes the measuring core
     p(initcode)      //whatever is needed to initalize the kernel
@@ -91,43 +93,35 @@ class CodeGeneration{
   }
 
 
-  def tuneNrRunsbySizeandRunTime(sourcefile : PrintStream) =
+  def tuneNrRunsbySize() :String =
   {
-    p("unsigned long LLCSize =  returnLLCSize();")
-    p("unsigned associativity = 8; //this is hardcoded as its the same on all platforms considered")
-    p("unsigned long size_per_run = " + total_size + "* sizeof("+datatype+");")
-    p("unsigned long runs = (LLCSize * associativity)/size_per_run;")
-    p("if (runs < 2) runs = 2; //to make sure stuff is not cache resident")
-    p()
+    "unsigned long LLCSize =  returnLLCSize(); \n" +
+    "unsigned associativity = 8; //this is hardcoded as its the same on all platforms considered \n" +
+    "unsigned long size_per_run = " + total_size + "* sizeof("+datatype+"); \n" +
+    "runs = (LLCSize * associativity)/size_per_run;\n" +
+    "if (runs < 2) runs = 2; //to make sure stuff is not cache resident\n"
+
   }
 
 
 
 
-  def tuneNrRunsbyRunTime(sourcefile : PrintStream, kernel: String, printsomething: String) =
+  def tuneNrRunsbyRunTime() : String =
   {
-    def p(x: String) = sourcefile.println(x)
-
-    p("unsigned long runs = 1; //start of with a single run for sample")
-    p("unsigned long multiplier;")
-    p("measurement_start();")
-    p("measurement_stop(runs);")
-    p("measurement_emptyLists(true); //don't clear the vector of runs")
-    p("do{")
-    p("measurement_start();")
-    p("for(unsigned long i = 0; i <= runs; i++)")
-    p("{")
-    p(kernel)
-    p("}")
-    p("measurement_stop(runs);")
-    p(printsomething)
-    p("multiplier = measurement_run_multiplier("+measurement_Threshold+");")
-    p("runs = runs * multiplier;")
-    //p("std::cout << runs << \" runs\";")
-    //p("std::cout << multiplier<< \" multiplier\";")
-    p("}while (multiplier > 2);")
-    p("measurement_emptyLists(true); //don't clear the vector of runs")
-    //p("std::cout << runs << \" runs\";")
+    "unsigned long multiplier= 1; \n" +
+    "measurement_start(); //this is done to make sure that the warmup of the toolchain is not accounted\n" +
+    "measurement_stop(runs);\n" +
+    "measurement_emptyLists(true); //don't clear the vector of runs\n" +
+    "do{\n" +
+    "runs = runs * multiplier;\n"
+    "measurement_start();\n" +
+    "for(unsigned long i = 0; i <= runs; i++)\n" +
+    "{" + kernel_call + "}"
+    "measurement_stop(runs);\n" +
+    avoid_DCE +
+    "multiplier = measurement_run_multiplier("+threshold+");" +
+    "}while (multiplier > 2);\n" +
+    "measurement_emptyLists(true); //don't clear the vector of runs\n"
   }
 
 }
