@@ -18,9 +18,6 @@ import perfplot.quantities._
 
 object CommandService {
 
-
-
-
   class Counters (nrcores: Int,
       Counter0 : Array[Array[Long]],
       Counter1 : Array[Array[Long]],

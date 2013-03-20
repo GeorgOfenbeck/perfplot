@@ -29,11 +29,14 @@ void flushICache();
 void flushDCache();
 
 
+unsigned long returnLLCSize() {
+	return getLLCSize();}
+
+
+
 #ifdef __cplusplus
 }
 #endif
 #endif
-
-
 
 

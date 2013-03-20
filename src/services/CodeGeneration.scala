@@ -11,8 +11,207 @@ import java.io._
  * Date: 19/02/13
  * Time: 11:15 
  */
+
+class CodeGeneration{
+
+  val sourcefile : PrintStream //where do we print to
+
+  val id: String //used for cache lookup
+  val includes : String //any additional includes needed
+
+  val initcode : String //any code needed to set up the kernel
+
+  val init_function : String //the function used to initalize the data
+  val init_call: String //the call to this function
+
+  //this has to be a single buffer for warm cache measurments, or a array of buffers for cold
+  val alignment: Int  //alignment used in the creation of the buffers
+  val size: Int //size * datatype = size of one buffer
+  val total_size: Int //size of all buffers per iteration
+  val datatype: String
+
+
+  val create_buffer_function: String
+  val destroy_buffer_function: String
+  val create_buffer_call: String
+  val destroy_buffer_call: String
+
+
+  val kernel_header: String
+  val kernel_call: String
+  val kernel_code: String
+
+  val inline : Boolean //if the code should be inlined (for small sizes), or if it should be compiled seperate
+  val avoid_DCE: String //optional code that makes sure that deadcode elimination doesnt happen (not relevant for funciton call)
+
+  val repeats : Int
+  val counters: Array[HWCounters.Counter]
+
+
+  val nrRuns: String //should include warm up in case of warm measurement
+
+
+  def p(x: String) = sourcefile.println(x)
+  def print(sourcefile: PrintStream) =
+  {
+    val (counterstring, initstring ) = CodeGeneration.Counters2CCode(counters)
+
+    //the code printing
+    p(Config.MeasuringCoreH)
+    p(includes)
+
+    p("define ALIGNMENT " + alignment)
+
+    p(create_buffer_function)
+    p(destroy_buffer_function)
+    p(init_function)
+    p(kernel_header)
+
+    p("int main (){")
+    p(counterstring) //creates array of counters to be used
+    p(initstring)    //initalizes the measuring core
+    p(initcode)      //whatever is needed to initalize the kernel
+
+    p(create_buffer_call)
+    p(initcall)
+    p(nrRuns)
+    p("for (int r = 0; r < "+ repeats + "; r++){")
+    p("measurement_start();")
+    p("for(int i = 0; i < runs; i++){")
+    //p("cblas_daxpy("+size+", alpha, x, 1, y, 1);")
+    if (inline)
+      p(kernel_code)
+    else
+      p(kernel_call)
+    p("}")
+    p( "measurement_stop(runs);")
+    p(avoid_DCE)
+    p(destroy_buffer_call)
+    p( " }")
+  }
+
+
+  def tuneNrRunsbySizeandRunTime(sourcefile : PrintStream) =
+  {
+    p("unsigned long LLCSize =  returnLLCSize();")
+    p("unsigned associativity = 8; //this is hardcoded as its the same on all platforms considered")
+    p("unsigned long size_per_run = " + total_size + "* sizeof("+datatype+");")
+    p("unsigned long runs = (LLCSize * associativity)/size_per_run;")
+    p("if (runs < 2) runs = 2; //to make sure stuff is not cache resident")
+    p()
+  }
+
+
+
+
+  def tuneNrRunsbyRunTime(sourcefile : PrintStream, kernel: String, printsomething: String) =
+  {
+    def p(x: String) = sourcefile.println(x)
+
+    p("unsigned long runs = 1; //start of with a single run for sample")
+    p("unsigned long multiplier;")
+    p("measurement_start();")
+    p("measurement_stop(runs);")
+    p("measurement_emptyLists(true); //don't clear the vector of runs")
+    p("do{")
+    p("measurement_start();")
+    p("for(unsigned long i = 0; i <= runs; i++)")
+    p("{")
+    p(kernel)
+    p("}")
+    p("measurement_stop(runs);")
+    p(printsomething)
+    p("multiplier = measurement_run_multiplier("+measurement_Threshold+");")
+    p("runs = runs * multiplier;")
+    //p("std::cout << runs << \" runs\";")
+    //p("std::cout << multiplier<< \" multiplier\";")
+    p("}while (multiplier > 2);")
+    p("measurement_emptyLists(true); //don't clear the vector of runs")
+    //p("std::cout << runs << \" runs\";")
+  }
+
+}
+
+
+
 object CodeGeneration {
 
+
+
+  def Counters2CCode(counters: Array[HWCounters.Counter]): (String,String) =
+  {
+    var offcore_0: String = "0"
+    var offcore_1: String = "0"
+
+    var counter_string = "long counters["+counters.size*2+"];\n"
+    for (i <- 0 until counters.size)
+    {
+      counter_string = counter_string + "counters["+ i*2 +"] = " + counters(i).getEventNr + ";\n"
+      counter_string = counter_string + "counters["+ (i*2 + 1) +"] = " + counters(i).getUmask + ";\n"
+      if (counters(i).getEventNr == 183) //Offcore response
+        if (offcore_0 == "0")
+          offcore_0 = counters(i).Comment
+        else
+        if (offcore_1 == "0")
+          offcore_1 = counters(i).Comment
+        else
+          assert(false, "Trying to program more then 2 offcore response events")
+    }
+
+    (counter_string,"measurement_init(counters,"+offcore_0+","+offcore_1+");")
+  }
+
+
+
+
+
+
+
+  def tuneNrRuns(sourcefile : PrintStream, kernel: String, printsomething: String) =
+  {
+    def p(x: String) = sourcefile.println(x)
+    p("long runs = 1;")
+    p("for(; runs <= (1 << 20); runs *= 2){")
+    p("measurement_start();")
+    p("for(int i = 0; i <= runs; i++)")
+    p(kernel)
+    p("measurement_stop(runs);")
+    p(printsomething) //this is just to avoid deadcode eliminiation
+    p("if(measurement_testDerivative(runs, " + Config.testDerivate_Threshold + "))")
+    p("break;")
+    p("measurement_emptyLists(true);} //don't clear the vector of runs")
+    p("measurement_emptyLists();") //duplicated cause of the break
+  }
+
+
+  def create_array_of_buffers (sourcefile: PrintStream, datatype: String = "double") =
+  {
+    def p(x: String) = sourcefile.println(x)
+    val prec = datatype
+    p("void * CreateBuffers(long size, long numberofshifts)")
+    p("{")
+    p( prec + " ** bench_buffer = (" + prec + "**) _mm_malloc(numberofshifts*sizeof(" + prec + "*),page);" )
+    p( "if (!bench_buffer) {\n      std::cout << \"malloc failed\";\n      measurement_end();\n      return ;} ")
+    p("for(int i = 0; i < numberofshifts; i++){")
+    p("bench_buffer[i] = (" + prec + "*) _mm_malloc(size,page);" )
+    p( "if (!bench_buffer[i]) {\n      std::cout << \"malloc failed\";\n      measurement_end();\n      return ;} ")
+    p("}")
+    p("return (void*)bench_buffer;")
+    p("}")
+  }
+
+
+
+
+  def destroy_array_of_buffers( sourcefile: PrintStream) =
+  {
+    def p(x: String) = sourcefile.println(x)
+    p("void DestroyBuffers(void ** bench_buffer, long numberofshifts) {")
+    p("for(int i = 0; i < numberofshifts; i++)")
+    p("_mm_free(bench_buffer[i]);")
+    p("_mm_free(bench_buffer);")
+    p("}")
+  }
 /*  def tripple_loop(sourcefile: PrintStream,sizes: List[Long], counters: Array[HWCounters.Counter], double_precision: Boolean = true, warmData: Boolean = false) =
   {
     def p(x: String) = sourcefile.println(x)
@@ -2277,9 +2476,9 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
 
 
         //corpse
-        p("for(int i = 0; i < runs; i++){")
+        /*p("for(int i = 0; i < runs; i++){")
         p("cblas_dgemv(CblasRowMajor, CblasNoTrans,"+size+" ,"+size+", alpha, A_array[i%numberofshifts], "+size+", x_array[i%numberofshifts], 1, 1.1, y_array[i%numberofshifts], 1);")
-        p("}")
+        p("}")*/
 
         p("for(int r = 0; r < " + Config.repeats + "; r++){")
         p("measurement_start();")
@@ -2653,102 +2852,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
     }
 
 
-  def Counters2CCode(counters: Array[HWCounters.Counter]): (String,String) =
-  {
-    var offcore_0: String = "0"
-    var offcore_1: String = "0"
 
-    var counter_string = "long counters["+counters.size*2+"];\n"
-    for (i <- 0 until counters.size)
-    {
-      counter_string = counter_string + "counters["+ i*2 +"] = " + counters(i).getEventNr + ";\n"
-      counter_string = counter_string + "counters["+ (i*2 + 1) +"] = " + counters(i).getUmask + ";\n"
-      if (counters(i).getEventNr == 183) //Offcore response
-        if (offcore_0 == "0")
-          offcore_0 = counters(i).Comment
-        else
-        if (offcore_1 == "0")
-          offcore_1 = counters(i).Comment
-        else
-          assert(false, "Trying to program more then 2 offcore response events")
-    }
-
-    (counter_string,"measurement_init(counters,"+offcore_0+","+offcore_1+");")
-  }
-
-
-
-  def tuneNrRunsbyRunTime(sourcefile : PrintStream, kernel: String, printsomething: String) =
-  {
-    def p(x: String) = sourcefile.println(x)
-
-    p("unsigned long runs = 1; //start of with a single run for sample")
-    p("unsigned long multiplier;")
-    p("measurement_start();")
-    p("measurement_stop(runs);")
-    p("measurement_emptyLists(true); //don't clear the vector of runs")
-    p("do{")
-    p("measurement_start();")
-    p("for(unsigned long i = 0; i <= runs; i++)")
-    p("{")
-    p(kernel)
-    p("}")
-    p("measurement_stop(runs);")
-    p(printsomething)
-    p("multiplier = measurement_run_multiplier("+measurement_Threshold+");")
-    p("runs = runs * multiplier;")
-	//p("std::cout << runs << \" runs\";")
-    //p("std::cout << multiplier<< \" multiplier\";")
-    p("}while (multiplier > 2);")
-    p("measurement_emptyLists(true); //don't clear the vector of runs")
-    //p("std::cout << runs << \" runs\";")
- 
- }
-
-
-
-  def tuneNrRuns(sourcefile : PrintStream, kernel: String, printsomething: String) =
-  {
-    def p(x: String) = sourcefile.println(x)
-    p("long runs = 1;")
-    p("for(; runs <= (1 << 20); runs *= 2){")
-    p("measurement_start();")
-    p("for(int i = 0; i <= runs; i++)")
-    p(kernel)
-    p("measurement_stop(runs);")
-    p(printsomething) //this is just to avoid deadcode eliminiation
-    p("if(measurement_testDerivative(runs, " + Config.testDerivate_Threshold + "))")
-    p("break;")
-    p("measurement_emptyLists(true);} //don't clear the vector of runs")
-    p("measurement_emptyLists();") //duplicated cause of the break
-  }
-
-
-  def create_array_of_buffers (sourcefile: PrintStream) =
-  {
-    def p(x: String) = sourcefile.println(x)
-    val prec =  "double"
-    p("void * CreateBuffers(long size, long numberofshifts)")
-    p("{")
-    p( prec + " ** bench_buffer = (" + prec + "**) _mm_malloc(numberofshifts*sizeof(" + prec + "*),page);" )
-    p( "if (!bench_buffer) {\n      std::cout << \"malloc failed\";\n      measurement_end();\n      return ;} ")
-    p("for(int i = 0; i < numberofshifts; i++){")
-    p("bench_buffer[i] = (" + prec + "*) _mm_malloc(size,page);" )
-    p( "if (!bench_buffer[i]) {\n      std::cout << \"malloc failed\";\n      measurement_end();\n      return ;} ")
-    p("}")
-    p("return (void*)bench_buffer;")
-    p("}")
-  }
-
-  def destroy_array_of_buffers( sourcefile: PrintStream) =
-  {
-    def p(x: String) = sourcefile.println(x)
-    p("void DestroyBuffers(void ** bench_buffer, long numberofshifts) {")
-    p("for(int i = 0; i < numberofshifts; i++)")
-    p("_mm_free(bench_buffer[i]);")
-    p("_mm_free(bench_buffer);")
-    p("}")
-  }
 
 
 

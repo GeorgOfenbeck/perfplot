@@ -39,7 +39,7 @@ class Validation extends Suite{
 
     CodeGeneration.run_kernel(folder,CodeGeneration.dgemm_MKL,sizes,"dgemm-cold",counters,true,false, seq)
     //CodeGeneration.run_kernel(folder,CodeGeneration.sixfold_loop,sizes,"6fold-cold",counters,true,false, seq)
-    CodeGeneration.run_kernel(folder,CodeGeneration.tripple_loop,sizes,"triple",counters,true,false, seq)
+  //  CodeGeneration.run_kernel(folder,CodeGeneration.tripple_loop,sizes,"triple",counters,true,false, seq)
   }
 
 
@@ -48,7 +48,7 @@ class Validation extends Suite{
     val sizes_2power =  (for (i<-1 until 7) yield (i*1000000).toLong ).toList
 
     CodeGeneration.run_kernel(folder,CodeGeneration.daxpy_MKL,sizes_2power,"daxpy-cold",counters,true,false, seq)
-    CodeGeneration.run_kernel(folder,CodeGeneration.daxpy_loop,sizes_2power,"daxpy-naive",counters,true,false, seq)
+    //CodeGeneration.run_kernel(folder,CodeGeneration.daxpy_loop,sizes_2power,"daxpy-naive",counters,true,false, seq)
 
   }
 
@@ -57,9 +57,11 @@ class Validation extends Suite{
     val sizes_2power =  (for (i<-1 until 7) yield (i*100).toLong ).toList
 
     CodeGeneration.run_kernel(folder,CodeGeneration.dgemv_MKL,sizes_2power,"dgemv-cold",counters,true,false, seq)
-    CodeGeneration.run_kernel(folder,CodeGeneration.dgemv_loop,sizes_2power,"dgemv-naive",counters,true,false, seq)
+    //CodeGeneration.run_kernel(folder,CodeGeneration.dgemv_loop,sizes_2power,"dgemv-naive",counters,true,false, seq)
 
 
   }
 }
+
+
 
