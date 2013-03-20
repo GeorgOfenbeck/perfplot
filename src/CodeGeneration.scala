@@ -1,10 +1,10 @@
 package perfplot
-package services
 
-import HWCounters.IvyBridge
+
+
 import perfplot.Config._
 import java.io._
-
+import HWCounters.Counter
 /**
  * Georg Ofenbeck
  First created:
@@ -14,54 +14,53 @@ import java.io._
 
 class CodeGeneration{
 
-  val sourcefile : PrintStream //where do we print to
+  var id: String = ""//used for cache lookup
+  var includes : String = ""//any additional includes needed
 
-  val id: String //used for cache lookup
-  val includes : String //any additional includes needed
+  var initcode : String = ""//any code needed to set up the kernel
 
-  val initcode : String //any code needed to set up the kernel
-
-  val init_function : String //the function used to initalize the data
-  val init_call: String //the call to this function
+  var init_function : String = "" //the function used to initalize the data
+  var init_call: String = ""//the call to this function
 
   //this has to be a single buffer for warm cache measurments, or a array of buffers for cold
-  val alignment: Int  //alignment used in the creation of the buffers
-  val size: Int //size * datatype = size of one buffer
-  val total_size: Int //size of all buffers per iteration
-  val datatype: String
+  var alignment: Int = Config.def_alignment//alignment used in the creation of the buffers
+  var size: Int = 0//size * datatype = size of one buffer
+  var total_size: Int = 0//size of all buffers per iteration
+  var datatype: String = ""
 
 
-  val create_buffer_function: String
-  val destroy_buffer_function: String
-  val create_buffer_call: String
-  val destroy_buffer_call: String
+  var create_buffer_function: String = ""
+  var destroy_buffer_function: String = ""
+  var create_buffer_call: String = ""
+  var destroy_buffer_call: String = ""
 
 
-  val kernel_header: String
-  val kernel_call: String
-  val kernel_code: String
+  var kernel_header: String = ""
+  var kernel_call: String = ""
+  var kernel_code: String = ""
 
-  val inline : Boolean //if the code should be inlined (for small sizes), or if it should be compiled seperate
-  val avoid_DCE: String //optional code that makes sure that deadcode elimination doesnt happen (not relevant for funciton call)
+  var inline : Boolean = false //if the code should be inlined (for small sizes), or if it should be compiled seperate
+  var avoid_DCE: String = ""//optional code that makes sure that deadcode elimination doesnt happen (not relevant for funciton call)
 
-  val repeats : Int
-  val threshold : Long
-  val counters: Array[HWCounters.Counter]
+  var repeats : Int = Config.repeats
+  var threshold : Long = Config.measurement_Threshold
+  var counters: Array[HWCounters.Counter] = SandyCounters
+
+  var determineSize_call: String = ""
+  var nrRuns: String = ""//should include warm up in case of warm measurement
 
 
-  val nrRuns: String //should include warm up in case of warm measurement
 
-
-  def p(x: String) = sourcefile.println(x)
   def print(sourcefile: PrintStream) =
   {
-    val (counterstring, initstring ) = CodeGeneration.Counters2CCode(counters)
+    def p(x: String) = sourcefile.println(x)
+    val (counterstring, initstring ) = Counters2CCode()
 
     //the code printing
     p(Config.MeasuringCoreH)
     p(includes)
 
-    p("define ALIGNMENT " + alignment)
+    p("#define ALIGNMENT " + alignment)
 
     p(create_buffer_function)
     p(destroy_buffer_function)
@@ -74,8 +73,11 @@ class CodeGeneration{
     p(initstring)    //initalizes the measuring core
     p(initcode)      //whatever is needed to initalize the kernel
 
+
+    p(determineSize_call)
     p(create_buffer_call)
-    p(initcall)
+    p(init_call)
+
     p(nrRuns)
     p("for (int r = 0; r < "+ repeats + "; r++){")
     p("measurement_start();")
@@ -88,19 +90,27 @@ class CodeGeneration{
     p("}")
     p( "measurement_stop(runs);")
     p(avoid_DCE)
-    p(destroy_buffer_call)
+
     p( " }")
+    p(destroy_buffer_call)
+    p("measurement_end();")
+    p("}")
   }
 
 
+  def ini11 () : String =
+  {
+    "void _ini1(" + datatype + " * m, size_t row, size_t col)\n{\n  for (size_t i = 0; i < row*col; ++i)  m[i] = (" + datatype + ")1.1;\n}"
+  }
+
   def tuneNrRunsbySize() :String =
   {
-    "unsigned long LLCSize =  returnLLCSize(); \n" +
+    "unsigned long LLCSize =  getLLCSize(); \n" +
     "unsigned associativity = 8; //this is hardcoded as its the same on all platforms considered \n" +
     "unsigned long size_per_run = " + total_size + "* sizeof("+datatype+"); \n" +
     "runs = (LLCSize * associativity)/size_per_run;\n" +
-    "if (runs < 2) runs = 2; //to make sure stuff is not cache resident\n"
-
+    "if (runs < 2) runs = 2; //to make sure stuff is not cache resident\n" + 
+    "long numberofshifts = runs;"
   }
 
 
@@ -113,10 +123,10 @@ class CodeGeneration{
     "measurement_stop(runs);\n" +
     "measurement_emptyLists(true); //don't clear the vector of runs\n" +
     "do{\n" +
-    "runs = runs * multiplier;\n"
+    "runs = runs * multiplier;\n" +
     "measurement_start();\n" +
     "for(unsigned long i = 0; i <= runs; i++)\n" +
-    "{" + kernel_call + "}"
+    "{" + kernel_call + "}" +
     "measurement_stop(runs);\n" +
     avoid_DCE +
     "multiplier = measurement_run_multiplier("+threshold+");" +
@@ -124,15 +134,31 @@ class CodeGeneration{
     "measurement_emptyLists(true); //don't clear the vector of runs\n"
   }
 
-}
 
+  def create_array_of_buffers () : String =
+  {
+    "void * CreateBuffers(long size, long numberofshifts)\n" +
+    "{" +
+    datatype + " ** bench_buffer = (" + datatype + "**) _mm_malloc(numberofshifts*sizeof(" + datatype + "*),ALIGNMENT);\n" +
+    "if (!bench_buffer) {\n      std::cout << \"malloc failed\";\n      measurement_end();\n      return 0;} " +
+    "for(int i = 0; i < numberofshifts; i++){" +
+    "bench_buffer[i] = (" + datatype + "*) _mm_malloc(size,ALIGNMENT);" +
+    "if (!bench_buffer[i]) {\n      std::cout << \"malloc failed\";\n      measurement_end();\n      return 0;} " +
+    "}" +
+    "return (void*)bench_buffer;" +
+    "}"
+  }
 
+  def destroy_array_of_buffers () =
+  {
+    "void DestroyBuffers(void ** bench_buffer, long numberofshifts) {" +
+    "for(int i = 0; i < numberofshifts; i++)" +
+    "_mm_free(bench_buffer[i]);" +
+    "_mm_free(bench_buffer);" +
+    "}"
+  }
 
-object CodeGeneration {
-
-
-
-  def Counters2CCode(counters: Array[HWCounters.Counter]): (String,String) =
+  def Counters2CCode(): (String,String) =
   {
     var offcore_0: String = "0"
     var offcore_1: String = "0"
@@ -156,197 +182,95 @@ object CodeGeneration {
   }
 
 
+  def SandyCounters = Array(
+    Counter("10H","80H","FP_COMP_OPS_EXE.SSE_SCALAR_DOUBLE","Counts number of SSE* double precision FP scalar uops executed.",""),
+    Counter("10H","10H","FP_COMP_OPS_EXE.SSE_FP_PACKED_DOUBLE","Counts number of SSE* double precision FP packed uops executed.",""),
+    Counter("11H","02H","SIMD_FP_256.PACKED_DOUBLE","Counts 256-bit packed double-precision floating- point instructions.",""),
+    Counter("11H","01H","SIMD_FP_256.PACKED_SINGLE","Counts 256-bit packed single-precision floating- point instructions.","")
+  )
+
+}
 
 
 
+object CodeGeneration {
 
 
-  def tuneNrRuns(sourcefile : PrintStream, kernel: String, printsomething: String) =
+
+  def daxpy_MKL(double_precision: Boolean,warm: Boolean, size: Long ): CodeGeneration =
   {
-    def p(x: String) = sourcefile.println(x)
-    p("long runs = 1;")
-    p("for(; runs <= (1 << 20); runs *= 2){")
-    p("measurement_start();")
-    p("for(int i = 0; i <= runs; i++)")
-    p(kernel)
-    p("measurement_stop(runs);")
-    p(printsomething) //this is just to avoid deadcode eliminiation
-    p("if(measurement_testDerivative(runs, " + Config.testDerivate_Threshold + "))")
-    p("break;")
-    p("measurement_emptyLists(true);} //don't clear the vector of runs")
-    p("measurement_emptyLists();") //duplicated cause of the break
-  }
+    val daxpy = new CodeGeneration
+    daxpy.id = "daxpy_MKL_" + size
+    daxpy.size = size.toInt
+    daxpy.total_size = (2 * size).toInt
+    daxpy.includes = "#include <mkl.h>\n#include <iostream>\n#include <fstream>\n#include <cstdlib>\n#include <ctime>\n#include <cmath>\n"
+    daxpy.initcode = "double alpha = 1.1;"
 
+    if (double_precision)
+      daxpy.datatype = "double"
+    else
+      daxpy.datatype = "float"
 
-  def create_array_of_buffers (sourcefile: PrintStream, datatype: String = "double") =
-  {
-    def p(x: String) = sourcefile.println(x)
-    val prec = datatype
-    p("void * CreateBuffers(long size, long numberofshifts)")
-    p("{")
-    p( prec + " ** bench_buffer = (" + prec + "**) _mm_malloc(numberofshifts*sizeof(" + prec + "*),page);" )
-    p( "if (!bench_buffer) {\n      std::cout << \"malloc failed\";\n      measurement_end();\n      return ;} ")
-    p("for(int i = 0; i < numberofshifts; i++){")
-    p("bench_buffer[i] = (" + prec + "*) _mm_malloc(size,page);" )
-    p( "if (!bench_buffer[i]) {\n      std::cout << \"malloc failed\";\n      measurement_end();\n      return ;} ")
-    p("}")
-    p("return (void*)bench_buffer;")
-    p("}")
-  }
-
-
-
-
-  def destroy_array_of_buffers( sourcefile: PrintStream) =
-  {
-    def p(x: String) = sourcefile.println(x)
-    p("void DestroyBuffers(void ** bench_buffer, long numberofshifts) {")
-    p("for(int i = 0; i < numberofshifts; i++)")
-    p("_mm_free(bench_buffer[i]);")
-    p("_mm_free(bench_buffer);")
-    p("}")
-  }
-/*  def tripple_loop(sourcefile: PrintStream,sizes: List[Long], counters: Array[HWCounters.Counter], double_precision: Boolean = true, warmData: Boolean = false) =
-  {
-    def p(x: String) = sourcefile.println(x)
-    val prec = if (double_precision) "double" else "float"
-
-    p("#include <iostream>")
-    p("#include <iostream>\n#include <fstream>\n#include <cstdlib>\n#include <ctime>\n#include <cmath>\n")
-    p(Config.MeasuringCoreH)
-    p("#define page 4096")
-    p("#define THRESHOLD " + Config.testDerivate_Threshold)
-    p("using namespace std;")
-    val (counterstring, initstring ) = CodeGeneration.Counters2CCode(counters)
-    CodeGeneration.create_array_of_buffers(sourcefile)
-    CodeGeneration.destroy_array_of_buffers(sourcefile)
-    p("void _rands(double * m, size_t row, size_t col)\n{\n  for (size_t i = 0; i < row*col; ++i)  m[i] = (double)(rand())/RAND_MAX;;\n}")
-    p("void _ini1(double * m, size_t row, size_t col)\n{\n  for (size_t i = 0; i < row*col; ++i)  m[i] = (double)1.1;\n}")
-
-
-
-    p("void dgemm(double *A, double * B, double * C, unsigned long size) {")
-
-    p("for (int i = 0; i < size; i++)")
-    p("for (int j = 0; j < size; j++)")
-    //p("for (int k = 0; k < size; k++)")
-    //p("C[i][j] += A[i][k]*B[k][j];")
-    //p("C[i*size+j] += A[i*size+k]*B[k*size+j];")
-    p("C[i*size+j] = A[i*size+j]+B[i*size+j];")
-    p("}")
-
-    p("int main () { ")
-    p("srand(1984);")
-
-    p(counterstring)
-    p(initstring)
-    for (size <- sizes)
+    daxpy.create_buffer_call = if (warm)
     {
-      p("{")
-      p("double alpha = 1.1;")
-      p("unsigned long size = " +size + ";")
-      //allocate
-    //  p("double * A = (double *) _mm_malloc("+size*size+"*sizeof(double),page);")
-    //  p("double * B = (double *) _mm_malloc("+size*size+"*sizeof(double),page);")
-    //  p("double * C = (double *) _mm_malloc("+size*size+"*sizeof(double),page);")
-
-   p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
-   p("	double * A = tmp;")
-	 p("double * B=tmp+("+size*size+");")
-	 p("double * C=B+("+size*size+");")
-
-      p("_ini1(A,"+size+" ,"+size+");")
-      p("_ini1(B,"+size+" ,"+size+");")
-      p("_ini1(C,"+size+" ,"+size+");")
-
-      p("int n = " +size + ";")
-      //Tune the number of runs
-      p("std::cout << \"tuning\";")
-      //tuneNrRuns(sourcefile,"cblas_dgemv(CblasRowMajor, CblasNoTrans,"+size+" ,"+size+", alpha, A, "+size+", x, 1, 0., y, 1);","" )
-      CodeGeneration.tuneNrRunsbyRunTime(sourcefile, "dgemm(A,B,C,size);" ,"" )
- p("_mm_free(tmp);")
- 
-     //find out the number of shifts required
-      //p("std::cout << runs << \"allocate\";")
-      //allocate the buffers
-      //p("std::cout << \"run\";")
-      if (!warmData)
-      {
-      //  p("_mm_free(A);")
-       // p("_mm_free(B);")
-       // p("_mm_free(C);")
-        //allocate
-  //      p("long numberofshifts =  measurement_getNumberOfShifts(" + (size*size*3)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
-   //     p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
-
-  //      p("double ** A_array = (double **) CreateBuffers("+size*size+"* sizeof(" + prec + "),numberofshifts);")
-   //     p("double ** B_array = (double **) CreateBuffers("+size*size+"* sizeof(" + prec + "),numberofshifts);")
-    //    p("double ** C_array = (double **) CreateBuffers("+size*size+"* sizeof(" + prec + "),numberofshifts);")
-
-        p("double buffSize = 20*1024*1024*16;")
-
-        p("double * buff = (double *) _mm_malloc(buffSize,page);")
-
-        p("int nWorkingSets =buffSize/(3*"+size*size+"*sizeof(double)) ;")
-p("int workingSetsSize =(3*"+size*size+") ;")
-        p("for(int i = 0; i < nWorkingSets; i++){")
-  p("_ini1(buff+i*workingSetsSize,"+size+" ,"+size+");")
-        p("_ini1(buff+i*workingSetsSize+"+size*size+","+size+" ,"+size+");")
-         p("_ini1(buff+i*workingSetsSize+2*"+size*size+","+size+" ,"+size+");")
-        p("}")
-
-
-
-p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
-   p("  double * A = tmp;")
-         p("double * B=tmp+("+size*size+");")
-         p("double * C=B+("+size*size+");")
- p("_ini1(A,"+size+" ,"+size+");")
-      p("_ini1(B,"+size+" ,"+size+");")
-      p("_ini1(C,"+size+" ,"+size+");")
-// p("flushDCache();")
-        p("for(int r = 0; r < " + Config.repeats + "; r++){")
-	 p("flushDCache();")
-      // p("_mm_free(buff);")
-//	 p("flushDCache();")
-	p("measurement_start();")
-      //  p("for(int i = 0; i < 1; i++){")
-      //  p("dgemm(buff+(r%nWorkingSets)*workingSetsSize, buff+(r%nWorkingSets)*workingSetsSize+"+size*size+",buff+(r%nWorkingSets)*workingSetsSize+2*"+size*size+", "+size+");")
-	        p("dgemm(A, B,C, "+size+");")
-      
- // p("}")
-        p( "measurement_stop(1);")
-	  p( " }")
- p("_mm_free(tmp);")
-     
-      //  p("DestroyBuffers( (void **) A_array, numberofshifts);")
-      //  p("DestroyBuffers( (void **) B_array, numberofshifts);")
-      //  p("DestroyBuffers( (void **) C_array, numberofshifts);")
-      }
-      else
-      {
-        //run it
-        p("for(int r = 0; r < " + Config.repeats + "; r++){")
-        p("measurement_start();")
-        p("for(int i = 0; i < runs; i++){")
-        p("dgemm(A,B,C, size);")
-        //p("cblas_dgemm(CblasRowMajor, CblasNoTrans,"+size+" ,"+size+", alpha, A, "+size+", B, 1, 0., C, 1);")
-        p("}")
-        p( "measurement_stop(runs);")
-        p( " }")
-        p("std::cout << \"deallocate\";")
-        //deallocate the buffers
-        p("_mm_free(A);")
-        p("_mm_free(B);")
-        p("_mm_free(C);")
-      }
-      p("}")
+        daxpy.datatype +" * x = (" + daxpy.datatype + " *) _mm_malloc("+size+"*sizeof(" + daxpy.datatype + "),ALIGNMENT);" +
+        daxpy.datatype +" * y = (" + daxpy.datatype + " *) _mm_malloc("+size+"*sizeof(" + daxpy.datatype + "),ALIGNMENT);"
     }
-    p("measurement_end();")
-    p("}")
- 
- }
-*/
+    else
+    {
+      daxpy.datatype + " ** x_array = (" + daxpy.datatype + " **) CreateBuffers("+size+"* sizeof(" + daxpy.datatype + "),numberofshifts);" +
+      daxpy.datatype + " ** y_array = (" + daxpy.datatype + " **) CreateBuffers("+size+"* sizeof(" + daxpy.datatype + "),numberofshifts);"
+    }
+
+    daxpy.create_buffer_function = daxpy.create_array_of_buffers()
+    daxpy.destroy_buffer_function = daxpy.destroy_array_of_buffers()
+    daxpy.init_function = daxpy.ini11()
+
+    daxpy.init_call = if (warm)
+    {
+      "_ini1(x,"+size+" ,1);_ini1(y,"+size+" ,1);"
+    }
+    else
+    {
+      "for(int i = 0; i < numberofshifts; i++){" +
+      "_ini1(x_array[i],"+size+" ,1);" +
+      "_ini1(y_array[i],"+size+" ,1);" +
+      "}"
+    }
+
+    daxpy.kernel_call = if (warm)
+    {
+      if (double_precision)
+        "cblas_daxpy("+size+", alpha, x, 1, y, 1);"
+      else
+        "cblas_caxpy("+size+", alpha, x, 1, y, 1);"
+    }
+    else
+    {
+      if (double_precision)
+        "cblas_daxpy("+size+", alpha, x_array[i%numberofshifts], 1, y_array[i%numberofshifts], 1);"
+      else
+        "cblas_saxpy("+size+", alpha, x_array[i%numberofshifts], 1, y_array[i%numberofshifts], 1);"
+    }
+
+    daxpy.destroy_buffer_call = if (warm)
+    {
+      "_mm_free(x);_mm_free(y);"
+    }
+    else
+      "DestroyBuffers( (void **) x_array, numberofshifts);DestroyBuffers( (void **) y_array, numberofshifts);"
+
+    daxpy.determineSize_call = daxpy.tuneNrRunsbySize()
+    daxpy.nrRuns = daxpy.tuneNrRunsbyRunTime()
+
+
+    daxpy
+  }
+  /*
+
+
+
+
 
   def ninefold_loop(sourcefile: PrintStream,sizes: List[Long], counters: Array[HWCounters.Counter], double_precision: Boolean = true, warmData: Boolean = false) =
   {
@@ -2847,7 +2771,7 @@ p("double * tmp = (double *)_mm_malloc("+3*size*size+"*sizeof(double),page);")
 
 
 
-
+*/
 
 
 
