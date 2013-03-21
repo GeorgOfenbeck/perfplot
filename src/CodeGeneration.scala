@@ -501,6 +501,48 @@ object CodeGeneration {
 
     fft
   }
+
+
+  def blas_copy_MKL(size: Long ): CodeGeneration =
+  {
+    val blas_copy = new CodeGeneration
+    blas_copy.id =  "blas_copy_MKL_" + size
+
+    blas_copy.size = size.toInt
+    blas_copy.total_size = (2 * size).toInt
+    blas_copy.includes = "#include <mkl.h>\n#include <iostream>\n#include <fstream>\n#include <cstdlib>\n#include <ctime>\n#include <cmath>\n"
+    blas_copy.initcode = "double alpha = 1.1;"
+
+
+    blas_copy.datatype = "double"
+
+
+    blas_copy.create_buffer_call =
+    {
+      blas_copy.datatype +" * x = (" + blas_copy.datatype + " *) _mm_malloc("+size+"*sizeof(" + blas_copy.datatype + "),ALIGNMENT);" +
+      blas_copy.datatype +" * y = (" + blas_copy.datatype + " *) _mm_malloc("+size+"*sizeof(" + blas_copy.datatype + "),ALIGNMENT);"
+    }
+
+    blas_copy.create_buffer_function = blas_copy.create_array_of_buffers()
+    blas_copy.destroy_buffer_function = blas_copy.destroy_array_of_buffers()
+    blas_copy.init_function = blas_copy.ini11()
+
+    blas_copy.init_call =
+    {
+      "_ini1(x,"+size+" ,1);_ini1(y,"+size+" ,1);"
+    }
+
+
+    blas_copy.kernel_call =  "cblas_dcopy("+size+", x, 1, y, 1);"
+
+    blas_copy.destroy_buffer_call =  "_mm_free(x);_mm_free(y);"
+
+
+    blas_copy.determineSize_call = blas_copy.tuneNrRunsbySize()
+    blas_copy.nrRuns = blas_copy.tuneNrRunsbyRunTime()
+    blas_copy
+
+  }
   
   
   /*
