@@ -28,10 +28,7 @@ void flushDTLB();
 void flushICache();
 void flushDCache();
 
-
-unsigned long returnLLCSize() {
-	return getLLCSize();}
-
+unsigned long getLLCSize();
 
 
 #ifdef __cplusplus

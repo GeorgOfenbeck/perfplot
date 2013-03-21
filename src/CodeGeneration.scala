@@ -12,7 +12,7 @@ import HWCounters.Counter
  * Time: 11:15 
  */
 
-class CodeGeneration{
+case class CodeGeneration{
 
   var id: String = ""//used for cache lookup
   var includes : String = ""//any additional includes needed
@@ -44,7 +44,9 @@ class CodeGeneration{
 
   var repeats : Int = Config.repeats
   var threshold : Long = Config.measurement_Threshold
-  var counters: Array[HWCounters.Counter] = SandyCounters
+
+  var (counters,mask) = HWCounters.JakeTown.flops_double
+
 
   var determineSize_call: String = ""
   var nrRuns: String = ""//should include warm up in case of warm measurement
@@ -57,8 +59,8 @@ class CodeGeneration{
     val (counterstring, initstring ) = Counters2CCode()
 
     //the code printing
-    p(Config.MeasuringCoreH)
-    p(includes)
+    p(Config.MeasuringCoreH) //Header required for pcm
+    p(includes)// headers required for kernel
 
     p("#define ALIGNMENT " + alignment)
 
@@ -181,13 +183,13 @@ class CodeGeneration{
     (counter_string,"measurement_init(counters,"+offcore_0+","+offcore_1+");")
   }
 
+  def setFlopCounter( tu: (Array[HWCounters.Counter],List[Int]) )  =
+  {
+   counters = tu._1
+   mask = tu._2
 
-  def SandyCounters = Array(
-    Counter("10H","80H","FP_COMP_OPS_EXE.SSE_SCALAR_DOUBLE","Counts number of SSE* double precision FP scalar uops executed.",""),
-    Counter("10H","10H","FP_COMP_OPS_EXE.SSE_FP_PACKED_DOUBLE","Counts number of SSE* double precision FP packed uops executed.",""),
-    Counter("11H","02H","SIMD_FP_256.PACKED_DOUBLE","Counts 256-bit packed double-precision floating- point instructions.",""),
-    Counter("11H","01H","SIMD_FP_256.PACKED_SINGLE","Counts 256-bit packed single-precision floating- point instructions.","")
-  )
+   this
+  }
 
 }
 
@@ -200,7 +202,10 @@ object CodeGeneration {
   def daxpy_MKL(double_precision: Boolean,warm: Boolean, size: Long ): CodeGeneration =
   {
     val daxpy = new CodeGeneration
-    daxpy.id = "daxpy_MKL_" + size
+    daxpy.id = if (double_precision)
+       "daxpy_MKL_" + size
+    else
+      "saxpy_MKL_" + size
     daxpy.size = size.toInt
     daxpy.total_size = (2 * size).toInt
     daxpy.includes = "#include <mkl.h>\n#include <iostream>\n#include <fstream>\n#include <cstdlib>\n#include <ctime>\n#include <cmath>\n"
@@ -243,7 +248,7 @@ object CodeGeneration {
       if (double_precision)
         "cblas_daxpy("+size+", alpha, x, 1, y, 1);"
       else
-        "cblas_caxpy("+size+", alpha, x, 1, y, 1);"
+        "cblas_saxpy("+size+", alpha, x, 1, y, 1);"
     }
     else
     {
@@ -262,10 +267,242 @@ object CodeGeneration {
 
     daxpy.determineSize_call = daxpy.tuneNrRunsbySize()
     daxpy.nrRuns = daxpy.tuneNrRunsbyRunTime()
-
-
     daxpy
+
   }
+
+
+  def dgemv_MKL(double_precision: Boolean,warm: Boolean, size: Long ): CodeGeneration =
+  {
+    val dgemv = new CodeGeneration
+    dgemv.id = if(double_precision) "dgemv_MKL_" + size else "sgemv_MKL_" + size
+    dgemv.size = size.toInt
+    dgemv.total_size = (2 * size + size*size).toInt
+    dgemv.includes = "#include <mkl.h>\n#include <iostream>\n#include <fstream>\n#include <cstdlib>\n#include <ctime>\n#include <cmath>\n"
+
+
+    if (double_precision)
+      dgemv.datatype = "double"
+    else
+      dgemv.datatype = "float"
+
+    dgemv.initcode = dgemv.datatype + " alpha = 1.1;" + dgemv.datatype + " beta = 1.1;"
+
+    dgemv.create_buffer_call = if (warm)
+    {
+      dgemv.datatype +" * x = (" + dgemv.datatype + " *) _mm_malloc("+size+"*sizeof(" + dgemv.datatype + "),ALIGNMENT);" +
+      dgemv.datatype +" * y = (" + dgemv.datatype + " *) _mm_malloc("+size+"*sizeof(" + dgemv.datatype + "),ALIGNMENT);" +
+      dgemv.datatype +" * A = (" + dgemv.datatype + " *) _mm_malloc("+size*size+"*sizeof(" + dgemv.datatype + "),ALIGNMENT);"
+    }
+    else
+    {
+      dgemv.datatype + " ** x_array = (" + dgemv.datatype + " **) CreateBuffers("+size+"* sizeof(" + dgemv.datatype + "),numberofshifts);" +
+      dgemv.datatype + " ** y_array = (" + dgemv.datatype + " **) CreateBuffers("+size+"* sizeof(" + dgemv.datatype + "),numberofshifts);" +
+      dgemv.datatype + " ** A_array = (" + dgemv.datatype + " **) CreateBuffers("+size*size+"* sizeof(" + dgemv.datatype + "),numberofshifts);"
+    }
+
+    dgemv.create_buffer_function = dgemv.create_array_of_buffers()
+    dgemv.destroy_buffer_function = dgemv.destroy_array_of_buffers()
+    dgemv.init_function = dgemv.ini11()
+
+    dgemv.init_call = if (warm)
+    {
+      "_ini1(x,"+size+" ,1);_ini1(y,"+size+" ,1);_ini1(A,"+size*size+" ,1);"
+    }
+    else
+    {
+      "for(int i = 0; i < numberofshifts; i++){" +
+        "_ini1(x_array[i],"+size+" ,1);" +
+        "_ini1(y_array[i],"+size+" ,1);" +
+        "_ini1(A_array[i],"+size*size+" ,1);" +
+        "}"
+    }
+
+    dgemv.kernel_call = if (warm)
+    {
+      if (double_precision)
+        "cblas_dgemv(CblasRowMajor, CblasNoTrans,"+size+" ,"+size+", alpha, A, "+size+", x, 1, beta, y, 1);"
+      else
+        "cblas_sgemv(CblasRowMajor, CblasNoTrans,"+size+" ,"+size+", alpha, A, "+size+", x, 1, beta, y, 1);"
+    }
+    else
+    {
+      if (double_precision)
+        "cblas_dgemv(CblasRowMajor, CblasNoTrans,"+size+" ,"+size+", alpha, A_array[i%numberofshifts], "+size+", x_array[i%numberofshifts], 1, beta, y_array[i%numberofshifts], 1);"
+      else
+        "cblas_sgemv(CblasRowMajor, CblasNoTrans,"+size+" ,"+size+", alpha, A_array[i%numberofshifts], "+size+", x_array[i%numberofshifts], 1, beta, y_array[i%numberofshifts], 1);"
+    }
+
+    dgemv.destroy_buffer_call = if (warm)
+    {
+      "_mm_free(x);_mm_free(y);_mm_free(A);"
+    }
+    else
+      "DestroyBuffers( (void **) x_array, numberofshifts);DestroyBuffers( (void **) y_array, numberofshifts);DestroyBuffers( (void **) A_array, numberofshifts);"
+
+    dgemv.determineSize_call = dgemv.tuneNrRunsbySize()
+    dgemv.nrRuns = dgemv.tuneNrRunsbyRunTime()
+
+    dgemv
+  }
+
+
+  def dgemm_MKL(double_precision: Boolean,warm: Boolean, size: Long ): CodeGeneration =
+  {
+    val dgemm = new CodeGeneration
+    dgemm.id = if(double_precision) "dgemm_MKL_" + size else "sgemm_MKL_" + size
+    dgemm.size = size.toInt
+    dgemm.total_size = (3* size*size).toInt
+    dgemm.includes = "#include <mkl.h>\n#include <iostream>\n#include <fstream>\n#include <cstdlib>\n#include <ctime>\n#include <cmath>\n"
+
+
+    if (double_precision)
+      dgemm.datatype = "double"
+    else
+      dgemm.datatype = "float"
+
+    dgemm.initcode = dgemm.datatype + " alpha = 1.1;" + dgemm.datatype + " beta = 1.1; int size="+size+";"
+
+    dgemm.create_buffer_call = if (warm)
+    {
+      dgemm.datatype +" * A = (" + dgemm.datatype + " *) _mm_malloc("+size*size+"*sizeof(" + dgemm.datatype + "),ALIGNMENT);" +
+      dgemm.datatype +" * B = (" + dgemm.datatype + " *) _mm_malloc("+size*size+"*sizeof(" + dgemm.datatype + "),ALIGNMENT);" +
+      dgemm.datatype +" * C = (" + dgemm.datatype + " *) _mm_malloc("+size*size+"*sizeof(" + dgemm.datatype + "),ALIGNMENT);"
+    }
+    else
+    {
+      dgemm.datatype + " ** A_array = (" + dgemm.datatype + " **) CreateBuffers("+size*size+"* sizeof(" + dgemm.datatype + "),numberofshifts);" +
+      dgemm.datatype + " ** B_array = (" + dgemm.datatype + " **) CreateBuffers("+size*size+"* sizeof(" + dgemm.datatype + "),numberofshifts);" +
+      dgemm.datatype + " ** C_array = (" + dgemm.datatype + " **) CreateBuffers("+size*size+"* sizeof(" + dgemm.datatype + "),numberofshifts);"
+    }
+
+    dgemm.create_buffer_function = dgemm.create_array_of_buffers()
+    dgemm.destroy_buffer_function = dgemm.destroy_array_of_buffers()
+    dgemm.init_function = dgemm.ini11()
+
+    dgemm.init_call = if (warm)
+    {
+      "_ini1(A,"+size*size+" ,1);_ini1(B,"+size*size+" ,1);_ini1(C,"+size*size+" ,1);"
+    }
+    else
+    {
+      "for(int i = 0; i < numberofshifts; i++){" +
+        "_ini1(A_array[i],"+size*size+" ,1);" +
+        "_ini1(B_array[i],"+size*size+" ,1);" +
+        "_ini1(C_array[i],"+size*size+" ,1);" +
+        "}"
+    }
+
+    dgemm.kernel_call = if (warm)
+    {
+      if (double_precision)
+        "cblas_dgemm(CblasRowMajor,CblasNoTrans, CblasNoTrans, size, size , size, alpha, A, size, B, size, beta, C, size);"
+      else
+        "cblas_sgemm(CblasRowMajor,CblasNoTrans, CblasNoTrans, size, size , size, alpha, A, size, B, size, beta, C, size);"
+    }
+    else
+    {
+      if (double_precision)
+        "cblas_dgemm(CblasRowMajor,CblasNoTrans, CblasNoTrans, size, size , size,alpha,A_array[i%numberofshifts], size,B_array[i%numberofshifts], size,beta,C_array[i%numberofshifts], size);"
+      else
+        "cblas_sgemm(CblasRowMajor,CblasNoTrans, CblasNoTrans, size, size , size,alpha,A_array[i%numberofshifts], size,B_array[i%numberofshifts], size,beta,C_array[i%numberofshifts], size);"
+    }
+
+    dgemm.destroy_buffer_call = if (warm)
+    {
+      "_mm_free(A);_mm_free(B);_mm_free(C);"
+    }
+    else
+      "DestroyBuffers( (void **) A_array, numberofshifts);DestroyBuffers( (void **) B_array, numberofshifts);DestroyBuffers( (void **) C_array, numberofshifts);"
+
+    dgemm.determineSize_call = dgemm.tuneNrRunsbySize()
+    dgemm.nrRuns = dgemm.tuneNrRunsbyRunTime()
+
+    dgemm
+  }
+
+
+  def fft_MKL(double_precision: Boolean,warm: Boolean, size: Long, inplace: Boolean ): CodeGeneration =
+  {
+    val fft = new CodeGeneration
+    fft.id = if (double_precision)
+      "fft_MKL_double_" + size
+    else
+      "fft_MKL_single_" + size
+    fft.size = size.toInt
+    fft.total_size = if (inplace)  (2 * size).toInt else  (4 * size).toInt
+
+    fft.includes = "#include <mkl.h>\n#include <iostream>\n#include <fstream>\n#include <cstdlib>\n#include <ctime>\n#include <cmath>\n"
+
+    val dfti_prec = if (double_precision) "DFTI_DOUBLE" else "DFTI_SINGLE"
+    fft.initcode = "DFTI_DESCRIPTOR_HANDLE mklDescriptor;"+
+      "MKL_LONG status;" +
+      "status = DftiCreateDescriptor( &mklDescriptor, " + dfti_prec+ ",DFTI_COMPLEX, 1,"+ size + ");" +
+      "if (status != 0) {\n    return -1;\n\t}\n\n\tstatus = DftiCommitDescriptor(mklDescriptor);\n\tif (status != 0) {\n\t\tstd::cout << \"status -1\";\nreturn -1;\n\t}"
+
+    if (double_precision)
+      fft.datatype = "double"
+    else
+      fft.datatype = "float"
+
+    fft.create_buffer_call = if (warm)
+    {
+      fft.datatype +" * x = (" + fft.datatype + " *) _mm_malloc("+2*size+"*sizeof(" + fft.datatype + "),ALIGNMENT);" +
+      (if (!inplace) fft.datatype +" * y = (" + fft.datatype + " *) _mm_malloc("+2*size+"*sizeof(" + fft.datatype + "),ALIGNMENT);" else "")
+    }
+    else
+    {
+      fft.datatype + " ** x_array = (" + fft.datatype + " **) CreateBuffers("+2*size+"* sizeof(" + fft.datatype + "),numberofshifts);" +
+      (if (!inplace) fft.datatype + " ** y_array = (" + fft.datatype + " **) CreateBuffers("+2*size+"* sizeof(" + fft.datatype + "),numberofshifts);" else "")
+    }
+
+    fft.create_buffer_function = fft.create_array_of_buffers()
+    fft.destroy_buffer_function = fft.destroy_array_of_buffers()
+    fft.init_function = fft.ini11()
+
+    fft.init_call = if (warm)
+    {
+      "_ini1(x,"+size+" ,1);" +
+      (if (!inplace) "_ini1(y,"+size+" ,1);" else "")
+    }
+    else
+    {
+      "for(int i = 0; i < numberofshifts; i++){" +
+        "_ini1(x_array[i],"+size+" ,1);" +
+        (if (!inplace) "_ini1(y_array[i],"+size+" ,1);" else "") +
+        "}"
+    }
+
+    fft.kernel_call = if (warm){
+      if (inplace)
+        "status = DftiComputeForward(mklDescriptor, x);\n\tif (status != 0) {\n\t\tstd::cout << \"status -1\";\nreturn -1;\n\t}"
+      else
+        "status = DftiComputeForward(mklDescriptor, x,y);\n\tif (status != 0) {\n\t\tstd::cout << \"status -1\";\nreturn -1;\n\t}"
+    }
+    else
+    {
+      if (inplace)
+        "status = DftiComputeForward(mklDescriptor, x_array[i%numberofshifts]);\n\tif (status != 0) {\n\t\t std::cout << \"status -1\";\nreturn -1;\n\t}"
+      else
+        "status = DftiComputeForward(mklDescriptor, x_array[i%numberofshifts], y_array[i%numberofshifts]);\n\tif (status != 0) {\n\t\t std::cout << \"status -1\";\nreturn -1;\n\t}"
+    }
+
+    fft.destroy_buffer_call = if (warm)
+    {
+      "_mm_free(x);"+
+      (if (!inplace) "_mm_free(y);" else "")
+    }
+    else
+      "DestroyBuffers( (void **) x_array, numberofshifts);" +
+      (if (!inplace) "DestroyBuffers( (void **) y_array, numberofshifts);" else "")
+
+    fft.determineSize_call = fft.tuneNrRunsbySize()
+    fft.nrRuns = fft.tuneNrRunsbyRunTime()
+
+    fft
+  }
+  
+  
   /*
 
 

@@ -33,7 +33,7 @@
 // Vicky --- Functions for getting cache parameters with CPUID
 
 cpuid_cache_descriptor_t getTLBinfo(cpuid_leaf2_qualifier_t cacheType);
-unsigned long getLLCSize();
+
 
 
 //Vicky - Auxiliary functions for execuitng CPUID

@@ -279,6 +279,25 @@ object JakeTown {
    Counter("B7H","01H","STRM_ST","",        "0x3F80400800"),
    Counter("B7H","01H","OTHER","",          "0x3F80408000")
    )
+
+
+  val flops_single = (Array(
+    Counter("10H","01H","FP_COMP_OPS_EXE.X87","Counts number of X87 uops executed.",""),
+    Counter("10H","20H","FP_COMP_OPS_EXE.SSE_FP_SCALAR_SINGLE","Counts number of SSE* single precision FP scalar uops executed.",""),
+    Counter("10H","40H","FP_COMP_OPS_EXE.SSE_PACKED_SINGLE","Counts number of SSE* single precision FP packed uops executed.",""),
+    Counter("11H","01H","SIMD_FP_256.PACKED_SINGLE","Counts 256-bit packed single-precision floating- point instructions.","")
+  ),
+    List(0,1,4,8)) //this is the multiplication mask for calculating flops
+
+
+  val flops_double = (Array(
+    Counter("10H","01H","FP_COMP_OPS_EXE.X87","Counts number of X87 uops executed.",""),
+    Counter("10H","80H","FP_COMP_OPS_EXE.SSE_SCALAR_DOUBLE","Counts number of SSE* double precision FP scalar uops executed.",""),
+    Counter("10H","10H","FP_COMP_OPS_EXE.SSE_FP_PACKED_DOUBLE","Counts number of SSE* double precision FP packed uops executed.",""),
+    Counter("11H","02H","SIMD_FP_256.PACKED_DOUBLE","Counts 256-bit packed double-precision floating- point instructions.","")
+  ),
+    List(0,1,2,4)) //this is the multiplication mask for calculating flops
+
 }
 
 

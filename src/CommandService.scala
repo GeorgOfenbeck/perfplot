@@ -70,6 +70,11 @@ object CommandService {
     def get_sse_single_flops = SCounter4.map(x => x*4)
     def get_avx_single_flops = SCounter5.map(x => x*8)
 
+
+
+
+    def getCounters(i : Int) = List(SCounter0(i),SCounter1(i),SCounter2(i),SCounter3(i))
+
     def getFlops(r : Range): List[Long] = (for (i <- r) yield getFlops(i)).toList
 
 
@@ -383,7 +388,11 @@ object CommandService {
             outputFile7.print(" ")
           }
           first = false
-          outputFile1.print(kernel_res.getFlops(i))
+          val counters = kernel_res.getCounters(i)
+          val appliedmask = (counters,kernel.mask).zipped.map(_*_)
+          //val flops = appliedmask.foldLeft(0)(_ + _)
+          val flops = appliedmask(0) + appliedmask(1) + appliedmask(2) + appliedmask(3)
+          outputFile1.print(flops)
           outputFile2.print(kernel_res.getTSC(i))
           outputFile4.print(kernel_res.getbytes_transferred(i))
           outputFile5.print(kernel_res.getSCounter3.apply(i))
