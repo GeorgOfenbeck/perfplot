@@ -52,6 +52,8 @@ case class CodeGeneration{
   var nrRuns: String = ""//should include warm up in case of warm measurement
 
 
+  //in case we dont inline and dont have a library call
+  def printcode(sourcefile: PrintStream) = sourcefile.println(kernel_code)
 
   def print(sourcefile: PrintStream) =
   {

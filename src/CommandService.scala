@@ -373,7 +373,7 @@ object CommandService {
       var first1 = true
       for (kernel <- kernels)
       {
-        val kernel_res = CommandService.fromScratch(name, kernel.print, flags)
+        val kernel_res = CommandService.fromScratch(name, kernel, flags)
         kernel_res.prettyprint()
         var first = true
         for (i <- 0 until Config.repeats)
@@ -427,12 +427,18 @@ object CommandService {
   }
 
 
-  def fromScratch (filename: String, codegenfunction: (PrintStream => Unit), flags: String = "") : Counters =
+  def fromScratch (filename: String, kernel: CodeGeneration, flags: String = "") : Counters =
   {
     val tempdir = CommandService.getTempDir(filename)
     val sourcefile = new PrintStream(tempdir.getPath + File.separator +  filename + ".cpp")
-    codegenfunction(sourcefile)
+    kernel.print(sourcefile)
     sourcefile.close()
+    if (kernel.inline == false && kernel.kernel_code != "") //we need to compile the kernel code in a seperate file
+    {
+      val sourcefile = new PrintStream(tempdir.getPath + File.separator +  filename + "_kernel.cpp")
+      kernel.printcode(sourcefile)
+      sourcefile.close()
+    }
     CommandService.compile(tempdir.getPath + File.separator +  filename, flags)
     System.out.println("executing ...")
     val file = CommandService.measureCode(tempdir, filename)
@@ -563,7 +569,7 @@ object CommandService {
   }
 
   def compile(codeFile: String, flags: String) = {
-    //
+
     val compiler: File = if ( Config.isWin) {
       if (Config.use_gcc)
         Config.win_gcc
@@ -598,13 +604,14 @@ object CommandService {
       val cmdbat = new PrintStream("C:\\Users\\ofgeorg\\command.bat")
       cmdbat.println("echo \"compiling !\"")
 
-      cmdbat.println("\"" + compiler.getAbsolutePath +"\" " + codeFile +".cpp -o "  + codeFile +".exe " + flags + " /link " + Config.MeasuringCore.getAbsolutePath +  " /DYNAMICBASE \"kernel32.lib\" \"user32.lib\" \"gdi32.lib\" \"winspool.lib\" \"comdlg32.lib\" \"advapi32.lib\" \"shell32.lib\" \"ole32.lib\" \"oleaut32.lib\" \"uuid.lib\" \"odbc32.lib\" \"odbccp32.lib\" ")
+      //cmdbat.println("\"" + compiler.getAbsolutePath +"\" " + codeFile +".cpp -o "  + codeFile +".exe " + flags + " /link " + Config.MeasuringCore.getAbsolutePath +  " /DYNAMICBASE \"kernel32.lib\" \"user32.lib\" \"gdi32.lib\" \"winspool.lib\" \"comdlg32.lib\" \"advapi32.lib\" \"shell32.lib\" \"ole32.lib\" \"oleaut32.lib\" \"uuid.lib\" \"odbc32.lib\" \"odbccp32.lib\" ")
+      cmdbat.println("\"" + compiler.getAbsolutePath +"\" " + codeFile + "*.cpp -o "  + codeFile +".exe " + flags + " /link " + Config.MeasuringCore.getAbsolutePath +  " /DYNAMICBASE \"kernel32.lib\" \"user32.lib\" \"gdi32.lib\" \"winspool.lib\" \"comdlg32.lib\" \"advapi32.lib\" \"shell32.lib\" \"ole32.lib\" \"oleaut32.lib\" \"uuid.lib\" \"odbc32.lib\" \"odbccp32.lib\" ")
       cmdbat.println("echo \"finished1\"")
       cmdbat.close()
       execute(" \"C:\\Program Files (x86)\\Intel\\Composer XE 2013\\bin\\compilervars.bat\" intel64 vs2012shell")
     }
     else
-      execute("icc " + codeFile +".cpp " + Config.MeasuringCore.getAbsolutePath + flags + "  -lpthread -lrt -o "+ codeFile + ".x -Fa"+ codeFile + ".asm")
+      execute("icc " + codeFile +"*.cpp " + Config.MeasuringCore.getAbsolutePath + flags + "  -lpthread -lrt -o "+ codeFile + ".x -Fa"+ codeFile + ".asm")
     //execute(compiler.getAbsolutePath + " -std=c99 -mkl -fasm-blocks " + codeFile +".cpp " + " pcm/MeasuringCore.lib -lpthread -lrt -o "+ codeFile + ".x")
   }
 
