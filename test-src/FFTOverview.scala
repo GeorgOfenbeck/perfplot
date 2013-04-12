@@ -31,8 +31,8 @@ class FFTOverview extends Suite{
     val sizes =  (for (i<-2 until 14) yield (Math.pow(2,i).toLong)).toList
     val fftw_flags = " -lfftw3 -lm "
 
-    CommandService.run_kernel(folder,for (s <- sizes) yield CodeGeneration.fft_FFTW(true,true,s,false).setFlopCounter(counters.flops_double), "fft-warm", seq + fftw_flags)
-    CommandService.run_kernel(folder,for (s <- sizes) yield CodeGeneration.fft_FFTW(true,false,s,false).setFlopCounter(counters.flops_double), "fft-cold", seq + fftw_flags)
+    CommandService.run_kernel(folder,for (s <- sizes) yield CodeGeneration.fft_FFTW(true,true,s,false).setFlopCounter(counters.flops_double), "fftw-warm", seq + fftw_flags)
+    CommandService.run_kernel(folder,for (s <- sizes) yield CodeGeneration.fft_FFTW(true,false,s,false).setFlopCounter(counters.flops_double), "fftw-cold", seq + fftw_flags)
 
   }
 

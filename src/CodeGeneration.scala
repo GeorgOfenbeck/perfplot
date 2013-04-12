@@ -522,7 +522,7 @@ object CodeGeneration {
     fft.size = size.toInt
     fft.total_size = if (inplace)  (2 * size).toInt else  (4 * size).toInt
 
-    fft.includes = "#include <fftw.h>\n#include <iostream>\n#include <fstream>\n#include <cstdlib>\n#include <ctime>\n#include <cmath>\n"
+    fft.includes = "#include <fftw3.h>\n#include <iostream>\n#include <fstream>\n#include <cstdlib>\n#include <ctime>\n#include <cmath>\n"
 
     
     fft.initcode = "fftw_plan fftwPlan;"
@@ -562,7 +562,7 @@ object CodeGeneration {
       " fftw_free(bench_buffer[i]);" +
       "_mm_free(bench_buffer);" +
       "}"
-    fft.init_function = fft.ini11()
+    fft.init_function = "void _ini1("+ fft.datatype + " * mf, size_t row, size_t col)\n{double * m = (double *) mf;\n  for (size_t i = 0; i < row*col; ++i)  m[i] = (double)1.1;\n}"
 
     fft.init_call = if (warm)
     {
