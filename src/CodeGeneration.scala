@@ -245,6 +245,7 @@ object CodeGeneration {
       "}"
     }
 
+
     daxpy.kernel_call = if (warm)
     {
       if (double_precision)
@@ -497,6 +498,109 @@ object CodeGeneration {
     else
       "DestroyBuffers( (void **) x_array, numberofshifts);" +
       (if (!inplace) "DestroyBuffers( (void **) y_array, numberofshifts);" else "")
+
+    fft.determineSize_call = fft.tuneNrRunsbySize()
+    fft.nrRuns = fft.tuneNrRunsbyRunTime()
+
+    fft
+  }
+
+  def fft_FFTW(double_precision: Boolean,warm: Boolean, size: Long, inplace: Boolean ): CodeGeneration =
+  {
+    val fft = new CodeGeneration
+    fft.id = if (double_precision)
+      "fft_FFTW_double_" + size
+    else
+    {
+      assert(false,"not implemented yet")
+      "fft_FFTW_single_" + size
+    }
+
+    if (inplace)
+      assert(false, "not yet implemented!")
+
+    fft.size = size.toInt
+    fft.total_size = if (inplace)  (2 * size).toInt else  (4 * size).toInt
+
+    fft.includes = "#include <fftw.h>\n#include <iostream>\n#include <fstream>\n#include <cstdlib>\n#include <ctime>\n#include <cmath>\n"
+
+    
+    fft.initcode = "fftw_plan fftwPlan;"
+
+    if (double_precision)
+      fft.datatype = "fftw_complex"
+    else
+      fft.datatype = "float"
+
+    fft.create_buffer_call = if (warm)
+    {
+      fft.datatype +" * x = (" + fft.datatype + " *) fftw_malloc("+size+"*sizeof(" + fft.datatype + "));" +
+        (if (!inplace) fft.datatype +" * y = (" + fft.datatype + " *) fftw_malloc("+size+"*sizeof(" + fft.datatype + "));" else "")
+    }
+    else
+    {
+      fft.datatype + " ** x_array = (" + fft.datatype + " **) CreateBuffers("+size+"* sizeof(" + fft.datatype + "),numberofshifts);" +
+        (if (!inplace) fft.datatype + " ** y_array = (" + fft.datatype + " **) CreateBuffers("+size+"* sizeof(" + fft.datatype + "),numberofshifts);" else "")
+    }
+
+
+    //FFTW requires special memory allocation
+    fft.create_buffer_function = "void * CreateBuffers(long size, long numberofshifts)" +
+      "{" +
+      fft.datatype + " ** bench_buffer = (" + fft.datatype + "**) _mm_malloc(numberofshifts*sizeof(" + fft.datatype + "*),ALIGNMENT);" +
+      "if (!bench_buffer) {\n      std::cout << \"malloc failed\";\n      measurement_end();\n      return ;} " +
+      "for(int i = 0; i < numberofshifts; i++){" +
+      "bench_buffer[i] = (" + fft.datatype + "*) fftw_malloc(size * sizeof(fftw_complex));" +
+      "if (!bench_buffer[i]) {\n      std::cout << \"fftw_malloc failed\";\n      measurement_end();\n      return ;} " +
+      "}" +
+      "return (void*)bench_buffer;" +
+      "}"
+
+    //FFTW requires special memory deallocation
+    fft.destroy_buffer_function = "void DestroyBuffers(void ** bench_buffer, long numberofshifts) {" +
+      "for(int i = 0; i < numberofshifts; i++)" +
+      " fftw_free(bench_buffer[i]);" +
+      "_mm_free(bench_buffer);" +
+      "}"
+    fft.init_function = fft.ini11()
+
+    fft.init_call = if (warm)
+    {
+      "_ini1(x,"+2*size+" ,1);" +
+        (if (!inplace) "_ini1(y,"+2*size+" ,1);" else "") +
+      "fftwPlan = fftw_plan_dft_1d("+size+", x, y, FFTW_FORWARD, FFTW_MEASURE);"
+    }
+    else
+    {
+      "for(int i = 0; i < numberofshifts; i++){" +
+        "_ini1(x_array[i],"+2*size+" ,1);" +
+        (if (!inplace) "_ini1(y_array[i],"+2*size+" ,1);" else "") +
+        "}"+
+      "fftwPlan = fftw_plan_dft_1d("+size+", x_array[0], y_array[0], FFTW_FORWARD, FFTW_MEASURE);"
+    }
+
+    fft.kernel_call = if (warm){
+      if (inplace)
+        ""
+      else
+        "fftw_execute_dft(fftwPlan,x,y);"
+    }
+    else
+    {
+      if (inplace)
+        ""
+      else
+        "fftw_execute_dft(fftwPlan,x_array[i%numberofshifts],y_array[i%numberofshifts]);"
+    }
+
+    fft.destroy_buffer_call = if (warm)
+    {
+      "fftw_free(x);"+
+        (if (!inplace) "fftw_free(y);" else "")
+    }
+    else
+      "DestroyBuffers( (void **) x_array, numberofshifts);" +
+        (if (!inplace) "DestroyBuffers( (void **) y_array, numberofshifts);" else "")
 
     fft.determineSize_call = fft.tuneNrRunsbySize()
     fft.nrRuns = fft.tuneNrRunsbyRunTime()
@@ -1873,7 +1977,9 @@ object CodeGeneration {
     p("measurement_end();")
     p("}")
   }
+   */
 
+  /*
   def fft_FFTW(sourcefile: PrintStream,sizes: List[Long], counters: Array[HWCounters.Counter], double_precision: Boolean = true, warmData: Boolean = false) =
   {
     def p(x: String) = sourcefile.println(x)
@@ -1882,7 +1988,7 @@ object CodeGeneration {
 
     p("#include <iostream>")
     p(Config.MeasuringCoreH)
-    sourcefile.println("#include <fftw3.h>")
+    sourcefile.println("k")
     sourcefile.println("#include <cstdio>")
     sourcefile.println("#include <stdlib.h>")
 
@@ -1998,10 +2104,10 @@ object CodeGeneration {
     p("measurement_end();")
     p("}")
   }
+  */
 
 
-
-
+  /*
   def fft_NR(sourcefile: PrintStream,sizes: List[Long], counters: Array[HWCounters.Counter], double_precision: Boolean = true, warmData: Boolean = false) =
   {
     {
