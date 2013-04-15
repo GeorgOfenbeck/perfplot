@@ -611,6 +611,12 @@ object CodeGeneration {
   //GO: This is the public available code from http://www.spiral.net/codegenerator.html
   def fft_Spiral(double_precision: Boolean,warm: Boolean, size: Long, vectorized: Boolean ): CodeGeneration =
   {
+
+    val spiral_source = "/home/ofgeorg/" +
+      if (vectorized)
+        "fft_sse/"
+      else
+        "fft_scalar/"
     val fft = new CodeGeneration
     val vecs = if (vectorized) "vectorized_" else ""
     fft.id = if (double_precision)
@@ -620,10 +626,9 @@ object CodeGeneration {
     fft.size = size.toInt
     fft.total_size = (4 * size).toInt
 
-    fft.includes = if (vectorized)
-      "#include \"~/fft_sse/spiral_fft.h\"\n    #include \"~/fft_sse/spiral_private.h\"\n    #include \"~/fft_sse/spiral_private.c\"\n    #include \"~/fft_sse/spiral_fft_double.c\""
-    else
-      "#include \"~/fft_scalar/spiral_fft.h\"\n    #include \"~/fft_scalar/spiral_private.h\"\n    #include \"~/fft_scalar/spiral_private.c\"\n    #include \"~/fft_scalar/spiral_fft_double.c\""
+    fft.includes =
+      "#include \" " + spiral_source + "spiral_fft.h\"\n    #include \""+ spiral_source + "spiral_private.h\"\n    #include \""+ spiral_source +"spiral_private.c\"\n    #include \""+ spiral_source +"spiral_fft_double.c\""
+
 
     fft.initcode =   "spiral_status_t status; std::string statusStr;"
 
