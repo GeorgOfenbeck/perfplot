@@ -38,6 +38,16 @@ class FFTOverview extends Suite{
 
   }
 
+  def test_FFT_Spiral() =
+  {
+    val sizes =  (for (i<-2 until 14) yield (Math.pow(2,i).toLong)).toList
+
+    CommandService.run_kernel(folder,for (s <- sizes) yield CodeGeneration.fft_Spiral(true,true,s,false).setFlopCounter(counters.flops_double), "spiral-warm", seq)
+    CommandService.run_kernel(folder,for (s <- sizes) yield CodeGeneration.fft_Spiral(true,false,s,false).setFlopCounter(counters.flops_double), "spiral-cold", seq)
+
+  }
+
+
   def test_FFT_MKL() =
   {
     val sizes =  (for (i<-2 until 14) yield (Math.pow(2,i).toLong)).toList
@@ -45,7 +55,6 @@ class FFTOverview extends Suite{
 
     CommandService.run_kernel(folder,for (s <- sizes) yield CodeGeneration.fft_MKL(true,true,s,false).setFlopCounter(counters.flops_double), "mkl-warm", seq)
     CommandService.run_kernel(folder,for (s <- sizes) yield CodeGeneration.fft_MKL(true,false,s,false).setFlopCounter(counters.flops_double), "mkl-cold", seq)
-
   }
 
 }

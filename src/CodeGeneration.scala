@@ -608,6 +608,87 @@ object CodeGeneration {
     fft
   }
 
+  //GO: This is the public available code from http://www.spiral.net/codegenerator.html
+  def fft_Spiral(double_precision: Boolean,warm: Boolean, size: Long, vectorized: Boolean ): CodeGeneration =
+  {
+    val fft = new CodeGeneration
+    val vecs = if (vectorized) "vectorized_" else ""
+    fft.id = if (double_precision)
+      "fft_Spiral_double_" + vecs + size
+    else
+      "fft_Spiral_single_" + vecs + size
+    fft.size = size.toInt
+    fft.total_size = (4 * size).toInt
+
+    fft.includes = if (vectorized)
+      "#include \"~/fft_sse/spiral_fft.h\"\n    #include \"~/fft_sse/spiral_private.h\"\n    #include \"~/fft_sse/spiral_private.c\"\n    #include \"~/fft_sse/spiral_fft_double.c\""
+    else
+      "#include \"~/fft_scalar/spiral_fft.h\"\n    #include \"~/fft_scalar/spiral_private.h\"\n    #include \"~/fft_scalar/spiral_private.c\"\n    #include \"~/fft_scalar/spiral_fft_double.c\""
+
+    fft.initcode =   "spiral_status_t status; std::string statusStr;"
+
+    if (double_precision)
+      fft.datatype = "double"
+    else
+    {
+      assert(false, "not implemented")
+      fft.datatype = "float"
+    }
+
+    fft.create_buffer_call = if (warm)
+    {
+      fft.datatype +" * x = (" + fft.datatype + " *) _mm_malloc("+2*size+"*sizeof(" + fft.datatype + "),ALIGNMENT);" +
+      fft.datatype +" * y = (" + fft.datatype + " *) _mm_malloc("+2*size+"*sizeof(" + fft.datatype + "),ALIGNMENT);"
+    }
+    else
+    {
+      fft.datatype + " ** x_array = (" + fft.datatype + " **) CreateBuffers("+2*size+"* sizeof(" + fft.datatype + "),numberofshifts);" +
+      fft.datatype + " ** y_array = (" + fft.datatype + " **) CreateBuffers("+2*size+"* sizeof(" + fft.datatype + "),numberofshifts);"
+    }
+
+    fft.create_buffer_function = fft.create_array_of_buffers()
+    fft.destroy_buffer_function = fft.destroy_array_of_buffers()
+    fft.init_function = fft.ini11()
+
+    fft.init_call = if (warm)
+    {
+      "_ini1(x,"+size+" ,1);" +
+      "_ini1(y,"+size+" ,1);"
+    }
+    else
+    {
+      "for(int i = 0; i < numberofshifts; i++){" +
+        "_ini1(x_array[i],"+size+" ,1);" +
+        "_ini1(y_array[i],"+size+" ,1);"  +
+        "}"
+    }
+
+    fft.kernel_call = if (warm){
+
+
+      "status = spiral_fft_double("+ size + ", 1, x, y);"
+    }
+    else
+    {
+      "status = spiral_fft_double("+ size + ", 1, x_array[i%numberofshifts], y_array[i%numberofshifts]);"
+    }
+
+    fft.destroy_buffer_call = if (warm)
+    {
+      "_mm_free(x);"+
+      "_mm_free(y);"
+    }
+    else
+      "DestroyBuffers( (void **) x_array, numberofshifts);" +
+      "DestroyBuffers( (void **) y_array, numberofshifts);"
+
+    fft.determineSize_call = fft.tuneNrRunsbySize()
+    fft.nrRuns = fft.tuneNrRunsbyRunTime()
+
+    fft
+  }
+
+
 
   def blas_copy_MKL(size: Long ): CodeGeneration =
   {
