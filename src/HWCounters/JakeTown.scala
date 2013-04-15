@@ -301,6 +301,27 @@ object JakeTown {
 }
 
 
+object Westmere {
+    //GO: Note that we cannot do mixed measurements with single and double precision with these counters!
+    val flops_double = (Array(
+    Counter("10H","10H","FP_COMP_OPS_EXE.SSE_FP_PACKED","Counts number of SSE FP packed uops executed."),
+    Counter("10H","20H","FP_COMP_OPS_EXE.SSE_FP_SCALAR","Counts number of SSE FP scalar uops executed."),
+    Counter("10H","40H","FP_COMP_OPS_EXE.SSE_SINGLE_PRECISION","Counts number of SSE* FP single precision uops executed."),
+    Counter("10H","80H","FP_COMP_OPS_EXE.SSE_DOUBLE_PRECISION","Counts number of SSE* FP double precision uops executed.")
+  ),
+    List(2,1,0,0)) //this is the multiplication mask for calculating flops
+
+  val flops_single = (Array(
+    Counter("10H","10H","FP_COMP_OPS_EXE.SSE_FP_PACKED","Counts number of SSE FP packed uops executed."),
+    Counter("10H","20H","FP_COMP_OPS_EXE.SSE_FP_SCALAR","Counts number of SSE FP scalar uops executed."),
+    Counter("10H","40H","FP_COMP_OPS_EXE.SSE_SINGLE_PRECISION","Counts number of SSE* FP single precision uops executed."),
+    Counter("10H","80H","FP_COMP_OPS_EXE.SSE_DOUBLE_PRECISION","Counts number of SSE* FP double precision uops executed.")
+  ),
+    List(4,1,0,0)) //this is the multiplication mask for calculating flops
+
+}
+
+
 object IvyBridge {
 
     val flops = Array (
