@@ -611,7 +611,7 @@ object CommandService {
       execute(" \"C:\\Program Files (x86)\\Intel\\Composer XE 2013\\bin\\compilervars.bat\" intel64 vs2012shell")
     }
     else
-      execute("icc " + codeFile +".cpp " + Config.MeasuringCore.getAbsolutePath + flags + "  -lpthread -lrt -o "+ codeFile + ".x -Fa"+ codeFile + ".asm")
+      execute("icc " + codeFile +".cpp " + Config.MeasuringCore.getAbsolutePath + flags + "  -lpthread -lrt -o "+ codeFile + ".x")
     //execute(compiler.getAbsolutePath + " -std=c99 -mkl -fasm-blocks " + codeFile +".cpp " + " pcm/MeasuringCore.lib -lpthread -lrt -o "+ codeFile + ".x")
   }
 
@@ -619,11 +619,15 @@ object CommandService {
 
   def execute (command: String, wd: File = null)
   {
+    val cmdarray = if(!Config.isWin)
+        Array("sh","-c",command)
+      else
+        Array(command)
     val runtime = java.lang.Runtime.getRuntime()
     val compileProcess = if (wd != null)
-      runtime.exec(command,null,wd)
+      runtime.exec(cmdarray,null,wd)
     else
-      runtime.exec(command)
+      runtime.exec(cmdarray)
     val stderr = new BufferedReader(new InputStreamReader(compileProcess.getErrorStream()));
     val stdout=new BufferedReader(new InputStreamReader(compileProcess.getInputStream()));
     var line: String = null //need to use the stderr buffer - otherwise it will hang on windows
