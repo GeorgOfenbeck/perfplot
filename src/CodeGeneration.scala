@@ -613,10 +613,11 @@ object CodeGeneration {
   {
 
     val spiral_source = "/home/ofgeorg/" +
-      if (vectorized)
+      (if (vectorized)
         "fft_sse/"
       else
         "fft_scalar/"
+      )
     val fft = new CodeGeneration
     val vecs = if (vectorized) "vectorized_" else ""
     fft.id = if (double_precision)
@@ -627,7 +628,7 @@ object CodeGeneration {
     fft.total_size = (4 * size).toInt
 
     fft.includes =
-      "#include \" " + spiral_source + "spiral_fft.h\"\n    #include \""+ spiral_source + "spiral_private.h\"\n    #include \""+ spiral_source +"spiral_private.c\"\n    #include \""+ spiral_source +"spiral_fft_double.c\""
+      "#include <iostream>\n#include \"" + spiral_source + "spiral_fft.h\"\n    #include \""+ spiral_source + "spiral_private.h\"\n    #include \""+ spiral_source +"spiral_private.c\"\n    #include \""+ spiral_source +"spiral_fft_double.c\""
 
 
     fft.initcode =   "spiral_status_t status; std::string statusStr;"
