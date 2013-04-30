@@ -435,7 +435,8 @@ object CommandService {
     sourcefile.close()
     if (kernel.inline == false && kernel.kernel_code != "") //we need to compile the kernel code in a seperate file
     {
-      val sourcefile = new PrintStream(tempdir.getPath + File.separator +  filename + "_kernel.cpp")
+      val fileNameBase = tempdir.getPath + File.separator +  filename
+      val sourcefile = new PrintStream(fileNameBase + "_kernel.cpp")
       kernel.printcode(sourcefile)
       sourcefile.close()
     }
@@ -570,6 +571,9 @@ object CommandService {
 
   def compile(codeFile: String, flags: String) = {
 
+    val kernelFile = new File(codeFile + "_kernel.cpp")
+    val kernelFileName = if (kernelFile.exists()) kernelFile.getAbsolutePath else ""
+
     val compiler: File = if ( Config.isWin) {
       if (Config.use_gcc)
         Config.win_gcc
@@ -611,9 +615,9 @@ object CommandService {
       execute(" \"C:\\Program Files (x86)\\Intel\\Composer XE 2013\\bin\\compilervars.bat\" intel64 vs2012shell")
     }
     else if (Config.isMac)
-      execute("icc " + codeFile +".cpp " + Config.MeasuringCore.getAbsolutePath + " " + flags + " -lpthread -lPcmMsr -o "+ codeFile + ".x")
+      execute("icc " + codeFile + ".cpp " + kernelFileName + " " + Config.MeasuringCore.getAbsolutePath + " " + flags + " -lpthread -lPcmMsr -o "+ codeFile + ".x")
     else
-      execute("icc " + codeFile +".cpp " + Config.MeasuringCore.getAbsolutePath + flags + "  -lpthread -lrt -o "+ codeFile + ".x")
+      execute("icc " + codeFile +".cpp " + kernelFileName + " " + Config.MeasuringCore.getAbsolutePath + flags + "  -lpthread -lrt -o "+ codeFile + ".x")
     //execute(compiler.getAbsolutePath + " -std=c99 -mkl -fasm-blocks " + codeFile +".cpp " + " pcm/MeasuringCore.lib -lpthread -lrt -o "+ codeFile + ".x")
   }
 
