@@ -13,7 +13,7 @@ object Config {
 
   def isMac =
   {
-    if ( System.getProperty("os.name").contains("mac") )
+    if ( System.getProperty("os.name").toLowerCase.contains("mac") )
       true
     else
       false

@@ -610,6 +610,8 @@ object CommandService {
       cmdbat.close()
       execute(" \"C:\\Program Files (x86)\\Intel\\Composer XE 2013\\bin\\compilervars.bat\" intel64 vs2012shell")
     }
+    else if (Config.isMac)
+      execute("icc " + codeFile +".cpp " + Config.MeasuringCore.getAbsolutePath + " " + flags + "  -lpthread -o "+ codeFile + ".x")
     else
       execute("icc " + codeFile +".cpp " + Config.MeasuringCore.getAbsolutePath + flags + "  -lpthread -lrt -o "+ codeFile + ".x")
     //execute(compiler.getAbsolutePath + " -std=c99 -mkl -fasm-blocks " + codeFile +".cpp " + " pcm/MeasuringCore.lib -lpthread -lrt -o "+ codeFile + ".x")
@@ -645,6 +647,7 @@ object CommandService {
     } else {
       if (true ) System.err.println("execute: ok")
     }
+    compileProcess.destroy()
   }
 
 }
