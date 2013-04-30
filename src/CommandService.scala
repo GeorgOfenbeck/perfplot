@@ -619,15 +619,17 @@ object CommandService {
 
   def execute (command: String, wd: File = null)
   {
-    val cmdarray = if(!Config.isWin)
-        Array("sh","-c",command)
-      else
-        Array(command)
     val runtime = java.lang.Runtime.getRuntime()
     val compileProcess = if (wd != null)
-      runtime.exec(cmdarray,null,wd)
+      if(!Config.isWin)
+        runtime.exec(Array("sh","-c",command),null,wd)
+       else
+        runtime.exec(command,null,wd)
     else
-      runtime.exec(cmdarray)
+      if(!Config.isWin)
+        runtime.exec(Array("sh","-c",command))
+      else
+        runtime.exec(command)
     val stderr = new BufferedReader(new InputStreamReader(compileProcess.getErrorStream()));
     val stdout=new BufferedReader(new InputStreamReader(compileProcess.getInputStream()));
     var line: String = null //need to use the stderr buffer - otherwise it will hang on windows
