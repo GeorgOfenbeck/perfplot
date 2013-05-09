@@ -218,11 +218,11 @@ object CommandService {
 
     def apply(path: File):Counters =
     {
-      System.out.println("reading counters from " + path.getPath + File.separator)
+      if (Config.debug) System.out.println("reading counters from " + path.getPath + File.separator)
       def getFile(name: String ) : String =
       {
         val filecheck = new File(name)
-        System.out.println("waiting for: " + filecheck.getAbsolutePath)
+        if ( Config.debug ) System.out.println("waiting for: " + filecheck.getAbsolutePath)
         while (!filecheck.exists())
         {
           //System.out.print(".")
@@ -441,11 +441,11 @@ object CommandService {
       sourcefile.close()
     }
     CommandService.compile(tempdir.getPath + File.separator +  filename, flags)
-    System.out.println("executing ...")
+    if (Config.debug) System.out.println("executing ...")
     val file = CommandService.measureCode(tempdir, filename)
-    System.out.println("gather results ..." + file.getPath)
+    if (Config.debug) System.out.println("gather results ..." + file.getPath)
     val c = Counters.apply(file)
-    System.out.println("return results ...")
+    if (Config.debug) System.out.println("return results ...")
     return c
   }
 
@@ -649,7 +649,7 @@ object CommandService {
     if (exitVal != 0) {
       System.err.println("execution of: \"" + command + "\" had errors")
     } else {
-      if (true ) System.err.println("execute: ok")
+      if (Config.debug) System.err.println("execute: ok")
     }
     compileProcess.destroy()
   }

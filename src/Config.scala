@@ -21,7 +21,7 @@ object Config {
 
   val use_cache = false;
   val use_gcc = false;
-  val debug = true;
+  val debug = false;
   val home = System.getProperty( "user.home" )
   val pwd = System.getProperty( "user.dir" )
 
