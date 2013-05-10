@@ -9,3 +9,4 @@ clean:
 install: all
 	rm -rf /lib/modules/$(shell uname -r)/kernel/arch/x86/kernel/msr.ko
 	cp msr.ko /lib/modules/$(shell uname -r)/kernel/arch/x86/kernel/msr.ko
+	echo "KERNEL==\"msr[0-9]*\", NAME=\"cpu/%n/msr\", MODE=\"0666\"" > /etc/udev/rules.d/20-msr-perftool.rules
