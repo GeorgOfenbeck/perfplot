@@ -25,6 +25,7 @@ case class CodeGeneration{
   //this has to be a single buffer for warm cache measurments, or a array of buffers for cold
   var alignment: Int = Config.def_alignment//alignment used in the creation of the buffers
   var size: Int = 0//size * datatype = size of one buffer
+
   var total_size: Int = 0//size of all buffers per iteration
   var datatype: String = ""
 
@@ -113,7 +114,7 @@ case class CodeGeneration{
     "unsigned associativity = 8; //this is hardcoded as its the same on all platforms considered \n" +
     "unsigned long size_per_run = " + total_size + "* sizeof("+datatype+"); \n" +
     "runs = (LLCSize * associativity)/size_per_run;\n" +
-    "if (runs < 2) runs = 2; //to make sure stuff is not cache resident\n" + 
+    "if (runs < 2) runs = 2; //to make sure stuff is not cache resident\n" +
     "long numberofshifts = runs;"
   }
 
@@ -130,7 +131,12 @@ case class CodeGeneration{
     "runs = runs * multiplier;\n" +
     "measurement_start();\n" +
     "for(unsigned long i = 0; i <= runs; i++)\n" +
-    "{" + kernel_call + "}" +
+    "{" +
+      {if (inline)
+      kernel_code
+    else
+      kernel_call } +
+     "}" +
     "measurement_stop(runs);\n" +
     avoid_DCE +
     "multiplier = measurement_run_multiplier("+threshold+");" +
@@ -198,6 +204,186 @@ case class CodeGeneration{
 
 
 object CodeGeneration {
+
+
+  /**This is the function you need to replicate for your specific code you want to time.
+   * The goal of this function is to generate a .cpp file that will contain a small measurement setup which will call and time your function
+   * Modify each variable as it is required to run your code. If in doubt look at the print function which is ~two pages up
+   * to see how the parts a composed into the .cpp file (really no magic happening)
+    * parameters:
+    * If you wanna vary something for different measurements - e.g. the input size, the dimension or what ever
+    * This is just to enable you to control this in the calling function (in the test-src) and within here you just unparse it to strings
+    *
+    * I use a choice of if we want to use singles or doubles and if we wanna do warm or cold cache here to illustrate
+    * @param double double precession?
+    * @param warm warm or cold cache
+    * @param nrAccumulator how many do we want to use
+    *
+   * @return This is the class that will later be used to unparse the .cpp file into the temporary directory
+   */
+  def Example(double: Boolean, warm: Boolean, nrAccumulator : Int ,size : Int) : CodeGeneration =
+  {
+    val example = new CodeGeneration
+
+    example.id = "Accumulators_" + nrAccumulator + "_" +double + warm + size//this is whatever you would like your result to be called
+
+    example.includes = "#include <mm_malloc.h>\n#include <iostream>\n#include <fstream>\n#include <cstdlib>\n#include <ctime>\n#include <cmath>\n" //here list any type of include that are needed to get the .cpp to run.
+                          //e.g. if you have a special datatype that will be used as a buffer etc.
+
+    example.initcode = "const int Accumulator = "+nrAccumulator + "; double sum;" //here you can place any code needed before initialization, calling etc.
+    //------------------------------------------------------------------------------------------------
+    // Creating the Buffers
+
+    //In case you work with some sort of simple arrays as your input buffer,
+    //you can use the default buffer allocator function we provide
+    //to use it the following fields have to be set
+        example.datatype = if (double) "double" else "float"
+        example.alignment = 64 //if you use the default memory allocation (will come later) - this defines the alignment that will be used
+
+
+
+
+        example.size = if (double) size/8 else size/4  //this will be used in the call - i choose 24K bytes here - but you can choose whatever
+        example.total_size = example.size //this would be different if e.g. you use multiple inputs
+
+        //This default code creates an array of buffers - we circulate through those arrays later to make sure that that every call to the actual funciton
+        //is done on "cold" data
+
+    //In case you have some sort of fency memory allocation that is not suitable to be initalize
+      //example.create_buffer_function = "<-- put C code here that will return an array of replicas of your input data"
+
+    //We distiguish cold and warm scenario in this particular example
+    //Be aware that if you wanna do "cold" cache measurement you need to cycle through multiple buffers such that every time you hand in the buffer the data is cold
+     example.create_buffer_function = example.create_array_of_buffers() //allocating this for the cold case is done here (but not used in the warm case)
+
+    example.create_buffer_call =
+      if (warm) //in the warm case i just directly allocate what is needed
+        example.datatype +" * buffer = (" + example.datatype + " *) _mm_malloc("+example.size+"*sizeof(" + example.datatype + "),ALIGNMENT);"
+      else
+        example.datatype + " ** buffer_array = (" + example.datatype + " **) CreateBuffers("+example.size+"* sizeof(" + example.datatype + "),numberofshifts);"
+
+
+
+    //----------------------------------------------------------------------------------------------------
+    // Init the buffers
+
+    //similar as above we define how to initialize the buffer - also here we allow to define a function that can be called
+    example.init_function = "void _ini1(" + example.datatype + " * m, size_t row, size_t col)\n{\n  for (size_t i = 0; i < row*col; ++i)  m[i] = (" + example.datatype + ")1.1;\n}"
+    //this is just a simple example that will put 1.1 in all fields
+
+    //now we define how to call the function / where again we distinguish between cold and warm (since one is an array of inputs, the other one a single input)
+
+    example.init_call = if (warm)
+    {
+      "_ini1(buffer,"+example.size+" ,1);"
+    }
+    else
+    {
+      "for(int i = 0; i < numberofshifts; i++){" +
+        "_ini1(buffer_array[i],"+example.size+" ,1);" +
+        "}"
+    }
+
+
+    //------------------------------------------------------------------------------------------------------
+    // Actually calling your function you wanna time
+
+    // For any bigger project you would use something like this
+    example.kernel_call = if (warm)
+    {
+      "my_function(buffer);"
+    }
+    else
+      "my_function(buffer_array[i%numberofshifts];"
+      //Not that in the cold cache we cycle after "numberofshifts" back to the first buffer - this variable is defined by "TuneNrRunsBySize"
+      //which basically just calculates how many buffers you need such that your are bigger then associativity * LLC size
+
+    //In this particular example i set
+    example.inline = true //which will result in the above thing not even being used (the kernel call) but rather using the variable below
+
+
+    //Those are utility function i use in this specific case to be able to generate all different versions of the inlined code i would like to try out
+    def print_acc_vars(): String =
+    {
+      val list_of_strings = for (i <- 0 until nrAccumulator) yield
+        example.datatype +" AccumulatorADD"+i+ "= 0;" +
+        example.datatype +" AccumulatorMULT"+i+ "= 0;"
+      list_of_strings.reduceLeft(_+_)
+    }
+
+    def print_acc_computation() : String =
+    {
+      val list_of_strings = for (i <- 0 until nrAccumulator) yield
+        "AccumulatorADD"+i+ "+= ptr[j+"+i+"];" +
+        "AccumulatorMULT"+i+ "+= ptr[j+"+i+"];"
+      list_of_strings.reduceLeft(_+_)
+    }
+
+    def print_acc_end_computation() : String =
+    {
+      val list_of_strings = for (i <- 0 until nrAccumulator) yield
+        "sum =+ AccumulatorADD"+i+ ";" +
+        "sum =+ AccumulatorMULT"+i+ ";"
+      "sum = 0;\n"+list_of_strings.reduceLeft(_+_)
+    }
+
+    def print_get_ptr() : String =
+    {
+      if(warm)
+        example.datatype + " * ptr = buffer;"
+      else
+        example.datatype + " * ptr = buffer_array[i%numberofshifts];"
+    }
+
+    //This is the actual code that will be printed - note that i use j as loop index as i is already used for the loop in the number runs
+    example.kernel_code =
+      print_get_ptr() +
+      print_acc_vars() +
+      "for (int j= 0; j< "+example.size + "-Accumulator; j = j + Accumulator)"+
+      "{ " + print_acc_computation() + "}" + print_acc_end_computation()
+
+
+    //Since our code is inlined the compiler will perform deadcode elimination on it!
+    example.avoid_DCE = "std::cout << sum;"
+
+    //------------------------------------------------------------------------------------------------------
+    // Finding out how many runs a are required (i do this at this place since it uses some vars defined above)
+
+    //this part will do some initial timings
+    example.determineSize_call = example.tuneNrRunsbySize() //we use the default logic on how to determine correct number of runs
+    example.nrRuns = example.tuneNrRunsbyRunTime() //we use the default logic on how to determine correct number of runs
+    //also here - the code printed can be seen a bit above - if you wanna do something smarter you can ....
+    //.nrRuns is also your warmup (in case of the warm cache)
+
+
+    //----------------------------------------------------------------------------------------------------
+    // Destroying the buffers and general cleanup code
+
+    example.destroy_buffer_call = if (warm)
+    {
+      "_mm_free(buffer);"
+    }
+    else
+      "DestroyBuffers( (void **) buffer_array, numberofshifts);"
+    example.destroy_buffer_function = example.destroy_array_of_buffers() //this defines the function used in the line above
+    // again - if you need something more fancy just encode it
+
+
+
+
+
+
+
+    example //Finally return the object you specified here
+
+
+
+  }
+
+
+
+
+
 
 
 
@@ -524,7 +710,7 @@ object CodeGeneration {
 
     fft.includes = "#include <fftw3.h>\n#include <iostream>\n#include <fstream>\n#include <cstdlib>\n#include <ctime>\n#include <cmath>\n"
 
-    
+
     fft.initcode = "fftw_plan fftwPlan;"
 
     if (double_precision)
@@ -736,8 +922,8 @@ object CodeGeneration {
     blas_copy
 
   }
-  
-  
+
+
   /*
 
 
@@ -894,7 +1080,7 @@ object CodeGeneration {
 
         //p("long numberofshifts =  measurement_getNumberOfShifts(" + (size*size*3)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
         p("long numberofshifts = (100 * 1024 * 1024 / (" + (3*size*size)+ "* sizeof(" + prec + ")));")
-        p("if (numberofshifts < 2) numberofshifts = 2;") 
+        p("if (numberofshifts < 2) numberofshifts = 2;")
 	      //p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
 
         p("double ** A_array = (double **) CreateBuffers("+size*size+"* sizeof(" + prec + "),numberofshifts);")
@@ -1032,7 +1218,7 @@ object CodeGeneration {
         //allocate
         //p("long numberofshifts =  measurement_getNumberOfShifts(" + (size*size*3)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
         p("long numberofshifts = (100 * 1024 * 1024 / (" + (3*size*size)+ "* sizeof(" + prec + ")));")
-        p("if (numberofshifts < 2) numberofshifts = 2;") 
+        p("if (numberofshifts < 2) numberofshifts = 2;")
 	      //p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
 
         p("double ** A_array = (double **) CreateBuffers("+size*size+"* sizeof(" + prec + "),numberofshifts);")
@@ -1233,7 +1419,7 @@ object CodeGeneration {
     p("measurement_end();")
     p("}")
   }
-  
+
   def daxpy_loop(sourcefile: PrintStream,sizes: List[Long], counters: Array[HWCounters.Counter], double_precision: Boolean = true, warmData: Boolean = false) =
   {
     def p(x: String) = sourcefile.println(x)
@@ -1308,7 +1494,7 @@ object CodeGeneration {
         //allocate
         //p("long numberofshifts =  measurement_getNumberOfShifts(" + (size*size*3)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
         p("long numberofshifts = (100 * 1024 * 1024 / (" + (2*size)+ "* sizeof(" + prec + ")));")
-        p("if (numberofshifts < 2) numberofshifts = 2;") 
+        p("if (numberofshifts < 2) numberofshifts = 2;")
 	      //p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
 
         p("double ** x_array = (double **) CreateBuffers("+size+"* sizeof(" + prec + "),numberofshifts);")
@@ -1636,7 +1822,7 @@ object CodeGeneration {
   def read_loop(sourcefile: PrintStream,sizes: List[Long], counters: Array[HWCounters.Counter], par: Boolean = true, warmData: Boolean = false) =
   {
     def p(x: String) = sourcefile.println(x)
-    
+
     if(par) p("#include <omp.h>")
     p("#include <immintrin.h>")
     p("#include <iostream>")
@@ -1651,7 +1837,7 @@ object CodeGeneration {
     CodeGeneration.destroy_array_of_buffers(sourcefile)
     p("void _rands(double * m, size_t row, size_t col)\n{\n  for (size_t i = 0; i < row*col; ++i)  m[i] = (double)(rand())/RAND_MAX;;\n}")
     p("void _ini1(double * m, size_t row, size_t col)\n{\n  for (size_t i = 0; i < row*col; ++i)  m[i] = (double)1.1;\n}")
-    
+
     if(!par) {
       p("double read_array(size_t size, double * x) {")
 
@@ -1779,7 +1965,7 @@ object CodeGeneration {
         //allocate
         //p("long numberofshifts =  measurement_getNumberOfShifts(" + (size*size*3)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
         p("long numberofshifts = (100 * 1024 * 1024 / (" + (2*size)+ "* sizeof(" + prec + ")));")
-        p("if (numberofshifts < 2) numberofshifts = 2;") 
+        p("if (numberofshifts < 2) numberofshifts = 2;")
 	      //p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
 
         p("double ** x_array = (double **) CreateBuffers("+size+"* sizeof(" + prec + "),numberofshifts);")
@@ -1889,7 +2075,7 @@ object CodeGeneration {
         //allocate
         //p("long numberofshifts =  measurement_getNumberOfShifts(" + (size*size*3)+ "* sizeof(" + prec + "),runs*"+Config.repeats+");")
         p("long numberofshifts = (100 * 1024 * 1024 / (" + (2*size)+ "* sizeof(" + prec + ")));")
-        p("if (numberofshifts < 2) numberofshifts = 2;") 
+        p("if (numberofshifts < 2) numberofshifts = 2;")
 	      //p("std::cout << \" Shifts: \" << numberofshifts << \" --\"; ")
 
         p("double ** x_array = (double **) CreateBuffers("+size+"* sizeof(" + prec + "),numberofshifts);")
@@ -2184,7 +2370,7 @@ object CodeGeneration {
         //p("std::cout << \"deallocate\";")
         //deallocate the buffers
         p("fftw_free(in);")
-	p("fftw_free(out);") 
+	p("fftw_free(out);")
       }
       p("}")
     }

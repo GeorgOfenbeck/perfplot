@@ -19,25 +19,25 @@ object Config {
       false
   }
 
-  val use_cache = false;
-  val use_gcc = false;
+  var use_cache = false;
+  var use_gcc = false;
   var debug = false;
-  val home = System.getProperty( "user.home" )
-  val pwd = System.getProperty( "user.dir" )
+  var home = System.getProperty( "user.home" )
+  var pwd = System.getProperty( "user.dir" )
 
-  val gnuplot = if (isWin) "C:\\Program Files (x86)\\gnuplot\\bin\\gnuplot.exe" else "gnuplot"
+  var gnuplot = if (isWin) "C:\\Program Files (x86)\\gnuplot\\bin\\gnuplot.exe" else "gnuplot"
 
 
-  val win_gcc = new File("C:\\cygwin\\bin","x86_64-w64-mingw32-gcc.exe")
+  var win_gcc = new File("C:\\cygwin\\bin","x86_64-w64-mingw32-gcc.exe")
   //win_icc is working with a hack atm - look into CompileService!
-  val win_icc = new File("C:\\Program Files (x86)\\Intel\\Composer XE 2013\\bin\\intel64","icl.exe")
+  var win_icc = new File("C:\\Program Files (x86)\\Intel\\Composer XE 2013\\bin\\intel64","icl.exe")
 
-  val measurement_Threshold : Long = (0.1 * scala.math.pow(10,9)).toLong; //4giga cycles - TODO: GO: replace by seconds
-  val testDerivate_Threshold =  0.0005
-  val repeats = 3
+  var measurement_Threshold : Long = (0.1 * scala.math.pow(10,9)).toLong; //4giga cycles - TODO: GO: replace by seconds
+  var testDerivate_Threshold =  0.0005
+  var repeats = 3
 
 
-  val def_alignment = 64
+  var def_alignment = 64
 
   def MeasuringCore: File = if (isWin)
                          new File("C:\\Users\\ofgeorg\\IdeaProjects\\perfplot\\pcm\\","MeasuringCore.lib")
@@ -57,9 +57,9 @@ object Config {
   def flag_report = if (isWin) " /Qvec-report3" else " -vec-report3"
 
 
-  val MeasuringCoreH = "#ifndef MEASURING_CORE_HEADER\n#define MEASURING_CORE_HEADER\n\n\n\n#ifdef __cplusplus\nextern \"C\" {\n#endif\n//int measurement_init(int type, bool flushData , bool flushICache , bool flushTLB );\nint measurement_init(long * custom_counters , unsigned long offcore_response0 , unsigned long offcore_response1 );\nvoid measurement_start();\nvoid measurement_stop(unsigned long runs);\nvoid measurement_end();\n// Start Dani\nunsigned long measurement_run_multiplier(unsigned long threshold);\n\n//void measurement_meanSingleRun();\n\nvoid measurement_emptyLists(bool clearRuns);\nvoid dumpMeans();\n\nunsigned long measurement_getNumberOfShifts(unsigned long size, unsigned long initialGuess);\n// End Dani\n\nvoid flushITLB();\nvoid flushDTLB();\nvoid flushICache();\nvoid flushDCache();\n\nunsigned long getLLCSize();\n\n\n#ifdef __cplusplus\n}\n#endif\n#endif\n"
+  var MeasuringCoreH = "#ifndef MEASURING_CORE_HEADER\n#define MEASURING_CORE_HEADER\n\n\n\n#ifdef __cplusplus\nextern \"C\" {\n#endif\n//int measurement_init(int type, bool flushData , bool flushICache , bool flushTLB );\nint measurement_init(long * custom_counters , unsigned long offcore_response0 , unsigned long offcore_response1 );\nvoid measurement_start();\nvoid measurement_stop(unsigned long runs);\nvoid measurement_end();\n// Start Dani\nunsigned long measurement_run_multiplier(unsigned long threshold);\n\n//void measurement_meanSingleRun();\n\nvoid measurement_emptyLists(bool clearRuns);\nvoid dumpMeans();\n\nunsigned long measurement_getNumberOfShifts(unsigned long size, unsigned long initialGuess);\n// End Dani\n\nvoid flushITLB();\nvoid flushDTLB();\nvoid flushICache();\nvoid flushDCache();\n\nunsigned long getLLCSize();\n\n\n#ifdef __cplusplus\n}\n#endif\n#endif\n"
 
-  val delete_temp_files = true
+  var delete_temp_files = true
 
   def result_folder: File = if (isWin)
       new File("C:\\Users\\ofgeorg\\IdeaProjects\\results\\")
