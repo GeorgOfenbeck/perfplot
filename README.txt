@@ -69,12 +69,44 @@ The scala scripts do exactly the steps described before in an automatic way:
   - collect several runs into a format that the python plot scripts expect
  
 To use run sbt within the root folder. (http://www.scala-sbt.org/)
-Look at the example (best test-src/BLasOverview.scala) and the code it calls
-You can run the example if you have Intel MKL installed by running
-"test-only BlasOverview" within sbt  
+Look at the example in test-src/Example.scala
+
+You can run the example by running
+"test-only Example" within sbt  
+
+I tried to comment more in this file and also in the main function it utilizes which can be found in:
+
+src/CodeGeneration.scala
+
+under
+def Example (....)
+
+Reading this function and the Example.scala should hopefully get you going.
+
+
+To instrument your own code modify CodeGeneration.scala and add your own function there.
+
+
+Change Example.scala accordingly
+
  
 The script will output the results of a run within a folder specified in the script.
 These results are then used in the python scripts.
+
+
+Caveats to watch out for:
+- Always make sure that PCM is working (after every reboot/ after every time your program crashes) by running ./pcm.x 1 in the pcm folder before running the scala script
+- if the timed program crashes the scala script will still wait for the result files looping endless - you will see an errror - terminate with ctrl+C
+
+
+
+
+-----------------------------------------------------------------------
+  Using the python scripts
+-----------------------------------------------------------------------  
+The rooflines themselfs are hardcoded atm in the pythonscript - so adjust them as you need (bandwidth and peak performance).
+
+Add the name of the series you would like to be plotted (see example) and just run (within the same folder then the result)
 
 -----------------------------------------------------------------------
              Install Python 2.7 (to generate the plots)
