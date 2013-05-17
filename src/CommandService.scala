@@ -88,7 +88,7 @@ object CommandService {
     {
       mcread(i) + mcwrite(i)
     }
-
+    /*
     def getFlops : List[Long] =
     {
       val adjusted_flops = for (i<- 0 until SCounter0.size) yield
@@ -101,11 +101,12 @@ object CommandService {
       }
 
 
-    }
+    }  */
 
     def getTSC() : Long = {
-      val (lower, upper) = avgTSCCounter.sortWith(_<_).splitAt(s.size / 2)
-      if (s.size % 2 == 0) (lower.last + upper.head) / 2.0 else upper.head
+      val (lower, upper) = avgTSCCounter.sortWith(_<_).splitAt(avgTSCCounter.size / 2)
+      upper.head
+      //if (avgTSCCounter.size % 2 == 0) (lower.last + upper.head) / 2.0 else upper.head
     }
 
 

@@ -49,7 +49,7 @@ class Example extends Suite{
 
       //Note that by default we measure double prec. -> to switch to single you need to write code like below!
       CommandService.run_kernel(folder,for (s <- sizes) yield CodeGeneration.Example(false,true,acc,s*1024,false).setFlopCounter(counters.flops_single), "Accumulators-single-warm"+acc, flags)
-      CommandService.run_kernel(folder,for (s <- sizes) yield CodeGeneration.Example(false,false,acc,s*1024,false).setFlopCounter(counters.flops_single), "Accumulators-single-cold"+acc, flags)*/
+      CommandService.run_kernel(folder,for (s <- sizes) yield CodeGeneration.Example(false,false,acc,s*1024,false).setFlopCounter(counters.flops_single), "Accumulators-single-cold"+acc, flags)
     }
 
 
