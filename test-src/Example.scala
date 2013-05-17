@@ -12,8 +12,8 @@ import scala.io._
 
 class Example extends Suite{
 
-  //val flags = " -O2 -fno-tree-vectorize " //!these are for GCC!
-  val flags = Config.flag_c99 + Config.flag_hw + Config.flag_mkl_seq + " /O2 " + Config.flag_novec
+  val flags = " -O2 -fno-tree-vectorize " //!these are for GCC!
+  //val flags = Config.flag_c99 + Config.flag_hw + Config.flag_mkl_seq + " /O2 " + Config.flag_novec //this i use for icc
   //this flags are passed all the way down to the compiler.
   //The final call looks like this (inside a temporary directory).
   //execute("icc " + codeFile +".cpp " + kernelFileName + " " + Config.MeasuringCore.getAbsolutePath + flags + "  -lpthread -lrt -o "+ codeFile + ".x")
@@ -21,7 +21,7 @@ class Example extends Suite{
   //so if you'd like you code to be compiled to be added in this step either link against it or just compile it together
 
 
-  Config.use_gcc = false
+  Config.use_gcc = true
   //for this example we set it to gcc - still recommend icc - but just to make sure
 
   Config.use_cache = false
@@ -45,7 +45,7 @@ class Example extends Suite{
     for (acc <- Accumulators)
     {
       CommandService.run_kernel(folder,for (s <- sizes) yield CodeGeneration.Example(true,true,acc,s*1024,true).setFlopCounter(counters.flops_double), "Accumulators-double-warm"+acc, flags)
-      /*CommandService.run_kernel(folder,for (s <- sizes) yield CodeGeneration.Example(true,false,acc,s*1024,false).setFlopCounter(counters.flops_double), "Accumulators-double-cold"+acc, flags)
+      CommandService.run_kernel(folder,for (s <- sizes) yield CodeGeneration.Example(true,false,acc,s*1024,false).setFlopCounter(counters.flops_double), "Accumulators-double-cold"+acc, flags)
 
       //Note that by default we measure double prec. -> to switch to single you need to write code like below!
       CommandService.run_kernel(folder,for (s <- sizes) yield CodeGeneration.Example(false,true,acc,s*1024,false).setFlopCounter(counters.flops_single), "Accumulators-single-warm"+acc, flags)
