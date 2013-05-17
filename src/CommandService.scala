@@ -89,6 +89,24 @@ object CommandService {
       mcread(i) + mcwrite(i)
     }
 
+    def getFlops : List[Long] =
+    {
+      val adjusted_flops = for (i<- 0 until SCounter0.size) yield
+      {
+        val counters = List(SCounter0(i),SCounter1(i),SCounter2(i),SCounter3(i))
+        val appliedmask = (counters,kernel.mask).zipped.map(_*_)
+        //val flops = appliedmask.foldLeft(0)(_ + _)
+        val flops = appliedmask(0) + appliedmask(1) + appliedmask(2) + appliedmask(3)
+        flops
+      }
+
+
+    }
+
+    def getTSC() : Long = {
+      val (lower, upper) = avgTSCCounter.sortWith(_<_).splitAt(s.size / 2)
+      if (s.size % 2 == 0) (lower.last + upper.head) / 2.0 else upper.head
+    }
 
 
     def getTSC (i: Int) : Long =

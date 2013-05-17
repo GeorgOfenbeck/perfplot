@@ -221,29 +221,43 @@ object CodeGeneration {
     *
    * @return This is the class that will later be used to unparse the .cpp file into the temporary directory
    */
-  def Example(double: Boolean, warm: Boolean, nrAccumulator : Int ,size : Int) : CodeGeneration =
+  def Example(double: Boolean, warm: Boolean, nrAccumulator : Int ,size : Int, vectorized: Boolean) : CodeGeneration =
   {
     val example = new CodeGeneration
 
     example.id = "Accumulators_" + nrAccumulator + "_" +double + warm + size//this is whatever you would like your result to be called
 
-    example.includes = "#include <mm_malloc.h>\n#include <iostream>\n#include <fstream>\n#include <cstdlib>\n#include <ctime>\n#include <cmath>\n" //here list any type of include that are needed to get the .cpp to run.
+    example.includes = if (Config.use_gcc)
+      "#include <mm_malloc.h>\n#include <iostream>\n#include <fstream>\n#include <cstdlib>\n#include <ctime>\n#include <cmath>\n" //here list any type of include that are needed to get the .cpp to run.
+      else
+       "#include <malloc.h>\n#include <iostream>\n#include <fstream>\n#include <cstdlib>\n#include <ctime>\n#include <cmath>\n" //here list any type of include that are needed to get the .cpp to run.
                           //e.g. if you have a special datatype that will be used as a buffer etc.
 
-    example.initcode = "const int Accumulator = "+nrAccumulator + "; double sum;" //here you can place any code needed before initialization, calling etc.
+    example.initcode = "const int Accumulator = "+nrAccumulator + "; double total;double prod;\ndouble sum;" //here you can place any code needed before initialization, calling etc.
     //------------------------------------------------------------------------------------------------
     // Creating the Buffers
 
     //In case you work with some sort of simple arrays as your input buffer,
     //you can use the default buffer allocator function we provide
     //to use it the following fields have to be set
-        example.datatype = if (double) "double" else "float"
-        example.alignment = 64 //if you use the default memory allocation (will come later) - this defines the alignment that will be used
+        example.datatype = if (double) "double"   else "float"
+        val vectortype =  if (vectorized) //this is only used in this case for vectorization
+          {
+            if (double)
+              "__m128d"
+            else
+              "__m128"
+          }
+          else
+          {
+            ""
+          }
+        example.alignment = 4096 //if you use the default memory allocation (will come later) - this defines the alignment that will be used
+        //i use page alignment here
 
 
 
-
-        example.size = if (double) size/8 else size/4  //this will be used in the call - i choose 24K bytes here - but you can choose whatever
+        example.size = if (double) size/8 else size/4 //i use this in this case to control how big my buffer will be, this variable will also be collected in the results
         example.total_size = example.size //this would be different if e.g. you use multiple inputs
 
         //This default code creates an array of buffers - we circulate through those arrays later to make sure that that every call to the actual funciton
@@ -268,7 +282,7 @@ object CodeGeneration {
     // Init the buffers
 
     //similar as above we define how to initialize the buffer - also here we allow to define a function that can be called
-    example.init_function = "void _ini1(" + example.datatype + " * m, size_t row, size_t col)\n{\n  for (size_t i = 0; i < row*col; ++i)  m[i] = (" + example.datatype + ")1.1;\n}"
+    example.init_function = "void _ini1(" + example.datatype + " * m, size_t row, size_t col)\n{\n  for (size_t i = 0; i < row*col; ++i)  m[i] = (" + example.datatype + ")1.;\n}"
     //this is just a simple example that will put 1.1 in all fields
 
     //now we define how to call the function / where again we distinguish between cold and warm (since one is an array of inputs, the other one a single input)
@@ -302,49 +316,136 @@ object CodeGeneration {
     example.inline = true //which will result in the above thing not even being used (the kernel call) but rather using the variable below
 
 
+    //------------------------------------------------------------------------------------------------
+    // <--- This part is only relevant if you are interested on how we print the code we wanna run - in your case it might a be a single line calling your lib!
+
     //Those are utility function i use in this specific case to be able to generate all different versions of the inlined code i would like to try out
     def print_acc_vars(): String =
     {
       val list_of_strings = for (i <- 0 until nrAccumulator) yield
-        example.datatype +" AccumulatorADD"+i+ "= 0;" +
-        example.datatype +" AccumulatorMULT"+i+ "= 0;"
+        if (vectorized)
+        {
+          if (!double)
+            vectortype +" AccumulatorADD"+i+ "=  _mm_set_ps(0,0,0,0);\n" +
+            vectortype +" AccumulatorMULT"+i+ "=  _mm_set_ps(1.1,1.1,1.1,1.1);\n"
+          else
+            vectortype +" AccumulatorADD"+i+ "= _mm_set_pd(0,0);\n" +
+            vectortype +" AccumulatorMULT"+i+ "= _mm_set_pd(1.1,1.1);\n"
+        }
+        else
+        {
+          example.datatype +" AccumulatorADD"+i+ "= 0;\n" +
+          example.datatype +" AccumulatorMULT"+i+ "= 1.1;\n"
+        }
       list_of_strings.reduceLeft(_+_)
     }
 
     def print_acc_computation() : String =
     {
       val list_of_strings = for (i <- 0 until nrAccumulator) yield
-        "AccumulatorADD"+i+ "+= ptr[j+"+i+"];" +
-        "AccumulatorMULT"+i+ "+= ptr[j+"+i+"];"
+       if (vectorized)
+       {
+        if (double)
+        {
+          vectortype + " t"+ i + " = _mm_load_pd (&(ptr[j+"+i*2+"]));\n" +
+          "AccumulatorADD"+i+ "= _mm_add_pd(t"+i+",AccumulatorADD"+i+");\n" +
+          "AccumulatorMULT"+i+ "= _mm_mul_pd(t"+i+",AccumulatorMULT"+i+");\n"
+        }
+         else
+        {
+          vectortype + " t"+ i + " = _mm_load_ps (&(ptr[j+"+i*4+"]));\n" +
+          "AccumulatorADD"+i+ "= _mm_add_ps(t"+i+",AccumulatorADD"+i+");\n" +
+          "AccumulatorMULT"+i+ "= _mm_mul_ps(t"+i+",AccumulatorMULT"+i+");\n"
+        }
+
+       }
+      else
+       {
+        example.datatype + " t"+ i + " = ptr[j+"+i+"];\n" +
+        "AccumulatorADD"+i+ "+= t"+i+";\n" +
+        "AccumulatorMULT"+i+ "*= t"+i+";\n"
+       }
       list_of_strings.reduceLeft(_+_)
     }
 
     def print_acc_end_computation() : String =
     {
-      val list_of_strings = for (i <- 0 until nrAccumulator) yield
-        "sum =+ AccumulatorADD"+i+ ";" +
-        "sum =+ AccumulatorMULT"+i+ ";"
-      "sum = 0;\n"+list_of_strings.reduceLeft(_+_)
+      val list_of_strings =
+        if (vectorized)
+        {
+          if (double)
+          {
+          for (i <- 0 until nrAccumulator) yield
+            example.datatype + " storeA"+i+";" +
+            "_mm_store_sd (&storeA"+i+",AccumulatorADD"+i+ ");\n" +
+            example.datatype + " storeM"+i+";" +
+            "_mm_store_sd (&storeM"+i+",AccumulatorMULT"+i+ ");\n" +
+            "sum = sum + storeA"+i+ ";\n" +
+            "prod = prod + storeM"+i+ ";\n"
+          }
+          else
+          {
+            for (i <- 0 until nrAccumulator) yield
+                example.datatype + " storeA"+i+";" +
+                "_mm_store_ss (&storeA"+i+",AccumulatorADD"+i+ ");\n" +
+                example.datatype + " storeM"+i+";" +
+                "_mm_store_ss (&storeM"+i+",AccumulatorMULT"+i+ ");\n" +
+                "sum = sum + storeA"+i+ ";\n" +
+                "prod = prod + storeM"+i+ ";\n"
+
+          }
+        }
+        else{
+          for (i <- 0 until nrAccumulator) yield
+            "sum = sum + AccumulatorADD"+i+ ";\n" +
+            "prod = prod + AccumulatorMULT"+i+ ";\n"
+        }
+      "sum = 0;prod = 0;\n"+list_of_strings.reduceLeft(_+_)
     }
 
     def print_get_ptr() : String =
     {
+      val ptr_type = if (double) "double" else "float"
+
       if(warm)
-        example.datatype + " * ptr = buffer;"
+        ptr_type + " * ptr = buffer;"
       else
-        example.datatype + " * ptr = buffer_array[i%numberofshifts];"
+        ptr_type + " * ptr = buffer_array[i%numberofshifts];"
     }
 
     //This is the actual code that will be printed - note that i use j as loop index as i is already used for the loop in the number runs
     example.kernel_code =
       print_get_ptr() +
       print_acc_vars() +
-      "for (int j= 0; j< "+example.size + "-Accumulator; j = j + Accumulator)"+
-      "{ " + print_acc_computation() + "}" + print_acc_end_computation()
+        {
+          if (vectorized)
+          {
+            if (double)
+            //example.size is the size of vectors in this case
+            "for (int j= 0; j< "+example.size + "-Accumulator*2; j = j + Accumulator*2 )\n"
+            else
+              "for (int j= 0; j< "+example.size + "-Accumulator*4; j = j + Accumulator*4 )\n"
+          }
+          else
+          {
+            "for (int j= 0; j< "+example.size + "-Accumulator; j = j + Accumulator)\n"
+          }
+        } +
+      "{ \n" + print_acc_computation() + "}\n" + print_acc_end_computation()
+
+
+
 
 
     //Since our code is inlined the compiler will perform deadcode elimination on it!
-    example.avoid_DCE = "std::cout << sum;"
+    example.avoid_DCE = "total = total + prod + sum;\n"
+
+
+    //--------------------------------------------------------------------------------------------
+    // <--- End of specific Code part! (now it gets relevant again)
+    //-------------------------------------------------------------------------------------------------
+
+
 
     //------------------------------------------------------------------------------------------------------
     // Finding out how many runs a are required (i do this at this place since it uses some vars defined above)
@@ -361,10 +462,16 @@ object CodeGeneration {
 
     example.destroy_buffer_call = if (warm)
     {
-      "_mm_free(buffer);"
+      "_mm_free(buffer);" +
+        "std::cout <<  total << \"\\n\" << \"\\n\";" //this again is for DCE
     }
     else
-      "DestroyBuffers( (void **) buffer_array, numberofshifts);"
+    {
+      "DestroyBuffers( (void **) buffer_array, numberofshifts);" +
+        "std::cout << total << \"\\n\" << prod << \"\\n\";"
+    }
+
+
     example.destroy_buffer_function = example.destroy_array_of_buffers() //this defines the function used in the line above
     // again - if you need something more fancy just encode it
 
