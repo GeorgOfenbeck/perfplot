@@ -1,7 +1,44 @@
-Install
+====== MSR Module for Red Hat Linux Enterprise Linux =======
+
+Building and installation
+
+Requirements
 ------------------------------
-1. yum install kernel-devel
-2. make
-3. su
-4. make install
-5. modprobe perfplot
+The module depends on udev, g++ and the kernel sources
+
+Notes:
+------------------------------
+1. 	This module is initially designed for RHEL6. However it
+	is compatible with (almost) any Linux distribution
+2.	The make file creates a module named 'perfplot', which is
+	identical to the initial MSR driver. However, the MAJOR
+	number can no longer be 202 (the initial MSR MAJOR num),
+	since MSR driver can potentially be running, especially 
+	if MSR module is statically linked to the kernel.
+	Therefore the new module has a MAJOR number of 234. In 
+	case this MAJOR number is already taken by another device, 
+	it must be changed in perfplot.c. To check the used device
+	major numbers, just execute cat /proc/devices
+3.	When the module is started, it creates char devices in
+	/dev/cpu/%d/perfplot. There are no conflicts even if the 
+	initial MSR driver is running, and both can run 
+	simultaneously.
+4.	The module does not start automatically on boot. This can
+	be resolved by adding the module in /etc/modules.conf
+
+Automatic install
+------------------------------
+1. 	yum install kernel-devel
+2. 	make
+3. 	su
+4. 	make install
+5. 	modprobe perfplot
+
+
+PCM Binary Compilation
+------------------------------
+Since the path of the char devices to read the MSRs is changed
+to /dev/cpu/%d/perfplot, this must be adjusted in the PCM tool.
+To do so, just compile it with:
+
+make MSRDEVNAME=perfplot
