@@ -12,6 +12,8 @@ import scala.io._
 
 class GetBandwidth extends Suite{
 
+  //This uses MKL! (therefore icc)
+
   val seq = Config.flag_c99 + Config.flag_hw + Config.flag_optimization // + Config.flag_novec
 //   val parallel = Config.flag_c99 + Config.flag_hw + Config.flag_optimization
 
@@ -26,10 +28,14 @@ class GetBandwidth extends Suite{
 
     val sizes : List[Long] = List(128*1024*1024)
 
+  Config.use_cache = false
 
   def test_copy_loop() =
   {
     CommandService.run_kernel(folder,for (s <- sizes) yield CodeGeneration.blas_copy_MKL(s), "copy", seq + Config.flag_mkl_seq)
+    println("Results in " + folder)
+    println("At the moment we simply calculate the bandwidth by hand and enter it in the plot scripts :(")
+    println("Not that you can also do read/write only rooflines by using the according bandwidth and read counters.")
   }
 
   /*

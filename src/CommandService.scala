@@ -88,7 +88,26 @@ object CommandService {
     {
       mcread(i) + mcwrite(i)
     }
+    /*
+    def getFlops : List[Long] =
+    {
+      val adjusted_flops = for (i<- 0 until SCounter0.size) yield
+      {
+        val counters = List(SCounter0(i),SCounter1(i),SCounter2(i),SCounter3(i))
+        val appliedmask = (counters,kernel.mask).zipped.map(_*_)
+        //val flops = appliedmask.foldLeft(0)(_ + _)
+        val flops = appliedmask(0) + appliedmask(1) + appliedmask(2) + appliedmask(3)
+        flops
+      }
 
+
+    }  */
+
+    def getTSC() : Long = {
+      val (lower, upper) = avgTSCCounter.sortWith(_<_).splitAt(avgTSCCounter.size / 2)
+      upper.head
+      //if (avgTSCCounter.size % 2 == 0) (lower.last + upper.head) / 2.0 else upper.head
+    }
 
 
     def getTSC (i: Int) : Long =
@@ -175,7 +194,7 @@ object CommandService {
         "%12s".format("Scalar_S") +
         "%12s".format("SSE_S") +
         "%12s".format("AVX_S") +
-        //"%12s".format("x:") +
+        "%12s".format("x:") +
         "%12s".format("x")
         //"%12s".format("Perf")
       )
@@ -361,7 +380,9 @@ object CommandService {
   {
 
     val file = new File(path.getPath + File.separator +"flop_"+ name + ".txt")
-    if(!file.exists())
+    if(file.exists() && Config.use_cache)
+      println(name + " read from cached file")
+    else
     {
       val outputFile1 = new PrintStream(path.getPath + File.separator +"flop_"+ name + ".txt")
       val outputFile2 = new PrintStream(path.getPath + File.separator +"tsc_"+ name + ".txt")
@@ -371,10 +392,15 @@ object CommandService {
       val outputFile6 = new PrintStream(path.getPath + File.separator +"bytes_read_" + name + ".txt")
       val outputFile7 = new PrintStream(path.getPath + File.separator +"bytes_write_" + name + ".txt")
       var first1 = true
+
+      var useless_counter = 0
       for (kernel <- kernels)
       {
         val kernel_res = CommandService.fromScratch(name, kernel, flags)
-        kernel_res.prettyprint()
+        //kernel_res.prettyprint() //removed since this will just confuse people
+        println("running " + kernel.id + ": " + useless_counter + " of " + kernels.size)
+        useless_counter = useless_counter + 1
+
         var first = true
         for (i <- 0 until Config.repeats)
         {
@@ -422,8 +448,8 @@ object CommandService {
       outputFile6.close()
       outputFile7.close()
     }
-    else
-      println(name + " read from cached file")
+
+
   }
 
 
@@ -574,27 +600,12 @@ object CommandService {
     val kernelFile = new File(codeFile + "_kernel.cpp")
     val kernelFileName = if (kernelFile.exists()) kernelFile.getAbsolutePath else ""
 
-    val compiler: File = if ( Config.isWin) {
-      if (Config.use_gcc)
-        Config.win_gcc
-      else
-        Config.win_icc
-    }
-    else
-      Config.win_gcc //asuming its linux - we use hardcoded gcc/icc
 
-    if (Config.use_gcc)
-    {
-      if (Config.isWin)
-      {
-        //TODO
-      }
-      else
-      {
-        //TODO
-      }
-    }
-    else
+    val compiler = if (Config.use_gcc) "g++ " else "icc "
+
+    if (Config.use_gcc && Config.isWin) assert(false, "not supported")
+
+
     if( Config.isWin )
     {
       //GO: This is a dirty hack to get the ICC running on the command line on windows
@@ -609,15 +620,15 @@ object CommandService {
       cmdbat.println("echo \"compiling !\"")
 
       //cmdbat.println("\"" + compiler.getAbsolutePath +"\" " + codeFile +".cpp -o "  + codeFile +".exe " + flags + " /link " + Config.MeasuringCore.getAbsolutePath +  " /DYNAMICBASE \"kernel32.lib\" \"user32.lib\" \"gdi32.lib\" \"winspool.lib\" \"comdlg32.lib\" \"advapi32.lib\" \"shell32.lib\" \"ole32.lib\" \"oleaut32.lib\" \"uuid.lib\" \"odbc32.lib\" \"odbccp32.lib\" ")
-      cmdbat.println("\"" + compiler.getAbsolutePath +"\" " + codeFile + "*.cpp -o "  + codeFile +".exe " + flags + " /link " + Config.MeasuringCore.getAbsolutePath +  " /DYNAMICBASE \"kernel32.lib\" \"user32.lib\" \"gdi32.lib\" \"winspool.lib\" \"comdlg32.lib\" \"advapi32.lib\" \"shell32.lib\" \"ole32.lib\" \"oleaut32.lib\" \"uuid.lib\" \"odbc32.lib\" \"odbccp32.lib\" ")
+      cmdbat.println("\"" + Config.win_icc.getAbsolutePath +"\" " + codeFile + "*.cpp -o "  + codeFile +".exe " + flags + " /link " + Config.MeasuringCore.getAbsolutePath +  " /DYNAMICBASE \"kernel32.lib\" \"user32.lib\" \"gdi32.lib\" \"winspool.lib\" \"comdlg32.lib\" \"advapi32.lib\" \"shell32.lib\" \"ole32.lib\" \"oleaut32.lib\" \"uuid.lib\" \"odbc32.lib\" \"odbccp32.lib\" ")
       cmdbat.println("echo \"finished1\"")
       cmdbat.close()
       execute(" \"C:\\Program Files (x86)\\Intel\\Composer XE 2013\\bin\\compilervars.bat\" intel64 vs2012shell")
     }
     else if (Config.isMac)
-      execute("icc " + codeFile + ".cpp " + kernelFileName + " " + Config.MeasuringCore.getAbsolutePath + " " + flags + " -lpthread -lPcmMsr -o "+ codeFile + ".x")
+      execute(compiler +  codeFile + ".cpp " + kernelFileName + " " + Config.MeasuringCore.getAbsolutePath + " " + flags + " -lpthread -lPcmMsr -o "+ codeFile + ".x")
     else
-      execute("icc " + codeFile +".cpp " + kernelFileName + " " + Config.MeasuringCore.getAbsolutePath + flags + "  -lpthread -lrt -o "+ codeFile + ".x")
+      execute(compiler + codeFile +".cpp " + kernelFileName + " " + Config.MeasuringCore.getAbsolutePath + flags + "  -lpthread -lrt -o "+ codeFile + ".x")
     //execute(compiler.getAbsolutePath + " -std=c99 -mkl -fasm-blocks " + codeFile +".cpp " + " pcm/MeasuringCore.lib -lpthread -lrt -o "+ codeFile + ".x")
   }
 
