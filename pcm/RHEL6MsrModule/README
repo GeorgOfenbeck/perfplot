@@ -1,1 +1,7 @@
+Install
+------------------------------
 1. yum install kernel-devel
+2. make
+3. su
+4. make install
+5. modprobe perfplot
