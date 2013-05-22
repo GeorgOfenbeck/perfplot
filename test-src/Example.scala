@@ -44,7 +44,7 @@ class Example extends Suite{
   {
     for (acc <- Accumulators)
     {
-      CommandService.run_kernel(folder,for (s <- sizes) yield CodeGeneration.Example(true,true,acc,s*1024,true).setFlopCounter(counters.flops_double), "Accumulators-double-warm"+acc, flags)
+      CommandService.run_kernel(folder,for (s <- sizes) yield CodeGeneration.Example(true,true,acc,s*1024,false).setFlopCounter(counters.flops_double), "Accumulators-double-warm"+acc, flags)
       CommandService.run_kernel(folder,for (s <- sizes) yield CodeGeneration.Example(true,false,acc,s*1024,false).setFlopCounter(counters.flops_double), "Accumulators-double-cold"+acc, flags)
 
       //Note that by default we measure double prec. -> to switch to single you need to write code like below!

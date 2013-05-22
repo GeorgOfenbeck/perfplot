@@ -206,6 +206,25 @@ case class CodeGeneration{
 object CodeGeneration {
 
 
+
+  def Stefan(version : Int) : CodeGeneration = 
+  {
+    val stefan = new CodeGeneration
+
+    stefan.id = "Stefan" + version
+    stefan.includes = "void jacobi_init(unsigned int);void jacobi_kernel(int);void clean_up();"
+    stefan.initcode = ""
+    //stefan.init_function = "jacobi_init() //we have that
+    stefan.init_call = "jacobi_init(" + version + " );" 
+    stefan.kernel_call = "jacobi_kernel(0 );"
+    stefan.destroy_buffer_call = "clean_up();" ;  
+    
+    stefan.nrRuns = stefan.tuneNrRunsbyRunTime() //we use the default logic on how to determine correct number of runs
+    stefan.determineSize_call = ""
+    
+    stefan
+  }
+
   /**This is the function you need to replicate for your specific code you want to time.
    * The goal of this function is to generate a .cpp file that will contain a small measurement setup which will call and time your function
    * Modify each variable as it is required to run your code. If in doubt look at the print function which is ~two pages up
