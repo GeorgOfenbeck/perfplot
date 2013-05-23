@@ -25,6 +25,13 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include "msr.h"
 #include <assert.h>
 
+#define DO_QUOTE(X)       #X
+#define QUOTE(X)          DO_QUOTE(X)
+
+#ifndef MSRDEVNAME
+#define MSRDEVNAME msr
+#endif
+
 #ifdef _MSC_VER
 
 #include <windows.h>
@@ -233,11 +240,11 @@ int32 MsrHandle::read(uint64 msr_number, uint64 * value)
 MsrHandle::MsrHandle(uint32 cpu) : fd(-1), cpu_id(cpu)
 {
     char * path = new char[200];
-    sprintf(path, "/dev/cpu/%d/msr", cpu);
+    sprintf(path, "/dev/cpu/%d/%s", cpu, QUOTE(MSRDEVNAME));
     int handle = ::open(path, O_RDWR);
     if(handle < 0)
     { // try Android msr device path
-      sprintf(path, "/dev/msr%d", cpu);
+      sprintf(path, "/dev/%s%d", QUOTE(MSRDEVNAME), cpu);
       handle = ::open(path, O_RDWR);
     }
     delete[] path;

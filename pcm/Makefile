@@ -7,6 +7,7 @@ all: pcm-power.x pcm.x pcm-sensor.x pcm-msr.x pcm-memory.x MeasuringCore.lib
 
 CC=g++ -Wall
 OPT= -g -O3 
+MSRDEVNAME=msr
 
 # uncomment if you want to rely on Linux perf support (user needs CAP_SYS_ADMIN privileges)
 ifneq ($(wildcard /usr/include/linux/perf_event.h),)
@@ -27,7 +28,7 @@ endif
 
 
 msr.o: msr.h msr.cpp 
-	$(CC) $(OPT) -c msr.cpp
+	$(CC) $(OPT) -DMSRDEVNAME=$(MSRDEVNAME) -c msr.cpp
 
 pci.o: pci.h pci.cpp
 	$(CC) $(OPT) -c pci.cpp
