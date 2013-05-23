@@ -282,21 +282,21 @@ object JakeTown {
 
 
   val flops_single = (Array(
-    Counter("10H","01H","FP_COMP_OPS_EXE.X87","Counts number of X87 uops executed.",""),
     Counter("10H","20H","FP_COMP_OPS_EXE.SSE_FP_SCALAR_SINGLE","Counts number of SSE* single precision FP scalar uops executed.",""),
     Counter("10H","40H","FP_COMP_OPS_EXE.SSE_PACKED_SINGLE","Counts number of SSE* single precision FP packed uops executed.",""),
-    Counter("11H","01H","SIMD_FP_256.PACKED_SINGLE","Counts 256-bit packed single-precision floating- point instructions.","")
+    Counter("11H","01H","SIMD_FP_256.PACKED_SINGLE","Counts 256-bit packed single-precision floating- point instructions.",""),
+    Counter("10H","01H","FP_COMP_OPS_EXE.X87","Counts number of X87 uops executed.","")
   ),
-    List(0,1,4,8)) //this is the multiplication mask for calculating flops
+    List(1,4,8,0)) //this is the multiplication mask for calculating flops
 
 
   val flops_double = (Array(
-    Counter("10H","01H","FP_COMP_OPS_EXE.X87","Counts number of X87 uops executed.",""),
     Counter("10H","80H","FP_COMP_OPS_EXE.SSE_SCALAR_DOUBLE","Counts number of SSE* double precision FP scalar uops executed.",""),
     Counter("10H","10H","FP_COMP_OPS_EXE.SSE_FP_PACKED_DOUBLE","Counts number of SSE* double precision FP packed uops executed.",""),
-    Counter("11H","02H","SIMD_FP_256.PACKED_DOUBLE","Counts 256-bit packed double-precision floating- point instructions.","")
+    Counter("11H","02H","SIMD_FP_256.PACKED_DOUBLE","Counts 256-bit packed double-precision floating- point instructions.",""),
+    Counter("10H","01H","FP_COMP_OPS_EXE.X87","Counts number of X87 uops executed.","")
   ),
-    List(0,1,2,4)) //this is the multiplication mask for calculating flops
+    List(1,2,4,0)) //this is the multiplication mask for calculating flops
 
 }
 
@@ -304,20 +304,20 @@ object JakeTown {
 object Westmere {
     //GO: Note that we cannot do mixed measurements with single and double precision with these counters!
     val flops_double = (Array(
-    Counter("10H","10H","FP_COMP_OPS_EXE.SSE_FP_PACKED","Counts number of SSE FP packed uops executed.",""),
     Counter("10H","20H","FP_COMP_OPS_EXE.SSE_FP_SCALAR","Counts number of SSE FP scalar uops executed.",""),
+    Counter("10H","10H","FP_COMP_OPS_EXE.SSE_FP_PACKED","Counts number of SSE FP packed uops executed.",""),
     Counter("10H","40H","FP_COMP_OPS_EXE.SSE_SINGLE_PRECISION","Counts number of SSE* FP single precision uops executed.",""),
     Counter("10H","80H","FP_COMP_OPS_EXE.SSE_DOUBLE_PRECISION","Counts number of SSE* FP double precision uops executed.","")
   ),
-    List(2,1,0,0)) //this is the multiplication mask for calculating flops
+    List(1,2,0,0)) //this is the multiplication mask for calculating flops
 
   val flops_single = (Array(
-    Counter("10H","10H","FP_COMP_OPS_EXE.SSE_FP_PACKED","Counts number of SSE FP packed uops executed.",""),
     Counter("10H","20H","FP_COMP_OPS_EXE.SSE_FP_SCALAR","Counts number of SSE FP scalar uops executed.",""),
+    Counter("10H","10H","FP_COMP_OPS_EXE.SSE_FP_PACKED","Counts number of SSE FP packed uops executed.",""),
     Counter("10H","40H","FP_COMP_OPS_EXE.SSE_SINGLE_PRECISION","Counts number of SSE* FP single precision uops executed.",""),
     Counter("10H","80H","FP_COMP_OPS_EXE.SSE_DOUBLE_PRECISION","Counts number of SSE* FP double precision uops executed.","")
   ),
-    List(4,1,0,0)) //this is the multiplication mask for calculating flops
+    List(1,4,0,0)) //this is the multiplication mask for calculating flops
 
 }
 

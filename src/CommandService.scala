@@ -88,6 +88,7 @@ object CommandService {
     {
       mcread(i) + mcwrite(i)
     }
+
     /*
     def getFlops : List[Long] =
     {
@@ -99,8 +100,6 @@ object CommandService {
         val flops = appliedmask(0) + appliedmask(1) + appliedmask(2) + appliedmask(3)
         flops
       }
-
-
     }  */
 
     def getTSC() : Long = {
@@ -114,6 +113,33 @@ object CommandService {
     {
       avgTSCCounter(i)
     }
+
+
+    def getFlops(kernel : CodeGeneration): List[Long] =
+    {
+      val ll = for (i<- 0 until SCounter0.size) yield
+      {
+        val counters = List(SCounter0(i),SCounter1(i),SCounter2(i),SCounter3(i))
+        val appliedmask = (counters,kernel.mask).zipped.map(_*_)
+        //val flops = appliedmask.foldLeft(0)(_ + _)
+        //val flops = appliedmask(0) + appliedmask(1) + appliedmask(2) + appliedmask(3)
+        appliedmask.toList
+      }
+
+      val lt = ll.toList.transpose
+      
+      val scalar = lt(0)
+      val sse = lt(1)
+      val avx = lt(2)
+      
+      val median_scalar = scalar.sortWith(_<_).splitAt(scalar.size / 2)._2.head
+      val median_sse = sse.sortWith(_<_).splitAt(sse.size / 2)._2.head
+      val median_avx = avx.sortWith(_<_).splitAt(avx.size / 2)._2.head
+
+      List(median_scalar,median_sse,median_avx)
+    }
+
+
 
     def getFlops (i: Int) : Long =
     {
