@@ -1,3 +1,20 @@
+-----------------------------------------------------------------------
+ Background
+-----------------------------------------------------------------------
+[Background information and paper for this software](http://spiral.net/software/roofline.html)
+
+-----------------------------------------------------------------------
+ Reference for Citing
+-----------------------------------------------------------------------
+
+Georg Ofenbeck, Ruedi Steinmann, Victoria Caparros, Daniele G. Spampinato and Markus Püschel 
+Applying the Roofline Model 
+Proc. IEEE International Symposium on Performance Analysis of Systems and Software (ISPASS), 2014
+
+-----------------------------------------------------------------------
+ About the Software
+-----------------------------------------------------------------------
+
 Perfplot is a collection of scripts and tools that allow a user to instrument performance counters on a recent Intel platform, measure them and use the results to generate roofline and performance plots.
 
 The code is divided into three parts:
@@ -198,31 +215,3 @@ At the end of the installation process, you should have the following directorie
 PATH_TO_VIRTUALENV/virtualenv/2.7.3/lib/python2.7/site-packages/scipy/
 PATH_TO_VIRTUALENV/virtualenv/2.7.3/lib/python2.7/site-packages/numpy/
 PATH_TO_VIRTUALENV/virtualenv/2.7.3/lib/python2.7/site-packages/matplotlib/
-
-
-----------------------------------------------------------------------------------------------------------------------------------------------
-   Fixing access to MSR, if access only works as root even after permission changes
------------------------------------------------------------------------ -----------------------------------------------------------------------
-(Original mail by Alen who fixed it)
-
-Hey guys,
-
-After a bit of hacking (like the whole day), I think I managed to get MSR working in userspace on Linux. I inspected the code of the MSR kernel module, and the problem with this driver is that upon executing syscall open, it checks whether the user is root or not. Thus, having that code, there is no workaround (like chmod or chown) except for running perfplot as root. Therefore I decided to make small adjustments in the MSR kernel module to suit our needs.
-
-I included LinuxMSRModule folder in there. It has a Makefile that does the whole thing for you. In order to get it running you need to compile it first.
-
-1. Install Linux headers (you need this for kernel modules)
-sudo apt-get install linux-headers-$(uname -r)
-
-2. In case you already have running MSR module, make sure that it is not running
-sudo rmmod msr
-
-3. Navigate to perftool/pcm/LinuxMSRModule and execute (do not do sudo make install - it is slightly different)
-sudo su
-make
-make install
-
-4. By now, the new MSR kernel module should get compiled, then the previous version of the msr will be deleted and replaced with the new one, and udev rules will be setup to make sure that the module in /dev/cpu/%/msr has RW access for all users on the computer. Finally, the only thing left is to load the module back to the kernel:
-modprobe msr
-
-Done. Now you no longer have to perform the tests as root. Note that this change has nothing to do with the PCM version, and will work regardless. 
