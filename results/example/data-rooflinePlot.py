@@ -36,19 +36,21 @@ matplotlib.rc('ytick.minor',size =0 )
 #matplotlib.rc('font', family='serif')
 
 def addPerfLine(peakPerf, label):
-	#Peak performance line and text
-	ax.axhline(y=peakPerf, linewidth=0.75, color='black')
-	#ax.text(X_MAX/10.0, PEAK_PERF+(PEAK_PERF)/10, "Peak Performance ("+str(PEAK_PERF)+" F/C)", fontsize=8)
-	yCoordinateTransformed = (log(peakPerf)-log(Y_MIN))/(log(Y_MAX/Y_MIN))
-	ax.text(0.76,yCoordinateTransformed+0.01, label+" ("+str(peakPerf)+" F/C)", fontsize=8, transform=ax.transAxes)
+    #Peak performance line and text
+    ax.axhline(y=peakPerf, linewidth=0.75, color='black')
+    #ax.text(X_MAX/10.0, PEAK_PERF+(PEAK_PERF)/10, "Peak Performance ("+str(PEAK_PERF)+" F/C)", fontsize=8)
+    label_string = label+" ("+str(peakPerf)+" F/C)"
+    yCoordinateTransformed = (log(peakPerf)-log(Y_MIN))/(log(Y_MAX/Y_MIN))
+    ax.text(1 - len(label_string) / 120. - 0.01,yCoordinateTransformed+0.01, label_string, fontsize=8, transform=ax.transAxes)
 
 
 def addBWLine(BW, label):
-	x = np.linspace(X_MIN, X_MAX, X_MAX)
-	y = x*BW
-	ax.plot(x, y, linewidth=0.75, color='black')
-	yCoordinateTransformed = (log(X_MIN*BW)-log(Y_MIN))/(log(Y_MAX/Y_MIN))+0.16 #0.16 is the offset of the lower axis
-	ax.text(0.01,yCoordinateTransformed+0.05+0.0075*(len(str(BW))-1), label+' ('+str(BW)+' B/C)',fontsize=8, rotation=45, transform=ax.transAxes)
+    x = np.linspace(X_MIN, X_MAX, 10)
+    y = x*BW
+    ax.plot(x, y, linewidth=0.75, color='black')
+    yCoordinateTransformed = (log(X_MIN*BW)-log(Y_MIN))/(log(Y_MAX/Y_MIN))+0.16 #0.16 is the offset of the lower axis
+    ax.text(X_MIN*1.1,(X_MIN*1.1*BW)*1.1, label+' ('+str(BW)+' B/C)',fontsize=8, rotation=np.arctan(INVERSE_GOLDEN_RATIO * AXIS_ASPECT_RATIO) * 180 / np.pi, verticalalignment = 'bottom')
+    #~ ax.text(0.01,yCoordinateTransformed+0.05+0.0075*(len(str(BW))-1), label+' ('+str(BW)+' B/C)',fontsize=8, rotation=45, transform=ax.transAxes)
 
 
 X_MIN=0.01
@@ -112,7 +114,7 @@ for i in range(minloc,maxloc):
     newlocs.append(10**i)
     # Do not plot the first label, it is ugly in the corner
     if i==minloc:
-		newlabels.append('')
+        newlabels.append('')
     elif i==maxloc-1: #Do not plot the last label either
         newlabels.append('')
     elif 10**i <= 100:
@@ -127,13 +129,13 @@ maxloc =int(log10(Y_MAX) +1)
 newlocs = []
 newlabels = []
 for i in range(minloc,maxloc):
-	newlocs.append(10**i)
-	if i==minloc:
-		newlabels.append('')
-	elif 10**i <= 100:
-		newlabels.append(str(10**i))
-	else:
-		newlabels.append(r'$10^ %d$' %i)
+    newlocs.append(10**i)
+    if i==minloc:
+        newlabels.append('')
+    elif 10**i <= 100:
+        newlabels.append(str(10**i))
+    else:
+        newlabels.append(r'$10^ %d$' %i)
 yticks(newlocs, newlabels)
 
 # Load the data 
@@ -141,97 +143,97 @@ yticks(newlocs, newlabels)
 pp = []
 ss=[]
 for serie,i in zip(series,range(len(series))):
-	nCycles = []
-    	file_in = open('tsc_'+serie+'.txt','r')
-    	lines = file_in.readlines()
-    	for line in lines:
-        	split_line = line.rstrip('\n').split(' ')
-        	nCycles.append(split_line)
+    nCycles = []
+    file_in = open('tsc_'+serie+'.txt','r')
+    lines = file_in.readlines()
+    for line in lines:
+        split_line = line.rstrip('\n').split(' ')
+        nCycles.append(split_line)
 
-    	file_in.close()
+    file_in.close()
 
-	nFLOPS = []
-    	file_in = open('flop_'+serie+'.txt','r')
-    	lines = file_in.readlines()
-    	for line in lines:
-            	split_line = line.rstrip('\n').split(' ')
-            	nFLOPS.append(split_line)
+    nFLOPS = []
+    file_in = open('flop_'+serie+'.txt','r')
+    lines = file_in.readlines()
+    for line in lines:
+            split_line = line.rstrip('\n').split(' ')
+            nFLOPS.append(split_line)
 
-    	file_in.close()
-	
-	bytesTransferred = []
-        file_in = open('bytes_transferred_'+serie+'.txt','r')
-        lines = file_in.readlines()
-        for line in lines:
-                split_line = line.rstrip('\n').split(' ')
-                bytesTransferred.append(split_line)
+    file_in.close()
+    
+    bytesTransferred = []
+    file_in = open('bytes_transferred_'+serie+'.txt','r')
+    lines = file_in.readlines()
+    for line in lines:
+            split_line = line.rstrip('\n').split(' ')
+            bytesTransferred.append(split_line)
 
-        file_in.close()
+    file_in.close()
 
-    	yData =[]
-    	for f,c in zip(nFLOPS,nCycles):
-        	yData.append([float(vf)/float(vc) for vf, vc in zip(f,c) if vf != '' and vc != ''])
+    yData =[]
+    for f,c in zip(nFLOPS,nCycles):
+        yData.append([float(vf)/float(vc) for vf, vc in zip(f,c) if vf != '' and vc != ''])
 
-	xData =[]
-    	for f,b in zip(nFLOPS,bytesTransferred):
-			xDataTmp = []
-			for vf, vb in zip(f,b):
-				if vf != '' and vb != '' and float(vb)!= 0:
-					xDataTmp.append(float(vf)/float(vb))	
-				if float(vb)== 0:
-					xDataTmp.append(float(vf)/X_MAX)
-			xData.append(xDataTmp)
+    xData =[]
+    for f,b in zip(nFLOPS,bytesTransferred):
+        xDataTmp = []
+        for vf, vb in zip(f,b):
+            if vf != '' and vb != '' and float(vb)!= 0:
+                xDataTmp.append(float(vf)/float(vb))    
+            if float(vb)== 0:
+                xDataTmp.append(float(vf)/X_MAX)
+        xData.append(xDataTmp)
 
-	x=[]
-	xerr_low=[]
-	xerr_high = []
-	yerr_high = []
-	y = []
-	yerr_low = []
+    x=[]
+    xerr_low=[]
+    xerr_high = []
+    yerr_high = []
+    y = []
+    yerr_low = []
 
-	for xDataItem in xData:
-		x.append(stats.scoreatpercentile(xDataItem, 50))
-		xerr_low.append(stats.scoreatpercentile(xDataItem, 25))
-		xerr_high.append(stats.scoreatpercentile(xDataItem, 75))	
-	
-	for yDataItem in yData:
-		y.append(stats.scoreatpercentile(yDataItem, 50))
-		yerr_low.append(stats.scoreatpercentile(yDataItem, 25))
-		yerr_high.append(stats.scoreatpercentile(yDataItem, 75)) 
+    for xDataItem in xData:
+        x.append(stats.scoreatpercentile(xDataItem, 50))
+        xerr_low.append(stats.scoreatpercentile(xDataItem, 25))
+        xerr_high.append(stats.scoreatpercentile(xDataItem, 75))    
+    
+    for yDataItem in yData:
+        y.append(stats.scoreatpercentile(yDataItem, 50))
+        yerr_low.append(stats.scoreatpercentile(yDataItem, 25))
+        yerr_high.append(stats.scoreatpercentile(yDataItem, 75)) 
 
-	xerr_low = [a - b for a, b in zip(x, xerr_low)] 
-	xerr_high = [a - b for a, b in zip(xerr_high, x)]
-	yerr_low = [a - b for a, b in zip(y, yerr_low)]
-	yerr_high = [a - b for a, b in zip(yerr_high, y)]
+    xerr_low = [a - b for a, b in zip(x, xerr_low)] 
+    xerr_high = [a - b for a, b in zip(xerr_high, x)]
+    yerr_low = [a - b for a, b in zip(y, yerr_low)]
+    yerr_high = [a - b for a, b in zip(yerr_high, y)]
 
-	#print x
-	#print xerr_low
-	#print xerr_high
-	#print y
-	#print yerr_low
-	#print yerr_high
+    #print x
+    #print xerr_low
+    #print xerr_high
+    #print y
+    #print yerr_low
+    #print yerr_high
 
-	p, =ax.plot(x, y, '-', color=colors[i],label=serie)
-	pp.append(p)
-	ss.append(serie);
-	ax.errorbar(x, y, yerr=[yerr_low, yerr_high], xerr=[xerr_low, xerr_high], fmt='b.',elinewidth=0.4, ecolor = 'Black', capsize=0, color=colors[i])  
+    p, =ax.plot(x, y, '-', color=colors[i],label=serie)
+    pp.append(p)
+    ss.append(serie);
+    ax.errorbar(x, y, yerr=[yerr_low, yerr_high], xerr=[xerr_low, xerr_high], fmt='b.',elinewidth=0.4, ecolor = 'Black', capsize=0, color=colors[i])  
 
-	# Read sizes	
-	sizes = []
-	file_in = open('size_'+serie+'.txt','r')
-	lines = file_in.readlines()
-	for line in lines:
-		split_line = line.rstrip('\n').split(' ')
-		sizes.append(split_line)
+    # Read sizes    
+    sizes = []
+    file_in = open('size_'+serie+'.txt','r')
+    lines = file_in.readlines()
+    for line in lines:
+        split_line = line.rstrip('\n').split(' ')
+        sizes.append(split_line)
 
-	file_in.close()
+    file_in.close()
 
-	if ANNOTATE_POINTS:
-		ax.annotate(sizes[0][0],
+    if ANNOTATE_POINTS:
+        ax.annotate(sizes[0][0],
         xy=(x[0], y[0]), xycoords='data',
         xytext=(+3, +1), textcoords='offset points', fontsize=8)
 
-		ax.annotate(sizes[0][len(sizes[0])-1],
+        ax.annotate(sizes[0][len(sizes[0])-1],
         xy=(x[len(x)-1],y[len(y)-1]), xycoords='data',
         xytext=(+3, +1), textcoords='offset points', fontsize=8)
 
@@ -245,7 +247,7 @@ ax.legend(pp,ss, numpoints=1, loc='best',fontsize =6).get_frame().set_visible(Fa
 
 #Peak performance line and text
 for p,l in zip(PEAK_PERF, PEAK_PERF_LABELS):
-	addPerfLine(p,l)
+    addPerfLine(p,l)
 
 #ax.axhline(y=PEAK_PERF, linewidth=0.75, color='black')
 #yCoordinateTransformed = (log(PEAK_PERF)-log(Y_MIN))/(log(Y_MAX/Y_MIN))
@@ -253,7 +255,7 @@ for p,l in zip(PEAK_PERF, PEAK_PERF_LABELS):
 
 #BW line and text
 for bw,l in zip(PEAK_BW, PEAK_BW_LABELS):
-	addBWLine(bw,l)
+    addBWLine(bw,l)
 #x = np.linspace(X_MIN, X_MAX, X_MAX)
 #y = x*PEAK_BW 
 #ax.plot(x, y, linewidth=0.75, color='black')
